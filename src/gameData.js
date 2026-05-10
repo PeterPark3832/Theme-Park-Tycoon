@@ -231,6 +231,12 @@ export const SCENARIOS = [
     {id:"gold",medal:"🥇",desc:{ko:"5성 + 순이익 $5,000 + 만족도 80%",en:"5 stars + $5,000 profit + 80% happiness"},check:s=>s.pres>=5&&s.net>=5000&&s.sat>=80}]},
 ];
 
+export const SCENARIO_DIFFICULTY = {
+  easy:   { moneyMult:1.5,  timeMult:1.3,  emoji:"🟢", color:"#00E5A0", diffKey:"easy",   label:{ko:"쉬움",   en:"Easy"},   desc:{ko:"자금 +50%, 시간 +30%, 재난 희귀",     en:"+50% funds, +30% time, rare disasters"} },
+  medium: { moneyMult:1.0,  timeMult:1.0,  emoji:"🟡", color:"#FECA57", diffKey:"normal", label:{ko:"보통",   en:"Medium"}, desc:{ko:"기본 설정, 균형잡힌 경영",           en:"Standard settings, balanced play"} },
+  hard:   { moneyMult:0.65, timeMult:0.78, emoji:"🔴", color:"#FF5757", diffKey:"hard",   label:{ko:"어려움", en:"Hard"},   desc:{ko:"자금 -35%, 시간 -22%, 재난 빈번",   en:"-35% funds, -22% time, frequent disasters"} },
+};
+
 export const DIFFICULTY_SETTINGS = {easy:{emoji:"🟢",startMoney:70000,disasterMult:0.4,maintenanceMult:0.8},normal:{emoji:"🟡",startMoney:55000,disasterMult:1.0,maintenanceMult:1.0},hard:{emoji:"🔴",startMoney:30000,disasterMult:2.0,maintenanceMult:1.3},extreme:{emoji:"💀",startMoney:10000,disasterMult:3.0,maintenanceMult:1.6}};
 
 export const STAGES = [

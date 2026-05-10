@@ -7,7 +7,7 @@ import {
   CAMPAIGNS_DATA, VIP_EVENTS, RB_BRANCHES, RESEARCH, MISSIONS, DISASTERS,
   WEATHERS, WEATHER_WEIGHTS, DEFAULT_RIDE_PRICES, DEFAULT_SHOP_MULTS, MAX_FEE_BY_STARS,
   LANG_FLAGS, TR, SCENARIOS, DIFFICULTY_SETTINGS, STAGES, B,
-  STAFF, STAFF_UPGRADES, RIVAL_PARKS, FRANCHISES, ZONE_MASTERY, LOAN_OPTS, DOTS, TUTORIAL_STEPS, DAILY_CHALLENGES, SCENARIO_CLEAR_REWARDS,
+  STAFF, STAFF_UPGRADES, RIVAL_PARKS, FRANCHISES, ZONE_MASTERY, LOAN_OPTS, DOTS, TUTORIAL_STEPS, DAILY_CHALLENGES, SCENARIO_CLEAR_REWARDS, SCENARIO_DIFFICULTY,
 } from './gameData.js';
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
 import {
@@ -21,6 +21,8 @@ export default function ParkTycoon(){
   const [screen,setScreen]=useState("menu");
   const [gameMode,setGameMode]=useState(null);
   const [currentScenario,setCurrentScenario]=useState(null);
+  const [pendingScenarioId,setPendingScenarioId]=useState(null); // 난이도 선택 대기 중인 시나리오
+  const [scenarioTimeLimit,setScenarioTimeLimit]=useState(0); // 난이도 적용 후 실제 제한 시간
   const [difficulty,setDifficulty]=useState("normal");
   const [tutorialStep,setTutorialStep]=useState(0);
   const [saveSlots,setSaveSlots]=useState(loadSaveSlots);
@@ -122,19 +124,19 @@ export default function ParkTycoon(){
 
   const ref=useRef();
   const diffSettings=DIFFICULTY_SETTINGS[difficulty]||DIFFICULTY_SETTINGS.normal;
-  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,soundOn,ftueGoalDone};
+  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,soundOn,ftueGoalDone,scenarioTimeLimit};
 
   const season=SEASONS[Math.floor(((day-1)%120)/SL)];
   const rb=getRB(researched);
   const addLog=msg=>setLogs(p=>[msg,...p.slice(0,9)]);
 
   const getFullState=useCallback(()=>({
-    grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,
+    grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,scenarioTimeLimit,
     staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,
     activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,
     activeDailyChallenge,dailyChallengeHistory,
     meta:{day,money,stars:calcParkRating(grid,zoneGrid,calcStats(grid,zoneGrid,hired,rb),sat,clean).stars,mode:gameMode,scenario:currentScenario,savedAt:Date.now()},
-  }),[grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,rb,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,activeDailyChallenge,dailyChallengeHistory]);
+  }),[grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,scenarioTimeLimit,rb,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,activeDailyChallenge,dailyChallengeHistory]);
 
   const saveToSlot=useCallback((slotIdx)=>{
     const state=getFullState();
@@ -198,6 +200,7 @@ export default function ParkTycoon(){
     setGameMode(slotData.gameMode||"challenge");
     setCurrentScenario(slotData.currentScenario||null);
     setDifficulty(slotData.difficulty||"normal");
+    setScenarioTimeLimit(slotData.scenarioTimeLimit||0);
     setStaffLevels(slotData.staffLevels||{janitor:1,mechanic:1,security:1,entertainer:1});
     setRivals(slotData.rivals||[]);
     setPressReviews(slotData.pressReviews||[]);
@@ -220,6 +223,7 @@ export default function ParkTycoon(){
 
   const startGame=useCallback((mode,scenarioId,diff)=>{
     const diffConf=DIFFICULTY_SETTINGS[diff||"normal"];
+    if(mode!=="campaign") setScenarioTimeLimit(0);
     let startMoney=diffConf.startMoney;
     let startRes=[];
     let startGrid=mkGrid();
@@ -231,7 +235,10 @@ export default function ParkTycoon(){
       startOwned=Array(GR).fill(null).map(()=>Array(GC).fill(true));
     } else if(mode==="campaign"&&scenarioId){
       const sc=SCENARIOS.find(s=>s.id===scenarioId);
-      startMoney=sc.startMoney;
+      const sdiff=SCENARIO_DIFFICULTY[diff]||SCENARIO_DIFFICULTY.medium;
+      startMoney=Math.floor(sc.startMoney*sdiff.moneyMult);
+      const effTimeLimit=sc.timeLimit?Math.floor(sc.timeLimit*sdiff.timeMult):0;
+      setScenarioTimeLimit(effTimeLimit);
       sc.preBuilt.forEach(b=>{startGrid[b.r][b.c]={type:b.type,level:b.level,broken:b.broken};});
       if(sc.gridRestrict) startOwned=mkOwned(sc.gridRestrict);
     }
@@ -515,7 +522,7 @@ export default function ParkTycoon(){
               addLog(`🏆 ${reward.bonus[lang]||reward.bonus.ko}`);
               setCompletedMissions(prev=>[...prev,rewardKey]);
             }
-          } else if(scenario.timeLimit&&day+1>=scenario.timeLimit){
+          } else if(ref.current.scenarioTimeLimit>0&&day+1>=ref.current.scenarioTimeLimit){
             setScenarioResult({medal:null,scenario:cs,day:day+1});
             setSpeed(0);
             addLog(t("log.timeout"));
@@ -1045,7 +1052,7 @@ export default function ParkTycoon(){
                 <button key={sc.id} style={{background:"rgba(255,255,255,0.02)",border:`2px solid ${sc.color}22`,borderRadius:12,padding:"14px 12px",cursor:"pointer",textAlign:"left",fontFamily:"inherit",transition:"all 0.2s"}}
                   onMouseEnter={e=>{e.currentTarget.style.border=`2px solid ${sc.color}`;e.currentTarget.style.background=sc.color+"0A";e.currentTarget.style.boxShadow=`0 8px 24px ${sc.color}18`;}}
                   onMouseLeave={e=>{e.currentTarget.style.border=`2px solid ${sc.color}22`;e.currentTarget.style.background="rgba(255,255,255,0.02)";e.currentTarget.style.boxShadow="none";}}
-                  onClick={()=>startGame("campaign",sc.id,"normal")}>
+                  onClick={()=>{setPendingScenarioId(sc.id);setMenuSubScreen("scenario-diff");}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:5}}>
                     <div style={{fontSize:24}}>{sc.emoji||"🎡"}</div>
                     <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
@@ -1066,6 +1073,56 @@ export default function ParkTycoon(){
               ))}
             </div>
           </>}
+
+          {menuSubScreen==="scenario-diff"&&(()=>{
+            const sc=SCENARIOS.find(s=>s.id===pendingScenarioId);
+            if(!sc) return null;
+            return(<>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
+                <button style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.10)",color:"#6B7CA1",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}} onClick={()=>setMenuSubScreen("scenario")}>{t("menu.back")}</button>
+                <div style={{fontSize:13,fontWeight:700,color:sc.color,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1}}>{sc.emoji} {t(`scn.${sc.id}`)}</div>
+              </div>
+
+              {/* 시나리오 요약 카드 */}
+              <div style={{background:`${sc.color}0A`,border:`1px solid ${sc.color}33`,borderRadius:10,padding:"10px 14px",marginBottom:16}}>
+                <div style={{fontSize:10,color:"#6B7CA1",lineHeight:1.6,marginBottom:8}}>{t(`scn.${sc.id}.desc`)}</div>
+                <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6}}>
+                  {sc.goals.map(g=><span key={g.id} style={{fontSize:9,padding:"1px 6px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:3}}>{g.medal} {g.desc?.[lang]||g.desc?.ko}</span>)}
+                </div>
+                <div style={{display:"flex",gap:10,fontSize:10,color:"#4A5880"}}>
+                  <span>💰 ${sc.startMoney.toLocaleString()}</span>
+                  <span>⏱ {sc.timeLimit}{lang==="ko"?"일":"d"}</span>
+                  <span>{"★".repeat(sc.difficulty||1)}{"☆".repeat(5-(sc.difficulty||1))}</span>
+                </div>
+              </div>
+
+              {/* 난이도 선택 */}
+              <div style={{fontSize:10,color:"#2E3A5C",textAlign:"center",letterSpacing:3,textTransform:"uppercase",marginBottom:10}}>
+                {lang==="ko"?"난이도 선택":"Select Difficulty"}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:8}}>
+                {Object.entries(SCENARIO_DIFFICULTY).map(([key,sd])=>{
+                  const effMoney=Math.floor(sc.startMoney*sd.moneyMult);
+                  const effTime=Math.floor(sc.timeLimit*sd.timeMult);
+                  return(
+                    <button key={key}
+                      style={{background:"rgba(255,255,255,0.02)",border:`2px solid ${sd.color}33`,borderRadius:12,padding:"16px 10px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",transition:"all 0.2s"}}
+                      onMouseEnter={e=>{e.currentTarget.style.border=`2px solid ${sd.color}`;e.currentTarget.style.background=sd.color+"0F";e.currentTarget.style.boxShadow=`0 8px 24px ${sd.color}22`;}}
+                      onMouseLeave={e=>{e.currentTarget.style.border=`2px solid ${sd.color}33`;e.currentTarget.style.background="rgba(255,255,255,0.02)";e.currentTarget.style.boxShadow="none";}}
+                      onClick={()=>startGame("campaign",pendingScenarioId,sd.diffKey)}>
+                      <div style={{fontSize:24,marginBottom:6}}>{sd.emoji}</div>
+                      <div style={{fontSize:13,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,color:sd.color,marginBottom:4}}>{sd.label[lang]||sd.label.ko}</div>
+                      <div style={{fontSize:10,color:"#4A5880",lineHeight:1.6,marginBottom:8}}>{sd.desc[lang]||sd.desc.ko}</div>
+                      <div style={{background:"rgba(0,0,0,0.3)",borderRadius:6,padding:"6px 4px"}}>
+                        <div style={{fontSize:10,color:"#FECA57",marginBottom:2}}>💰 ${effMoney.toLocaleString()}</div>
+                        <div style={{fontSize:10,color:"#48DBFB"}}>⏱ {effTime}{lang==="ko"?"일":"d"}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>);
+          })()}
 
           {menuSubScreen==="difficulty"&&<>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
