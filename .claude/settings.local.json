@@ -14,7 +14,14 @@
       "Bash(git init *)",
       "Bash(git config *)",
       "Bash(git branch *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(gh repo *)",
+      "Bash(git credential *)",
+      "Bash(curl -s -X POST -H 'Accept: application/vnd.github+json' -H 'Authorization: Bearer __CMDSUB_OUTPUT__')",
+      "Bash(git commit *)"
     ]
   }
 }

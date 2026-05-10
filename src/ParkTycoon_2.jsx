@@ -969,7 +969,7 @@ export default function ParkTycoon(){
                 <span key={i} style={{display:"inline-block",animation:`float ${2+i*0.3}s ease-in-out infinite alternate`,animationDelay:`${i*0.2}s`}}>{em}</span>
               ))}
             </div>
-            <div style={{fontSize:42,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:6,color:"#FFD93D",textShadow:"0 0 40px rgba(255,217,61,0.5), 0 0 80px rgba(255,159,67,0.3)",lineHeight:1}}>PARK TYCOON</div>
+            <div style={{fontSize:42,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:6,color:"#FFD93D",textShadow:"0 0 40px rgba(255,217,61,0.5), 0 0 80px rgba(255,159,67,0.3)",lineHeight:1}}>PARCADIA</div>
             <div style={{fontSize:11,letterSpacing:4,color:"#4A5880",fontWeight:600,fontFamily:"'Barlow Condensed',sans-serif",marginTop:6,marginBottom:4}}>BUILD · MANAGE · THRIVE</div>
             <div style={{fontSize:10,color:"#2E3A5C",letterSpacing:2}}>
               {lang==="ko"?"🎯 8개 시나리오  🏗️ 27종 건물  ⚡ 무료 플레이":"🎯 8 Scenarios  🏗️ 27 Buildings  ⚡ Free to Play"}
@@ -1089,7 +1089,7 @@ export default function ParkTycoon(){
 
           {/* 하단 버전 정보 */}
           <div style={{textAlign:"center",marginTop:24,fontSize:10,color:"#1A2040",fontFamily:"'Space Mono',monospace"}}>
-            v1.0.0 · Park Tycoon · {lang==="ko"?"무료 경영 시뮬레이션":"Free Management Sim"}
+            v1.0.0 · Parcadia · {lang==="ko"?"무료 경영 시뮬레이션":"Free Management Sim"}
           </div>
         </div>
       </div>
