@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vite *)",
+      "mcp__Claude_Preview__preview_start",
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\쩡이\\\\Downloads\\\\park-tycoon\\\\src\\\\ParkTycoon_2.jsx\"\\).Count)",
+      "Bash(node -e ' *)",
+      "Bash(npm run *)",
+      "Bash(cat vite.config.js)",
+      "Bash(cat vite.config.ts)",
+      "Bash(ls public/)",
+      "Bash(ls .github/)",
+      "Bash(git log *)",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git branch *)",
+      "Bash(git add *)"
+    ]
+  }
+}
