@@ -192,15 +192,21 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"방문객 50명",en:"50 visitors"},check:s=>s.vis>=50},
     {id:"silver",medal:"🥈",desc:{ko:"방문객 100명 + 만족도 65%",en:"100 visitors + 65% happiness"},check:s=>s.vis>=100&&s.sat>=65},
     {id:"gold",medal:"🥇",desc:{ko:"방문객 200명 + 만족도 75%",en:"200 visitors + 75% happiness"},check:s=>s.vis>=200&&s.sat>=75}]},
-  {id:"s2",emoji:"💑",difficulty:2,color:"#FF6B9D",startMoney:38000,timeLimit:50,preBuilt:[],gridRestrict:null,goals:[
+  {id:"s2",emoji:"💑",difficulty:2,color:"#FF6B9D",startMoney:38000,timeLimit:50,preBuilt:[],gridRestrict:null,
+   obstacles:[{r:7,c:11,type:"water"},{r:7,c:12,type:"water"},{r:8,c:11,type:"water"},{r:8,c:12,type:"water"}],
+   goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"커플 비율 40%",en:"40% couple ratio"},check:s=>s.coupleRatio>=0.4},
     {id:"silver",medal:"🥈",desc:{ko:"커플 55% + 입장료 $20",en:"55% couples + $20 fee"},check:s=>s.coupleRatio>=0.55&&s.fee>=20},
     {id:"gold",medal:"🥇",desc:{ko:"커플 65% + 순이익 $2k",en:"65% couples + $2k profit"},check:s=>s.coupleRatio>=0.65&&s.net>=2000}]},
-  {id:"s3",emoji:"🔧",difficulty:3,color:"#FF9F43",startMoney:22000,timeLimit:55,preBuilt:[{type:"entrance",r:9,c:5,level:0,broken:false},{type:"ferrisWheel",r:5,c:2,level:0,broken:true},{type:"carousel",r:11,c:8,level:0,broken:true},{type:"restroom",r:8,c:7,level:0,broken:false},{type:"foodStall",r:12,c:5,level:0,broken:false}],gridRestrict:null,goals:[
+  {id:"s3",emoji:"🔧",difficulty:3,color:"#FF9F43",startMoney:22000,timeLimit:55,preBuilt:[{type:"entrance",r:9,c:5,level:0,broken:false},{type:"ferrisWheel",r:5,c:2,level:0,broken:true},{type:"carousel",r:11,c:8,level:0,broken:true},{type:"restroom",r:8,c:7,level:0,broken:false},{type:"foodStall",r:12,c:5,level:0,broken:false}],gridRestrict:null,
+   obstacles:[{r:3,c:10,type:"rubble"},{r:3,c:11,type:"rubble"},{r:4,c:10,type:"rubble"},{r:14,c:9,type:"rubble"},{r:15,c:9,type:"rubble"}],
+   goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"공원 2성",en:"2-star park"},check:s=>s.pres>=2},
     {id:"silver",medal:"🥈",desc:{ko:"3성 + 고장 없음",en:"3 stars + no breakdowns"},check:s=>s.pres>=3&&s.brokenCount===0},
     {id:"gold",medal:"🥇",desc:{ko:"4성 + 만족도 75%",en:"4 stars + 75% happiness"},check:s=>s.pres>=4&&s.sat>=75}]},
-  {id:"s4",emoji:"🏙️",difficulty:3,color:"#48DBFB",startMoney:45000,timeLimit:60,preBuilt:[],gridRestrict:{cols:[0,11]},goals:[
+  {id:"s4",emoji:"🏙️",difficulty:3,color:"#48DBFB",startMoney:45000,timeLimit:60,preBuilt:[],gridRestrict:{cols:[0,11]},
+   obstacles:[{r:5,c:4,type:"rock"},{r:5,c:5,type:"rock"},{r:14,c:4,type:"rock"},{r:14,c:5,type:"rock"}],
+   goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"순이익 $1,000/일",en:"$1,000 daily profit"},check:s=>s.net>=1000},
     {id:"silver",medal:"🥈",desc:{ko:"순이익 $3,000/일",en:"$3,000 daily profit"},check:s=>s.net>=3000},
     {id:"gold",medal:"🥇",desc:{ko:"순이익 $5k + 만족도 75%",en:"$5k profit + 75% happiness"},check:s=>s.net>=5000&&s.sat>=75}]},
@@ -222,11 +228,15 @@ export const SCENARIOS = [
     {type:"_path",       r:9,c:7,level:0,broken:false},
     {type:"_path",       r:9,c:8,level:0,broken:false},
     {type:"hauntedHouse",r:9,c:9,level:0,broken:true},
-  ],gridRestrict:null,goals:[
+  ],gridRestrict:null,
+   obstacles:[{r:2,c:3,type:"deadtree"},{r:2,c:4,type:"deadtree"},{r:16,c:10,type:"deadtree"},{r:16,c:11,type:"deadtree"},{r:5,c:13,type:"deadtree"}],
+   goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"방문객 60명 + 순이익 $800",en:"60 visitors + $800 profit"},check:s=>s.vis>=60&&s.net>=800},
     {id:"silver",medal:"🥈",desc:{ko:"방문객 120명 + 3성 + 만족도 65%",en:"120 visitors + 3 stars + 65% happiness"},check:s=>s.vis>=120&&s.pres>=3&&s.sat>=65},
     {id:"gold",medal:"🥇",desc:{ko:"방문객 200명 + 4성 + 만족도 75%",en:"200 visitors + 4 stars + 75% happiness"},check:s=>s.vis>=200&&s.pres>=4&&s.sat>=75}]},
-  {id:"s8",emoji:"👑",difficulty:5,color:"#FECA57",startMoney:65000,timeLimit:82,preBuilt:[],gridRestrict:null,goals:[
+  {id:"s8",emoji:"👑",difficulty:5,color:"#FECA57",startMoney:65000,timeLimit:82,preBuilt:[],gridRestrict:null,
+   obstacles:[{r:4,c:6,type:"rock"},{r:4,c:7,type:"rock"},{r:10,c:3,type:"water"},{r:10,c:4,type:"water"},{r:15,c:12,type:"rock"},{r:7,c:13,type:"rock"}],
+   goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"3성 + 순이익 $1,500",en:"3 stars + $1,500 profit"},check:s=>s.pres>=3&&s.net>=1500},
     {id:"silver",medal:"🥈",desc:{ko:"4성 + 순이익 $3,000 + 만족도 75%",en:"4 stars + $3,000 profit + 75% happiness"},check:s=>s.pres>=4&&s.net>=3000&&s.sat>=75},
     {id:"gold",medal:"🥇",desc:{ko:"5성 + 순이익 $5,000 + 만족도 80%",en:"5 stars + $5,000 profit + 80% happiness"},check:s=>s.pres>=5&&s.net>=5000&&s.sat>=80}]},
@@ -364,4 +374,38 @@ export const DAILY_CHALLENGES = [
   {id:"dc7",emoji:"👥",goal:{type:"vis",value:100},reward:{$:4000,rp:3},name:{ko:"방문객 100명 달성",en:"Get 100 visitors"}},
   {id:"dc8",emoji:"💰",goal:{type:"net",value:2000},reward:{$:5000,rp:3},name:{ko:"순이익 $2,000 달성",en:"Earn $2,000 net profit"}},
   {id:"dc9",emoji:"⭐",goal:{type:"pres",value:3},reward:{$:6000,rp:4},name:{ko:"공원 3성 달성",en:"Reach 3-star park"}},
+];
+
+// Phase 3-2: Rival Park Events
+export const RIVAL_EVENTS = [
+  {id:"price_war",     emoji:"💲", col:"#FF5757",
+   name:{ko:"가격 전쟁",   en:"Price War"},
+   desc:{ko:"경쟁사가 입장료를 대폭 할인! 방문객 -20% (3일)",en:"Rival slashes prices! Visitors -20% (3 days)"},
+   visMult:0.80, satPen:0, dur:3},
+  {id:"bad_press",     emoji:"📰", col:"#FF9F43",
+   name:{ko:"부정적 언론",  en:"Bad Press"},
+   desc:{ko:"경쟁사가 부정적 기사를 배포! 만족도 -10 (4일)",en:"Rival spreads bad press! Sat -10 (4 days)"},
+   visMult:1.0, satPen:10, dur:4},
+  {id:"grand_event",   emoji:"🎉", col:"#FF6B9D",
+   name:{ko:"경쟁사 대형 이벤트",en:"Rival Mega Event"},
+   desc:{ko:"경쟁사가 대규모 이벤트 개최! 방문객 -30% (2일)",en:"Rival runs mega event! Visitors -30% (2 days)"},
+   visMult:0.70, satPen:0, dur:2},
+];
+
+// Phase 3-5: Achievement System
+export const ACHIEVEMENTS = [
+  {id:"ach_first",   emoji:"🎊", col:"#FFD93D", name:{ko:"첫 방문객!",    en:"First Visitor!"},     desc:{ko:"첫 번째 방문객 도착",         en:"Your first visitor arrived"},      check:s=>s.totalVis>=1},
+  {id:"ach_100",     emoji:"👥", col:"#4D9FFF", name:{ko:"100명 돌파",    en:"100 Visitors"},       desc:{ko:"누적 방문객 100명",           en:"100 cumulative visitors"},         check:s=>s.totalVis>=100},
+  {id:"ach_1000",    emoji:"🎡", col:"#5EF6A0", name:{ko:"1,000명 입장",  en:"1K Visitors"},        desc:{ko:"누적 방문객 1,000명",         en:"1,000 cumulative visitors"},       check:s=>s.totalVis>=1000},
+  {id:"ach_5000",    emoji:"🌟", col:"#FF9F43", name:{ko:"5,000명 방문",  en:"5K Visitors"},        desc:{ko:"누적 방문객 5,000명",         en:"5,000 cumulative visitors"},       check:s=>s.totalVis>=5000},
+  {id:"ach_5star",   emoji:"⭐", col:"#FFD93D", name:{ko:"5성 공원",      en:"5-Star Park"},        desc:{ko:"공원 별점 5성 달성",          en:"Achieved 5-star rating"},          check:s=>s.stars>=5},
+  {id:"ach_million", emoji:"💰", col:"#5EF6A0", name:{ko:"백만장자",      en:"Millionaire"},        desc:{ko:"보유 자금 $1,000,000",        en:"Reached $1,000,000"},              check:s=>s.money>=1000000},
+  {id:"ach_stage5",  emoji:"🏆", col:"#FF6B9D", name:{ko:"전설의 공원",   en:"Legendary Park"},     desc:{ko:"Stage 5 달성",               en:"Reached Stage 5"},                 check:s=>s.stageId>=5},
+  {id:"ach_clean",   emoji:"✨", col:"#4ECDC4", name:{ko:"완벽한 청결",   en:"Spotless Park"},      desc:{ko:"청결도 100% 달성",            en:"Achieved 100% cleanliness"},       check:s=>s.clean>=100},
+  {id:"ach_happy",   emoji:"😊", col:"#FF9F43", name:{ko:"최고 만족도",   en:"Max Happiness"},      desc:{ko:"만족도 90% 이상",             en:"Satisfaction 90%+"},               check:s=>s.sat>=90},
+  {id:"ach_day50",   emoji:"📅", col:"#9B7FFF", name:{ko:"50일 운영",     en:"50-Day Veteran"},     desc:{ko:"50일 이상 공원 운영",         en:"50 days of operation"},            check:s=>s.day>=50},
+  {id:"ach_day100",  emoji:"🌈", col:"#A29BFE", name:{ko:"100일 공원",    en:"Centennial Park"},    desc:{ko:"100일 이상 공원 운영",        en:"100 days of operation"},           check:s=>s.day>=100},
+  {id:"ach_gold",    emoji:"🥇", col:"#FFD93D", name:{ko:"황금 메달",     en:"Gold Medalist"},      desc:{ko:"시나리오 골드 메달 획득",     en:"Earned a scenario gold medal"},    check:s=>s.goldMedals>=1},
+  {id:"ach_noloans", emoji:"💳", col:"#00E5A0", name:{ko:"무빚 경영",     en:"Debt-Free"},          desc:{ko:"대출 없이 Day 50 달성",       en:"Reach Day 50 without loans"},      check:s=>s.day>=50&&s.totalLoans===0},
+  {id:"ach_seasons", emoji:"🌦️", col:"#48DBFB", name:{ko:"사계절 공원",   en:"All Seasons"},        desc:{ko:"4계절 모두 경험",             en:"Experienced all 4 seasons"},       check:s=>s.day>=120},
 ];
