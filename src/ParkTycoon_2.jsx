@@ -1094,9 +1094,9 @@ export default function ParkTycoon(){
     return(
       <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%, #0D1535 0%, #020510 60%)",color:"var(--text-primary)",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
         {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} onClose={()=>setShowSettings(false)} lang={lang}/>}
+        <button onClick={()=>setShowSettings(true)} style={{position:"fixed",top:12,right:12,background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.3)",color:"#8899CC",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:16,fontFamily:"inherit",transition:"all 0.15s",zIndex:1000}} title={lang==="ko"?"설정":"Settings"}>⚙️</button>
         <div style={{width:"100%",maxWidth:680}}>
-          <div style={{textAlign:"center",marginBottom:28,position:"relative"}}>
-            <button onClick={()=>setShowSettings(true)} style={{position:"absolute",top:0,right:0,background:"rgba(100,120,255,0.08)",border:"1px solid rgba(100,120,255,0.2)",color:"#8899BB",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:14,fontFamily:"inherit",transition:"all 0.15s"}} title={lang==="ko"?"설정":"Settings"}>⚙️</button>
+          <div style={{textAlign:"center",marginBottom:28}}>
             {/* 플로팅 이모지 장식 */}
             <div style={{display:"flex",justifyContent:"center",gap:16,marginBottom:12,fontSize:22,opacity:0.7}}>
               {["🎡","🎢","🎠","🎪","🚂","🎆"].map((em,i)=>(
@@ -1189,11 +1189,11 @@ export default function ParkTycoon(){
                     </div>
                   </div>
                   <div style={{fontSize:11,fontWeight:800,fontFamily:"'Barlow Condensed',sans-serif",color:sc.color,marginBottom:3}}>{t(`scn.${sc.id}`)}</div>
-                  <div style={{fontSize:10,color:"#9BA8CC",lineHeight:1.5,marginBottom:5}}>{t(`scn.${sc.id}.desc`)}</div>
+                  <div style={{fontSize:10,color:"#B0BDD8",lineHeight:1.5,marginBottom:5}}>{t(`scn.${sc.id}.desc`)}</div>
                   <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:4}}>
-                    {sc.goals.map(g=><span key={g.id} style={{fontSize:9,padding:"1px 5px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:3}}>{g.medal} {g.desc?.[lang]||g.desc?.ko||""}</span>)}
+                    {sc.goals.map(g=><span key={g.id} style={{fontSize:9,padding:"2px 6px",background:"rgba(255,255,255,0.10)",border:"1px solid rgba(255,255,255,0.18)",borderRadius:3,color:"#DDE2FF"}}>{g.medal} {g.desc?.[lang]||g.desc?.ko||""}</span>)}
                   </div>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#7788BB"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#9BA8CC"}}>
                     <span>⏱ {sc.timeLimit}{lang==="ko"?"일":"d"}</span>
                     <span>💰 ${sc.startMoney.toLocaleString()}</span>
                   </div>
@@ -1213,9 +1213,9 @@ export default function ParkTycoon(){
 
               {/* 시나리오 요약 카드 */}
               <div style={{background:`${sc.color}0A`,border:`1px solid ${sc.color}33`,borderRadius:10,padding:"10px 14px",marginBottom:16}}>
-                <div style={{fontSize:10,color:"#6B7CA1",lineHeight:1.6,marginBottom:8}}>{t(`scn.${sc.id}.desc`)}</div>
+                <div style={{fontSize:10,color:"#B0BDD8",lineHeight:1.6,marginBottom:8}}>{t(`scn.${sc.id}.desc`)}</div>
                 <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6}}>
-                  {sc.goals.map(g=><span key={g.id} style={{fontSize:9,padding:"1px 6px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:3}}>{g.medal} {g.desc?.[lang]||g.desc?.ko}</span>)}
+                  {sc.goals.map(g=><span key={g.id} style={{fontSize:9,padding:"2px 6px",background:"rgba(255,255,255,0.10)",border:"1px solid rgba(255,255,255,0.18)",borderRadius:3,color:"#DDE2FF"}}>{g.medal} {g.desc?.[lang]||g.desc?.ko}</span>)}
                 </div>
                 <div style={{display:"flex",gap:10,fontSize:10,color:"#7788BB"}}>
                   <span>💰 ${sc.startMoney.toLocaleString()}</span>
