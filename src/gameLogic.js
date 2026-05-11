@@ -33,20 +33,27 @@ export function pickWeather(si) {
 export function getReachablePaths(grid) {
   let er = -1, ec = -1;
   outer: for (let r = 0; r < GR; r++) for (let c = 0; c < GC; c++) {
-    if (grid[r][c]?.type === "entrance") { er = r; ec = c; break outer; }
+    if (grid[r][c]?.type === "entrance" && !grid[r][c]?.ref) { er = r; ec = c; break outer; }
   }
   const reach = new Set();
   if (er < 0) return reach;
   const q = [];
-  [[er - 1, ec], [er + 1, ec], [er, ec - 1], [er, ec + 1]].forEach(([nr, nc]) => {
-    if (nr >= 0 && nr < GR && nc >= 0 && nc < GC) {
-      const t = grid[nr][nc]?.type;
-      if (t === "_path" || t === "_pathFancy") {
-        const k = `${nr},${nc}`;
-        if (!reach.has(k)) { reach.add(k); q.push([nr, nc]); }
-      }
+  // BFS seed: all neighbors of the entire entrance footprint
+  const ew = B["entrance"]?.size?.w || 2;
+  const eh = B["entrance"]?.size?.h || 1;
+  for (let dr = 0; dr < eh; dr++) {
+    for (let dc = 0; dc < ew; dc++) {
+      [[er+dr-1,ec+dc],[er+dr+1,ec+dc],[er+dr,ec+dc-1],[er+dr,ec+dc+1]].forEach(([nr,nc])=>{
+        if (nr>=0&&nr<GR&&nc>=0&&nc<GC) {
+          const t=grid[nr][nc]?.type;
+          if ((t==="_path"||t==="_pathFancy")) {
+            const k=`${nr},${nc}`;
+            if (!reach.has(k)) { reach.add(k); q.push([nr,nc]); }
+          }
+        }
+      });
     }
-  });
+  }
   while (q.length) {
     const [r, c] = q.shift();
     [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]].forEach(([nr, nc]) => {
