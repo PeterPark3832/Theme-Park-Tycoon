@@ -98,6 +98,7 @@ export default function ParkTycoon(){
   const [earnedMedals,setEarnedMedals]=useState([]);
 
   // UI-only states (not saved)
+  const [isMobile,setIsMobile]=useState(()=>window.innerWidth<600);
   const [panelCollapsed,setPanelCollapsed]=useState(false);
   const [logCollapsed,setLogCollapsed]=useState(false);
   const [buildParticles,setBuildParticles]=useState([]); // [{id,r,c,color,particles:[{tx,ty,col}]}]
@@ -294,6 +295,17 @@ export default function ParkTycoon(){
     else if(tutorialStep===4&&speed>0) setTutorialStep(5);
     else if(tutorialStep===5){const timer=setTimeout(()=>setTutorialStep(0),4000);return()=>clearTimeout(timer);}
   },[grid,speed,tutorialStep,screen]);
+
+  useEffect(()=>{
+    const handleResize=()=>{
+      const mobile=window.innerWidth<600;
+      setIsMobile(mobile);
+      if(mobile) setPanelCollapsed(true);
+    };
+    window.addEventListener('resize',handleResize);
+    handleResize(); // call once on mount
+    return()=>window.removeEventListener('resize',handleResize);
+  },[]);
 
   useEffect(()=>{
     if(speed===0||screen!=="game") return;
@@ -1350,7 +1362,10 @@ export default function ParkTycoon(){
       </div>
 
       <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-        <div className="side-panel" style={{width:panelCollapsed?0:190,minWidth:panelCollapsed?0:190,overflow:panelCollapsed?"hidden":"visible",transition:"width 0.2s",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",flexShrink:0}}>
+        {isMobile && !panelCollapsed && (
+          <div onClick={() => setPanelCollapsed(true)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:49}} />
+        )}
+        <div className="side-panel" style={isMobile ? {position:"fixed",top:0,left:0,bottom:0,width:230,zIndex:50,transform:panelCollapsed?"translateX(-100%)":"translateX(0)",transition:"transform 0.25s ease",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",overflowY:"auto"} : {width:panelCollapsed?0:190,minWidth:panelCollapsed?0:190,overflow:panelCollapsed?"hidden":"visible",transition:"width 0.2s",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",flexShrink:0}}>
           <div style={{display:"flex",background:"rgba(0,0,0,0.3)",borderBottom:"1px solid rgba(255,255,255,0.06)",flexShrink:0,flexWrap:"wrap"}}>
             {[
               {k:"build",    ic:"🏗️", label:{ko:"건설",en:"Build"}},
@@ -1561,13 +1576,40 @@ export default function ParkTycoon(){
               </>}
 
               {buildMode==="zone"&&<>
+                {/* Synergy info panel */}
+                {(()=>{
+                  const allZones=new Set();
+                  for(let r=0;r<zoneGrid.length;r++) for(let c=0;c<zoneGrid[0].length;c++) if(zoneGrid[r][c]) allZones.add(zoneGrid[r][c]);
+                  const divBonus=allZones.size>=4?15:allZones.size>=3?8:allZones.size>=2?3:0;
+                  return allZones.size>0&&(<div style={{padding:"5px 6px",background:"rgba(162,155,254,0.08)",border:"1px solid rgba(162,155,254,0.2)",borderRadius:5,marginBottom:6}}>
+                    <div style={{fontSize:10,color:"#A29BFE",fontWeight:700,marginBottom:2}}>⚡ {lang==="ko"?"구역 시너지":"Zone Synergy"}</div>
+                    <div style={{fontSize:9,color:"#8888AA"}}>{lang==="ko"?`활성 구역 ${allZones.size}종 → 다양성 보너스 +${divBonus}%`:`${allZones.size} zone types → Diversity +${divBonus}%`}</div>
+                    <div style={{fontSize:9,color:"#666688",marginTop:2}}>{lang==="ko"?"💡 3칸 이상 연결해야 구역 효과 활성화":"💡 Connect 3+ cells to activate zone bonus"}</div>
+                    <div style={{fontSize:9,color:"#666688"}}>{lang==="ko"?"6칸+: 1.5배, 10칸+: 2배":"6+ cells: 1.5x, 10+ cells: 2x bonus"}</div>
+                  </div>);
+                })()}
                 {[...Object.entries(ZONES),["clear",{emoji:"🚫",color:"#666688",bg:"#66668818"}]].map(([k,z])=>(
                   <div key={k} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 5px",marginBottom:2,background:zonePaint===k?z.bg:"#181830",border:`1px solid ${zonePaint===k?z.color:z.color+"33"}`,borderRadius:5,cursor:"pointer"}} onClick={()=>setZonePaint(zonePaint===k?null:k)}>
                     <span style={{fontSize:13}}>{z.emoji}</span>
-                    <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700,color:z.color}}>{t(`z.${k}`)}</div><div style={{fontSize:10,color:"#666688"}}>{t(`z.${k}.desc`)}</div></div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:10,fontWeight:700,color:z.color}}>{t(`z.${k}`)}</div>
+                      <div style={{fontSize:9,color:"#666688"}}>{t(`z.${k}.desc`)}</div>
+                      {k!=="clear"&&<div style={{fontSize:9,color:"#444466"}}>{lang==="ko"?"3칸↑활성·6칸↑1.5x·10칸↑2x":"3+:active·6+:1.5x·10+:2x"}</div>}
+                    </div>
                     {zonePaint===k&&<span style={{color:z.color}}>●</span>}
                   </div>
                 ))}
+                {/* Cross-zone bonus hints */}
+                <div style={{padding:"4px 5px",background:"rgba(0,0,0,0.2)",borderRadius:4,marginTop:4}}>
+                  <div style={{fontSize:9,color:"#444466",marginBottom:2}}>{lang==="ko"?"인접 구역 시너지":"Adjacent Zone Synergy"}</div>
+                  {[
+                    {a:"🎢",b:"🍔",desc:lang==="ko"?"스릴+푸드 → 매출↑12%":"Thrill+Food → Rev↑12%"},
+                    {a:"⭐",b:"🌳",desc:lang==="ko"?"VIP+자연 → 매력·매출↑10%":"VIP+Nature → Attr·Rev↑10%"},
+                    {a:"🌳",b:"👨‍👩‍👧",desc:lang==="ko"?"자연+가족 → 만족도↑15%":"Nature+Family → Sat↑15%"},
+                  ].map(({a,b,desc})=>(
+                    <div key={a+b} style={{fontSize:9,color:"#556688",padding:"1px 0"}}>{a}+{b}: {desc}</div>
+                  ))}
+                </div>
               </>}
 
               {buildMode==="map"&&<>
@@ -2130,7 +2172,7 @@ export default function ParkTycoon(){
         </div>
 
         {/* ── Panel Collapse Toggle ── */}
-        <button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#4A5880",cursor:"pointer",fontSize:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?"패널 열기":"패널 닫기"}>{panelCollapsed?"▶":"◀"}</button>
+        <button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:isMobile?36:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#4A5880",cursor:"pointer",fontSize:isMobile?16:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?"패널 열기":"패널 닫기"}>{panelCollapsed?"▶":"◀"}</button>
 
         {/* ── GRID + LOG ── */}
         <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:7,gap:5,overflow:"hidden",background:"var(--bg-deep)"}}
@@ -2537,7 +2579,7 @@ export default function ParkTycoon(){
                     );
                   })()}
                   {/* 버튼 */}
-                  <div style={{display:"flex",justifyContent:"flex-end"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
                     <button onClick={()=>setTutorialStep(0)}
                       style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",
                         color:"#6B7CA1",borderRadius:8,padding:"5px 14px",cursor:"pointer",
@@ -2545,6 +2587,17 @@ export default function ParkTycoon(){
                       onMouseEnter={e=>e.currentTarget.style.color="#DDE2FF"}
                       onMouseLeave={e=>e.currentTarget.style.color="#6B7CA1"}>
                       {lang==="ko"?"건너뛰기":"Skip"}
+                    </button>
+                    <button onClick={()=>{
+                        if(tutorialStep>=5) setTutorialStep(0);
+                        else setTutorialStep(s=>s+1);
+                      }}
+                      style={{background:"rgba(255,217,61,0.15)",border:"1px solid rgba(255,217,61,0.5)",
+                        color:"#FFD93D",borderRadius:8,padding:"5px 16px",cursor:"pointer",
+                        fontSize:10,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="rgba(255,217,61,0.25)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="rgba(255,217,61,0.15)"}>
+                      {tutorialStep>=5?(lang==="ko"?"완료 ✓":"Done ✓"):(lang==="ko"?"다음 →":"Next →")}
                     </button>
                   </div>
                 </div>

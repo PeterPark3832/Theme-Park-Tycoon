@@ -68,42 +68,96 @@ export function hasPath(reach, r, c) {
   );
 }
 
-export function getZM(type, zone) {
-  if (!zone) return { am: 1, rm: 1, sm: 1 };
-  const cat = B[type]?.cat;
-  if (zone === "thrill") return cat === "ride" ? { am: 1.25, rm: 1, sm: 1 } : { am: 1, rm: 1, sm: 1 };
-  if (zone === "family") return cat === "facility" ? { am: 1, rm: 1, sm: 1.3 } : { am: 1, rm: 1, sm: 1 };
-  if (zone === "food") return cat === "shop" ? { am: 1, rm: 1.3, sm: 1 } : { am: 1, rm: 1, sm: 1 };
-  if (zone === "nature") return (type === "garden" || type === "fountain") ? { am: 1.2, rm: 1, sm: 1.3 } : { am: 1, rm: 1, sm: 1 };
-  if (zone === "vip") return { am: 1, rm: 1.2, sm: 1 };
-  return { am: 1, rm: 1, sm: 1 };
+export function calcZoneInfo(zg) {
+  const GR_=zg.length, GC_=zg[0]?.length||0;
+  const visited=Array(GR_).fill(null).map(()=>Array(GC_).fill(false));
+  const cellSize=Array(GR_).fill(null).map(()=>Array(GC_).fill(0));
+  const cellAdjacentZones=Array(GR_).fill(null).map(()=>Array(GC_).fill(null).map(()=>new Set()));
+  for(let r=0;r<GR_;r++) for(let c=0;c<GC_;c++) {
+    if(!zg[r][c]||visited[r][c]) continue;
+    const zone=zg[r][c];
+    const queue=[[r,c]], cells=[];
+    visited[r][c]=true;
+    while(queue.length){
+      const[cr,cc]=queue.shift(); cells.push([cr,cc]);
+      for(const[nr,nc] of [[cr-1,cc],[cr+1,cc],[cr,cc-1],[cr,cc+1]]){
+        if(nr>=0&&nr<GR_&&nc>=0&&nc<GC_&&!visited[nr][nc]&&zg[nr][nc]===zone){
+          visited[nr][nc]=true; queue.push([nr,nc]);
+        }
+      }
+    }
+    cells.forEach(([cr,cc])=>{ cellSize[cr][cc]=cells.length; });
+  }
+  // Compute adjacent zone types for each cell
+  for(let r=0;r<GR_;r++) for(let c=0;c<GC_;c++){
+    if(!zg[r][c]) continue;
+    for(const[nr,nc] of [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]){
+      if(nr>=0&&nr<GR_&&nc>=0&&nc<GC_&&zg[nr][nc]&&zg[nr][nc]!==zg[r][c]){
+        cellAdjacentZones[r][c].add(zg[nr][nc]);
+      }
+    }
+  }
+  // Park-wide zone diversity bonus
+  const allZoneTypes=new Set();
+  for(let r=0;r<GR_;r++) for(let c=0;c<GC_;c++) if(zg[r][c]) allZoneTypes.add(zg[r][c]);
+  const diversityBonus=allZoneTypes.size>=4?1.15:allZoneTypes.size>=3?1.08:allZoneTypes.size>=2?1.03:1.0;
+  return{cellSize, cellAdjacentZones, diversityBonus, zoneTypeCount:allZoneTypes.size};
+}
+
+export function getZM(type, zone, zoneSize, adjacentZones) {
+  if(!zone) return{am:1,rm:1,sm:1};
+  if(zoneSize!==undefined&&zoneSize<3) return{am:1,rm:1,sm:1}; // min 3 cells to activate
+  const sizeMult=zoneSize>=10?2.0:zoneSize>=6?1.5:1.0;
+  const cat=B[type]?.cat;
+  let am=1,rm=1,sm=1;
+  if(zone==="thrill"){ if(cat==="ride") am=1.25*sizeMult; }
+  else if(zone==="family"){ if(cat==="facility") sm=1.3*sizeMult; }
+  else if(zone==="food"){ if(cat==="shop") rm=1.3*sizeMult; }
+  else if(zone==="nature"){ if(type==="garden"||type==="fountain"){am=1.2*sizeMult;sm=1.3*sizeMult;} }
+  else if(zone==="vip"){ rm=1.2*sizeMult; }
+  // Cross-zone adjacency bonuses
+  if(adjacentZones&&adjacentZones.size>0){
+    if(zone==="thrill"&&adjacentZones.has("food")) rm=Math.max(rm,1.12);
+    if(zone==="food"&&adjacentZones.has("thrill")) rm*=1.12;
+    if(zone==="vip"&&adjacentZones.has("nature")){am*=1.1;rm*=1.1;}
+    if(zone==="nature"&&adjacentZones.has("family")) sm*=1.15;
+    if(zone==="family"&&adjacentZones.has("food")) sm*=1.1;
+    if(zone==="family"&&adjacentZones.has("nature")) sm*=1.08;
+  }
+  return{am,rm,sm};
 }
 
 export function calcStats(grid, zg, hired, rb) {
-  let attraction = 0, rpv = 0, maintenance = 0, satBonus = 0, capacity = 0;
-  let hasEntrance = false, brokenCount = 0, isolatedCount = 0;
-  const anyPaths = grid.some(r => r.some(c => c?.type === "_path" || c?.type === "_pathFancy"));
-  const reach = anyPaths ? getReachablePaths(grid) : new Set();
-  for (let r = 0; r < GR; r++) for (let c = 0; c < GC; c++) {
-    const cell = grid[r][c]; if (!cell) continue;
-    if (cell.broken) { brokenCount++; continue; }
-    const bd = B[cell.type]; if (!bd) continue;
-    const st = bd.stats(cell.level), zm = getZM(cell.type, zg?.[r]?.[c]);
-    const passive = bd.cat === "path" || bd.cat === "deco";
-    const ok = passive || !anyPaths || hasPath(reach, r, c);
-    if (!ok) isolatedCount++;
-    const pm = ok ? 1 : 0.6;
-    attraction += st.attraction * zm.am * pm * (bd.cat === "ride" ? rb.attractionMult : 1);
-    rpv += st.rpv * zm.rm * pm * (bd.cat === "shop" ? rb.rpvMult : 1);
-    maintenance += st.maintenance;
-    satBonus += (st.satBonus || 0) * zm.sm * pm;
-    if (st.cap > 0) capacity += Math.floor(st.cap * (bd.cat === "ride" ? rb.capacityBonus : 1));
-    if (cell.type === "entrance") hasEntrance = true;
+  let attraction=0,rpv=0,maintenance=0,satBonus=0,capacity=0;
+  let hasEntrance=false,brokenCount=0,isolatedCount=0;
+  const anyPaths=grid.some(r=>r.some(c=>c?.type==="_path"||c?.type==="_pathFancy"));
+  const reach=anyPaths?getReachablePaths(grid):new Set();
+  const zoneInfo=calcZoneInfo(zg);
+  for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
+    const cell=grid[r][c]; if(!cell) continue;
+    if(cell.broken){brokenCount++;continue;}
+    const bd=B[cell.type]; if(!bd) continue;
+    const st=bd.stats(cell.level);
+    const zSize=zoneInfo.cellSize[r]?.[c]||0;
+    const zAdj=zoneInfo.cellAdjacentZones[r]?.[c];
+    const zm=getZM(cell.type,zg?.[r]?.[c],zSize,zAdj);
+    const passive=bd.cat==="path"||bd.cat==="deco";
+    const ok=passive||!anyPaths||hasPath(reach,r,c);
+    if(!ok) isolatedCount++;
+    const pm=ok?1:0.6;
+    attraction+=st.attraction*zm.am*pm*(bd.cat==="ride"?rb.attractionMult:1);
+    rpv+=st.rpv*zm.rm*pm*(bd.cat==="shop"?rb.rpvMult:1);
+    maintenance+=st.maintenance;
+    satBonus+=(st.satBonus||0)*zm.sm*pm;
+    if(st.cap>0) capacity+=Math.floor(st.cap*(bd.cat==="ride"?rb.capacityBonus:1));
+    if(cell.type==="entrance") hasEntrance=true;
   }
-  return {
-    attraction, rpv,
-    maintenance: maintenance * rb.maintenanceMult * Math.max(0.6, 1 - hired.mechanic * 0.1),
-    satBonus, capacity, hasEntrance, brokenCount, isolatedCount,
+  return{
+    attraction:attraction*zoneInfo.diversityBonus,
+    rpv:rpv*zoneInfo.diversityBonus,
+    maintenance:maintenance*rb.maintenanceMult*Math.max(0.6,1-hired.mechanic*0.1),
+    satBonus,capacity,hasEntrance,brokenCount,isolatedCount,
+    zoneInfo,
   };
 }
 
