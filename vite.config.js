@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/Theme-Park-Tycoon/',
+  base: '/theme-park-tycoon/',
   build: {
     chunkSizeWarningLimit: 900,
   },
