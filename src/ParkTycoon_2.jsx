@@ -138,7 +138,8 @@ export default function ParkTycoon(){
   const [bubbles,setBubbles]=useState([]); // [{id,r,c,text,expires}]
   const [disasterWarning,setDisasterWarning]=useState(null); // null|{dis,countdown,mitigated}
   const [firstVisitorCelebration,setFirstVisitorCelebration]=useState(false);
-  const [ftueGoalDone,setFtueGoalDone]=useState(false); // FTUE 첫 목표 완료 여부
+  const [ftueGoalDone,setFtueGoalDone]=useState(false);
+  const [dismissedHints,setDismissedHints]=useState(()=>{try{return JSON.parse(localStorage.getItem('dismissedHints'))||[];}catch{return[];}});
   const firstVisitorRef=useRef(false);
   const [showVisBreakdown,setShowVisBreakdown]=useState(false);
   const [showSatTooltip,setShowSatTooltip]=useState(false);
@@ -426,7 +427,9 @@ export default function ParkTycoon(){
       const curMap=MAP_TYPES.find(m=>m.id===mtype)||MAP_TYPES[0];
       const mapVisMult=curMap.visMultSeason[seasonIdx]||1;
       const holidayVisMult=ah?(1+(ah.visMult-1)*rb.holidayEventMult):1;
-      const rawVis=Math.max(0,Math.floor(s.attraction*2.5*(1+hired.entertainer*(0.05+entVisMult))*(0.4+(s0/100)*0.9)*ssn.mult*feeEff*(1+campBoost)*(1+(parkRat.stars-1)*0.10)*(1+rb.globalVisBonus)*(1+rb.coupleBonus*(segs.couple||0))*feePenalty*stgVisMult*wth.visMult*ratingVisMult*(1-rivalSteal)*mapVisMult*holidayVisMult));
+      // Opening bonus: Grand Opening buzz fades over first 7 days
+      const openingBonus=day<=3?1.5:day<=7?1.2:1.0;
+      const rawVis=Math.max(0,Math.floor(s.attraction*2.5*(1+hired.entertainer*(0.05+entVisMult))*(0.4+(s0/100)*0.9)*ssn.mult*feeEff*(1+campBoost)*(1+(parkRat.stars-1)*0.10)*(1+rb.globalVisBonus)*(1+rb.coupleBonus*(segs.couple||0))*feePenalty*stgVisMult*wth.visMult*ratingVisMult*(1-rivalSteal)*mapVisMult*holidayVisMult*openingBonus));
       const congested=s.capacity>0&&rawVis>s.capacity;
       let vis=Math.floor(Math.max(0,(congested?s.capacity*1.05:rawVis)*visMult));
       if(s.hasEntrance&&s.attraction>0&&vis<3) vis=3;
@@ -696,6 +699,9 @@ export default function ParkTycoon(){
         // FTUE 첫 목표: 첫 방문객 도착 = 완료
         if(!ref.current.ftueGoalDone) setFtueGoalDone(true);
       }
+      // Opening buzz log
+      if(day===3) addLog(lang==="ko"?"🎉 오픈 버즈 약화 — 방문객 +20% 보너스 (Day 7까지)":"🎉 Opening buzz fading — +20% visitor bonus until Day 7");
+      if(day===7) addLog(lang==="ko"?"📊 오픈 특수 기간 종료 — 정상 운영 시작":"📊 Opening period ended — normal operations begin");
       setGrid(newGrid);setSat(newSat);setClean(newClean);setSegData(segs);
       setMoney(m=>m+net+mM);setVisitors(vis);setLoans(newLoans);setCampaigns(newCamps);
       setPassHolders(newPH);setActiveDisaster(newDisaster);
@@ -742,6 +748,11 @@ export default function ParkTycoon(){
   const parkRating=calcParkRating(grid,zoneGrid,stats,sat,clean);
   const totalBldCount=Object.values(cc).reduce((t,v)=>t+v,0);
   const currentStage=calcStage(totalBldCount,parkRating.stars,money);
+  const stageProgress=currentStage.next?{
+    bld:Math.min(1,totalBldCount/currentStage.next.bld),
+    stars:Math.min(1,parkRating.stars/currentStage.next.stars),
+    money:Math.min(1,money/currentStage.next.money),
+  }:null;
 
   const lastAutoSaveDay=useRef(-1);
   useEffect(()=>{
@@ -1050,11 +1061,14 @@ export default function ParkTycoon(){
 
   const hasResearchAvailable=RESEARCH.some(r=>!researched.includes(r.id)&&researchPoints>=r.cost&&(!r.req||researched.includes(r.req)));
 
+  const hasNoPath = stats.hasEntrance && !grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy");
   const visitorZeroReason = screen === "game" && visitors === 0 && speed > 0 ? (
-    !stats.hasEntrance ? { emoji: "🎪", msg: lang === "ko" ? "입구 게이트를 먼저 배치하세요" : "Place an Entrance Gate first" } :
-    stats.attraction < 5 ? { emoji: "🎡", msg: lang === "ko" ? "어트랙션을 추가하면 방문객이 옵니다" : "Add attractions to attract visitors" } :
-    fee > maxFee ? { emoji: "💸", msg: lang === "ko" ? `입장료가 너무 높습니다 (한도: $${maxFee})` : `Admission too high (limit: $${maxFee})` } :
-    sat < 20 ? { emoji: "😔", msg: lang === "ko" ? "만족도가 너무 낮아 방문객이 오지 않습니다" : "Satisfaction too low for visitors" } :
+    !stats.hasEntrance    ? { emoji: "🎪", msg: lang === "ko" ? "입구 게이트를 먼저 배치하세요 (건설 탭)" : "Place an Entrance Gate first (Build tab)" } :
+    hasNoPath             ? { emoji: "🛤️", msg: lang === "ko" ? "입구에서 어트랙션까지 통로(🟫)를 연결하세요" : "Connect paths (🟫) from entrance to attractions" } :
+    stats.attraction < 5  ? { emoji: "🎡", msg: lang === "ko" ? "어트랙션을 추가하면 방문객이 옵니다 (건설 탭)" : "Add attractions to get visitors (Build tab)" } :
+    fee > maxFee          ? { emoji: "💸", msg: lang === "ko" ? `입장료가 너무 높습니다 (현재 한도: $${maxFee})` : `Admission fee too high (current limit: $${maxFee})` } :
+    sat < 20              ? { emoji: "😔", msg: lang === "ko" ? "만족도가 너무 낮습니다 — 고장난 시설을 수리하세요" : "Satisfaction too low — repair broken facilities" } :
+    day <= 2              ? { emoji: "⏳", msg: lang === "ko" ? "공원 오픈 초반! 곧 방문객이 도착합니다…" : "Just opened! Visitors are on their way…" } :
     null
   ) : null;
 
@@ -1066,6 +1080,7 @@ export default function ParkTycoon(){
     const feeEff2 = pricingMode==="per_ride"?1.25:Math.max(0.15,1.3-fee*0.022/(1+(parkRating.stars-1)*0.06));
     const campBoost2 = campaigns.reduce((t,c)=>t+c.boost,0);
     const stgVisMult2 = 1+stageVisBonus(currentStage);
+    const openingBonus2 = day<=3?1.5:day<=7?1.2:1.0;
     const baseVis = Math.round(stats.attraction * 2.5);
     return {
       attraction:  Math.round(stats.attraction),
@@ -1076,7 +1091,8 @@ export default function ParkTycoon(){
       campBoost:   Math.round(campBoost2*100),
       stageMult:   Math.round(stgVisMult2*100)/100,
       satMult:     Math.round((0.4+(sat/100)*0.9)*100)/100,
-      estimated:   Math.round(baseVis * feeEff2 * ssn2.mult * weather.visMult * (0.4+(sat/100)*0.9) * stgVisMult2 * (1+campBoost2)),
+      openingBonus:openingBonus2>1?openingBonus2:null,
+      estimated:   Math.round(baseVis * feeEff2 * ssn2.mult * weather.visMult * (0.4+(sat/100)*0.9) * stgVisMult2 * (1+campBoost2) * openingBonus2),
     };
   })() : null;
 
@@ -1328,9 +1344,21 @@ export default function ParkTycoon(){
             <span style={{fontSize:10}}>{starStr}</span><span style={{fontSize:10,fontWeight:700,color:"#9B7FFF"}}>{parkRating.final}</span>
           </div>
           {/* 단계 */}
-          <div style={{display:"flex",alignItems:"center",gap:2,background:`${currentStage.color}12`,border:`1px solid ${currentStage.color}33`,borderRadius:4,padding:"2px 6px",cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}} onClick={()=>setTab("mission")}>
-            <span style={{fontSize:10}}>{currentStage.emoji}</span>
-            <span style={{fontSize:10,fontWeight:700,color:currentStage.color}}>S{currentStage.id}</span>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:`${currentStage.color}12`,border:`1px solid ${currentStage.color}33`,borderRadius:4,padding:"2px 6px",cursor:"pointer",transition:"all 0.15s"}} onClick={()=>setTab("mission")}>
+            <div style={{display:"flex",alignItems:"center",gap:2,whiteSpace:"nowrap"}}>
+              <span style={{fontSize:10}}>{currentStage.emoji}</span>
+              <span style={{fontSize:10,fontWeight:700,color:currentStage.color}}>S{currentStage.id}{!currentStage.next?"★":""}</span>
+              {stageProgress&&<span style={{fontSize:8,color:"#333355"}}>→S{currentStage.id+1}</span>}
+            </div>
+            {stageProgress&&(
+              <div style={{display:"flex",gap:1}}>
+                {[{pct:stageProgress.bld,col:"#48DBFB"},{pct:stageProgress.stars,col:"#FECA57"},{pct:stageProgress.money,col:"#5EF6A0"}].map(({pct,col},i)=>(
+                  <div key={i} style={{width:13,height:2,background:"#111128",borderRadius:99,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${pct*100}%`,background:pct>=1?col:col+"88",borderRadius:99,transition:"width 0.5s"}}/>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           {/* 저장 */}
           <div style={{display:"flex",gap:2}}>
@@ -1457,6 +1485,7 @@ export default function ParkTycoon(){
                 {label:lang==="ko"?"😊 만족도":"😊 Happiness", val:`×${visitorFactors.satMult}`, unit:""},
                 {label:lang==="ko"?"💸 요금 효율":"💸 Fee Eff.", val:`×${visitorFactors.feeMult}`, unit:""},
                 ...(visitorFactors.campBoost>0?[{label:lang==="ko"?"📣 캠페인":"📣 Campaign", val:`+${visitorFactors.campBoost}%`, unit:""}]:[]),
+                ...(visitorFactors.openingBonus?[{label:lang==="ko"?"🎉 오픈 보너스":"🎉 Opening Buzz", val:`×${visitorFactors.openingBonus}`, unit:"", highlight:true}]:[]),
               ].map(({label,val,unit,highlight})=>(
                 <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"2px 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
                   <span style={{fontSize:9,color:"#9BA8CC"}}>{label}</span>
@@ -2340,6 +2369,33 @@ export default function ParkTycoon(){
               <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,fontFamily:"inherit"}} onClick={()=>setFtueGoalDone(true)}>✕</button>
             </div>
           )}
+          {screen==="game"&&(()=>{
+            const hints=[
+              {id:"h_staff", show:day>=4&&hired.janitor===0&&hired.mechanic===0&&!stats.brokenCount,
+               emoji:"🧹", col:"#4D9FFF",
+               msg:lang==="ko"?"청소부·정비공이 없으면 청결도↓ + 시설 고장↑ — 경영 탭에서 직원을 고용하세요":"No janitor/mechanic → cleanliness↓ + breakdowns↑ — hire staff in Manage tab"},
+              {id:"h_path",  show:day>=3&&stats.hasEntrance&&Object.values(grid).flat().filter(Boolean).some(c=>c&&!c.ref&&B[c.type]?.cat==="ride"&&c.type!=="entrance")&&
+                              grid.flat().filter(Boolean).some(c=>c&&!c.ref&&B[c.type]?.cat==="ride"&&c.type!=="entrance")&&
+                              !grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy"),
+               emoji:"🛤️", col:"#FF9F43",
+               msg:lang==="ko"?"어트랙션에 통로가 연결되지 않으면 수익이 -40%입니다 — 건설 탭 → 통로를 연결하세요":"Rides without paths lose -40% income — go to Build → place paths"},
+              {id:"h_sat",   show:day>=6&&sat<50&&sat>0&&visitors>0,
+               emoji:"😟", col:"#FF6B9D",
+               msg:lang==="ko"?"만족도가 낮으면 방문객이 줄어듭니다 — 😊 버튼에 마우스를 올려 원인을 확인하세요":"Low happiness drives away visitors — hover 😊 icon to see causes"},
+              {id:"h_research", show:day>=10&&researchPoints>=5&&researched.length===0,
+               emoji:"🔬", col:"#A29BFE",
+               msg:lang==="ko"?"연구 포인트가 쌓였습니다! 건설 탭 → 연구에서 업그레이드하세요":"Research points available! Go to Build → Research to upgrade"},
+            ];
+            const activeHint=hints.find(h=>h.show&&!dismissedHints.includes(h.id));
+            if(!activeHint) return null;
+            return(
+              <div style={{background:`${activeHint.col}12`,border:`1px solid ${activeHint.col}55`,borderRadius:6,padding:"5px 10px",color:activeHint.col,fontSize:10,fontWeight:700,display:"flex",gap:8,alignItems:"center",marginBottom:4,flexShrink:0,animation:"slide-in 0.2s ease"}}>
+                <span style={{fontSize:14}}>{activeHint.emoji}</span>
+                <div style={{flex:1,lineHeight:1.4}}>{activeHint.msg}</div>
+                <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,fontFamily:"inherit",flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,activeHint.id];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
+              </div>
+            );
+          })()}
           {bankruptcyDays>0&&bankruptcyDays<5&&screen==="game"&&(
             <div style={{background:"rgba(255,50,50,0.15)",border:"2px solid rgba(255,87,87,0.7)",borderRadius:6,padding:"5px 10px",color:"#FF5757",fontSize:10,fontWeight:700,display:"flex",gap:8,alignItems:"center",marginBottom:4,animation:"pulse 1s infinite",flexShrink:0}}>
               <span style={{fontSize:16}}>💸</span>
@@ -2466,6 +2522,7 @@ export default function ParkTycoon(){
                 else if(tutHighlight) borderCol="#FFD93D";
                 else if(isPath) borderCol=isFancy?"rgba(212,175,55,0.4)":"rgba(139,115,85,0.3)";
                 else if(isEntrance) borderCol="rgba(255,217,61,0.5)";
+                else if(isolated) borderCol="rgba(255,87,87,0.75)";
                 else if(cell) borderCol=bd.color+"44";
                 else if(isInFootprint&&selected) borderCol=hovFootprintValid?"rgba(0,229,160,0.5)":"rgba(255,87,87,0.5)";
                 else borderCol="rgba(255,255,255,0.04)";
@@ -2524,7 +2581,10 @@ export default function ParkTycoon(){
                     </div>
                     {cell.level>0&&!broken&&<div style={{position:"absolute",top:2,right:3,fontSize:11,color:"#FFD93D",lineHeight:1.2,fontWeight:900,zIndex:3,textShadow:"0 0 3px #000"}}>{cell.level===2?"★★":"★"}</div>}
                     {broken&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:bw>=2?18:14,zIndex:3,background:"rgba(0,0,0,0.4)",borderRadius:4}}>🔧</div>}
-                    {isolated&&!broken&&<div style={{position:"absolute",bottom:2,right:2,fontSize:11,zIndex:3,lineHeight:1,filter:"drop-shadow(0 0 2px #000)"}}>🔗</div>}
+                    {isolated&&!broken&&<>
+                      <div style={{position:"absolute",inset:0,borderRadius:4,border:"2px solid rgba(255,87,87,0.7)",zIndex:3,pointerEvents:"none",animation:"pulse-glow 2s ease-in-out infinite"}}/>
+                      <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(255,87,87,0.82)",borderRadius:"0 0 3px 3px",zIndex:4,textAlign:"center",fontSize:8,fontWeight:700,color:"#fff",lineHeight:"14px",letterSpacing:0.5}}>통로없음</div>
+                    </>}
                     {ridePrices[cell.type]&&pricingMode!=="admission"&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:9,color:"#FF9FF3",lineHeight:1.2,zIndex:3,textShadow:"0 0 2px #000"}}>${ridePrices[cell.type]}</div>}
                     {isDemolishHov&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:bw>=2?20:14,zIndex:4,background:"rgba(255,50,50,0.15)",borderRadius:4}}>🔨</div>}
                     {isCongested&&!broken&&<div style={{position:"absolute",top:2,right:2,fontSize:12,zIndex:5,lineHeight:1,filter:"drop-shadow(0 0 2px #000)"}}>🚶</div>}
@@ -2572,14 +2632,19 @@ export default function ParkTycoon(){
               <div style={{
                 position:"absolute", top:"50%", left:"50%",
                 transform:"translate(-50%,-50%)",
-                background:"rgba(5,6,20,0.88)",
-                border:"1px solid rgba(255,209,61,0.3)",
-                borderRadius:12, padding:"10px 20px",
+                background:"rgba(5,6,20,0.93)",
+                border:"2px solid rgba(255,209,61,0.5)",
+                borderRadius:14, padding:"16px 24px",
                 textAlign:"center", zIndex:20, pointerEvents:"none",
-                backdropFilter:"blur(4px)",
+                backdropFilter:"blur(8px)",
+                boxShadow:"0 8px 32px rgba(0,0,0,0.7)",
+                minWidth:200,
               }}>
-                <div style={{fontSize:24, marginBottom:4}}>{visitorZeroReason.emoji}</div>
-                <div style={{fontSize:11, color:"#FFD93D", fontWeight:700}}>{visitorZeroReason.msg}</div>
+                <div style={{fontSize:32, marginBottom:6}}>{visitorZeroReason.emoji}</div>
+                <div style={{fontSize:9, color:"#7788BB", letterSpacing:2, textTransform:"uppercase", marginBottom:4}}>
+                  {lang==="ko"?"방문객 없음 — 원인":"NO VISITORS — REASON"}
+                </div>
+                <div style={{fontSize:12, color:"#FFD93D", fontWeight:700, lineHeight:1.5}}>{visitorZeroReason.msg}</div>
               </div>
             )}
             {firstVisitorCelebration&&(
