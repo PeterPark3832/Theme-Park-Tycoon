@@ -8,6 +8,7 @@ import {
   WEATHERS, WEATHER_WEIGHTS, DEFAULT_RIDE_PRICES, DEFAULT_SHOP_MULTS, MAX_FEE_BY_STARS,
   LANG_FLAGS, TR, SCENARIOS, DIFFICULTY_SETTINGS, STAGES, B,
   STAFF, STAFF_UPGRADES, RIVAL_PARKS, FRANCHISES, ZONE_MASTERY, LOAN_OPTS, DOTS, TUTORIAL_STEPS, DAILY_CHALLENGES, SCENARIO_CLEAR_REWARDS, SCENARIO_DIFFICULTY,
+  RIVAL_EVENTS, ACHIEVEMENTS,
 } from './gameData.js';
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
 import {
@@ -158,10 +159,15 @@ export default function ParkTycoon(){
   const [soundOn,setSoundOn]=useState(true);
   const [uiSettings,setUiSettings]=useState(()=>{try{return JSON.parse(localStorage.getItem('uiSettings'))||{fontSize:'medium'};}catch{return{fontSize:'medium'};}});
   const [showSettings,setShowSettings]=useState(false);
+  // Phase 3 new states
+  const [weatherForecast,setWeatherForecast]=useState([]);
+  const [rivalEventActive,setRivalEventActive]=useState(null); // {event,remaining,rivalName}
+  const [earnedAchievements,setEarnedAchievements]=useState([]);
+  const [achievementFlash,setAchievementFlash]=useState(null);
 
   const ref=useRef();
   const diffSettings=DIFFICULTY_SETTINGS[difficulty]||DIFFICULTY_SETTINGS.normal;
-  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,soundOn,ftueGoalDone,scenarioTimeLimit};
+  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,soundOn,ftueGoalDone,scenarioTimeLimit,rivalEventActive};
 
   const season=SEASONS[Math.floor(((day-1)%120)/SL)];
   const rb=getRB(researched);
@@ -424,12 +430,29 @@ export default function ParkTycoon(){
       newRivals.forEach((r,i)=>{newRivals[i]={...r,prestige:r.prestige+r.growRate};});
       const totalRivalPres=newRivals.reduce((s,r)=>s+r.prestige,0);
       const rivalSteal=gm!=="sandbox"?Math.min(0.35,totalRivalPres/(parkRat.final*2+totalRivalPres+1)*0.4):0;
+      // Phase 3-2: Rival events
+      const curRivalEvent=ref.current.rivalEventActive;
+      let newRivalEvent=curRivalEvent;
+      if(curRivalEvent){
+        newRivalEvent=curRivalEvent.remaining>1?{...curRivalEvent,remaining:curRivalEvent.remaining-1}:null;
+        if(!newRivalEvent) addLog(lang==="ko"?`✅ 경쟁사 이벤트 종료 — 정상 운영 재개`:`✅ Rival event ended — normal operations resumed`);
+      } else if(newRivals.length>0&&gm!=="sandbox"&&(day+1)%12===0&&Math.random()<0.4){
+        const ev=RIVAL_EVENTS[Math.floor(Math.random()*RIVAL_EVENTS.length)];
+        const rival=newRivals[Math.floor(Math.random()*newRivals.length)];
+        const rName=rival.name[lang]||rival.name.ko;
+        newRivalEvent={...ev,remaining:ev.dur,rivalName:rName};
+        addLog(`${ev.emoji} ${lang==="ko"?`${rName}: ${ev.name.ko}! ${ev.desc.ko}`:`${rName}: ${ev.name.en}! ${ev.desc.en}`}`);
+        if(ref.current.soundOn) playSound("disaster");
+      }
+      setRivalEventActive(newRivalEvent);
+      const rivalEventVisMult=newRivalEvent?newRivalEvent.visMult:1.0;
+      const rivalEventSatPen=newRivalEvent?newRivalEvent.satPen:0;
       const curMap=MAP_TYPES.find(m=>m.id===mtype)||MAP_TYPES[0];
       const mapVisMult=curMap.visMultSeason[seasonIdx]||1;
       const holidayVisMult=ah?(1+(ah.visMult-1)*rb.holidayEventMult):1;
       // Opening bonus: Grand Opening buzz fades over first 7 days
       const openingBonus=day<=3?1.5:day<=7?1.2:1.0;
-      const rawVis=Math.max(0,Math.floor(s.attraction*2.5*(1+hired.entertainer*(0.05+entVisMult))*(0.4+(s0/100)*0.9)*ssn.mult*feeEff*(1+campBoost)*(1+(parkRat.stars-1)*0.10)*(1+rb.globalVisBonus)*(1+rb.coupleBonus*(segs.couple||0))*feePenalty*stgVisMult*wth.visMult*ratingVisMult*(1-rivalSteal)*mapVisMult*holidayVisMult*openingBonus));
+      const rawVis=Math.max(0,Math.floor(s.attraction*2.5*(1+hired.entertainer*(0.05+entVisMult))*(0.4+(s0/100)*0.9)*ssn.mult*feeEff*(1+campBoost)*(1+(parkRat.stars-1)*0.10)*(1+rb.globalVisBonus)*(1+rb.coupleBonus*(segs.couple||0))*feePenalty*stgVisMult*wth.visMult*ratingVisMult*(1-rivalSteal)*mapVisMult*holidayVisMult*openingBonus*rivalEventVisMult));
       const congested=s.capacity>0&&rawVis>s.capacity;
       let vis=Math.floor(Math.max(0,(congested?s.capacity*1.05:rawVis)*visMult));
       if(s.hasEntrance&&s.attraction>0&&vis<3) vis=3;
@@ -474,7 +497,7 @@ export default function ParkTycoon(){
       // 기본 만족도 하락: -1 → -0.3/일 (너무 급격한 초반 하락 완화)
       // 방문객 없을 때 패널티 제거 (운영 안 하면 만족도 변화 없음)
       const baseSatDelta = vis > 0 ? -0.18 : 0;
-      const newSat=Math.min(100,Math.max(5,s0+hired.janitor*janSatBonus+hired.security*secSatBonus+s.satBonus+baseSatDelta+cleanMod+(congested&&vis>0?-5:0)+Math.min(0,-s.brokenCount*2)+segSatMod(newGrid,segs)+Math.min(0,-s.isolatedCount)+(fee>maxFee?-6:0)-satPenExtra+wth.satMod+franchiseSatMod*0.5+holidaySatMod));
+      const newSat=Math.min(100,Math.max(5,s0+hired.janitor*janSatBonus+hired.security*secSatBonus+s.satBonus+baseSatDelta+cleanMod+(congested&&vis>0?-5:0)+Math.min(0,-s.brokenCount*2)+segSatMod(newGrid,segs)+Math.min(0,-s.isolatedCount)+(fee>maxFee?-6:0)-satPenExtra+wth.satMod+franchiseSatMod*0.5+holidaySatMod-rivalEventSatPen*0.5));
 
       let newDisaster=ad?{...ad,remaining:ad.remaining-1}:null;
       if(newDisaster?.remaining<=0){addLog(t("log.disasterEnd", {name: t(`dis.${newDisaster.id}`)}));newDisaster=null;}
@@ -625,6 +648,8 @@ export default function ParkTycoon(){
         newWthTimer=newWth.dur[0]+Math.floor(Math.random()*(newWth.dur[1]-newWth.dur[0]+1));
         addLog(`${newWth.emoji} ${newWth.name.ko}`);
         if(ref.current.soundOn) playSound("weather");
+        // Phase 3-4: generate 2-day weather forecast on weather change
+        setWeatherForecast([pickWeather(si),pickWeather(si)]);
       }
 
       // Phase 3-1: Holiday Event logic
@@ -754,6 +779,22 @@ export default function ParkTycoon(){
     money:Math.min(1,money/currentStage.next.money),
   }:null;
 
+  // Phase 3-5: achievement checking
+  useEffect(()=>{
+    if(screen!=="game") return;
+    const goldMedals=earnedMedals.filter(m=>m.medalId==="gold").length;
+    const totalLoans=loans.reduce((t,l)=>t+l.remaining,0);
+    const achState={totalVis,stars:parkRating.stars,money,stageId:currentStage.id,clean,sat,day,goldMedals,totalLoans};
+    const newOnes=ACHIEVEMENTS.filter(a=>!earnedAchievements.includes(a.id)&&a.check(achState));
+    if(newOnes.length>0){
+      setEarnedAchievements(prev=>[...prev,...newOnes.map(a=>a.id)]);
+      const first=newOnes[0];
+      setAchievementFlash(first);
+      setTimeout(()=>setAchievementFlash(null),3500);
+      addLog(`${first.emoji} ${lang==="ko"?`업적 달성: ${first.name.ko}!`:`Achievement: ${first.name.en}!`}`);
+    }
+  },[totalVis,parkRating.stars,money,currentStage.id,clean,sat,day,earnedMedals,loans]);
+
   const lastAutoSaveDay=useRef(-1);
   useEffect(()=>{
     if(screen!=="game"||day<2) return;
@@ -849,6 +890,7 @@ export default function ParkTycoon(){
   const handleGridClick=(r,c)=>{
     const{ownedGrid:og,grid:g,money:m}=ref.current;
     if(!og[r][c]){addLog(t("log.unownedLand"));return;}
+    if(obstacleMap[`${r},${c}`]&&buildMode==="build"&&selected){addLog(lang==="ko"?"⛰️ 지형 장애물이 있어 건설 불가":"⛰️ Terrain obstacle — cannot build here");return;}
 
     // 존 페인트 모드 — 멀티셀 건물이면 전체 footprint에 존 적용
     if(buildMode==="zone"&&zonePaint){
@@ -1018,7 +1060,7 @@ export default function ParkTycoon(){
   if(hovered&&selected){
     outer: for(let dr=0;dr<selH;dr++) for(let dc=0;dc<selW;dc++){
       const nr=hovered.r+dr,nc=hovered.c+dc;
-      if(nr>=GR||nc>=GC||!ownedGrid[nr]?.[nc]||grid[nr]?.[nc]){hovFootprintValid=false;break outer;}
+      if(nr>=GR||nc>=GC||!ownedGrid[nr]?.[nc]||grid[nr]?.[nc]||obstacleMap[`${nr},${nc}`]){hovFootprintValid=false;break outer;}
     }
   }
   const segs=calcSegs(grid);
@@ -1066,6 +1108,10 @@ export default function ParkTycoon(){
   const chartData=dailyHistory.slice(-14);
   const revPieData=useMemo(()=>[{name:t("rev.admission"),value:revBreak.adm,color:"#FECA57"},{name:t("rev.rides"),value:Math.round(revBreak.ride),color:"#FF6B9D"},{name:t("rev.shop"),value:Math.round(revBreak.shop),color:"#48DBFB"},{name:t("rev.pass"),value:revBreak.pass,color:"#5EF6A0"}].filter(d=>d.value>0),[revBreak, t]);
   const currentScenarioData=currentScenario?SCENARIOS.find(s=>s.id===currentScenario):null;
+  const obstacleMap=useMemo(()=>{
+    if(!currentScenarioData?.obstacles) return {};
+    return Object.fromEntries(currentScenarioData.obstacles.map(o=>[`${o.r},${o.c}`,o]));
+  },[currentScenario]);
   const pm={width:20,height:20,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",color:"var(--text-primary)",borderRadius:4,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit",padding:0,transition:"all 0.15s"};
 
   const hasResearchAvailable=RESEARCH.some(r=>!researched.includes(r.id)&&researchPoints>=r.cost&&(!r.req||researched.includes(r.req)));
@@ -1308,6 +1354,25 @@ export default function ParkTycoon(){
   return(
     <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"var(--bg-deep)",color:"var(--text-primary)",height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} onClose={()=>setShowSettings(false)} lang={lang}/>}
+      {/* Phase 3-5: 업적 달성 플래시 알림 */}
+      {achievementFlash&&(
+        <div style={{position:"fixed",bottom:24,right:20,zIndex:9998,background:`rgba(5,8,28,0.97)`,border:`2px solid ${achievementFlash.col}`,borderRadius:12,padding:"10px 16px",display:"flex",gap:10,alignItems:"center",boxShadow:`0 4px 24px rgba(0,0,0,0.8), 0 0 20px ${achievementFlash.col}44`,animation:"slide-in 0.3s ease",backdropFilter:"blur(10px)",maxWidth:280}}>
+          <span style={{fontSize:28,filter:`drop-shadow(0 0 6px ${achievementFlash.col})`}}>{achievementFlash.emoji}</span>
+          <div>
+            <div style={{fontSize:9,color:achievementFlash.col,letterSpacing:2,textTransform:"uppercase",marginBottom:2}}>{lang==="ko"?"🏅 업적 달성":"🏅 ACHIEVEMENT"}</div>
+            <div style={{fontSize:13,fontWeight:800,color:"#DDE2FF",fontFamily:"'Barlow Condensed',sans-serif"}}>{achievementFlash.name[lang]||achievementFlash.name.ko}</div>
+            <div style={{fontSize:10,color:"#6B7CA1",marginTop:1}}>{achievementFlash.desc[lang]||achievementFlash.desc.ko}</div>
+          </div>
+        </div>
+      )}
+      {/* Phase 3-2: 라이벌 이벤트 배너 */}
+      {rivalEventActive&&screen==="game"&&(
+        <div style={{position:"fixed",top:72,left:"50%",transform:"translateX(-50%)",zIndex:150,background:`rgba(5,8,28,0.97)`,border:`1px solid ${rivalEventActive.col}77`,borderRadius:8,padding:"5px 14px",display:"flex",gap:8,alignItems:"center",backdropFilter:"blur(8px)",pointerEvents:"none",animation:"slide-in 0.3s ease"}}>
+          <span style={{fontSize:14}}>{rivalEventActive.emoji}</span>
+          <span style={{fontSize:10,fontWeight:700,color:rivalEventActive.col}}>{rivalEventActive.name[lang]||rivalEventActive.name.ko}</span>
+          <span style={{fontSize:9,color:"#555577"}}>{rivalEventActive.remaining}d</span>
+        </div>
+      )}
       {speed===0&&!scenarioResult&&day>1&&(
         <div onClick={()=>setSpeed(1)} style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"rgba(5,8,28,0.92)",border:"2px solid rgba(120,140,255,0.4)",borderRadius:14,padding:"12px 20px",zIndex:200,cursor:"pointer",backdropFilter:"blur(10px)",pointerEvents:"auto",minWidth:220,boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:stats.brokenCount>0||clean<40||sat<50?8:0,animation:"pulse 1.5s ease-in-out infinite"}}>
@@ -1350,10 +1415,16 @@ export default function ParkTycoon(){
             </div>
           )}
           <div style={{flex:1}}/>
-          {/* 날씨 */}
+          {/* 날씨 + 3-4: 예보 */}
           <div style={{display:"flex",alignItems:"center",gap:2,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:4,padding:"2px 6px"}}>
             <span style={{fontSize:12}}>{weather.emoji}</span>
             <span style={{fontSize:10,color:"#6B7CA1"}}>{weather.name[lang]||weather.name.ko}</span>
+            {weatherForecast.length>0&&<>
+              <span style={{fontSize:9,color:"#333355",margin:"0 1px"}}>→</span>
+              {weatherForecast.slice(0,2).map((w,i)=>(
+                <span key={i} title={w.name[lang]||w.name.ko} style={{fontSize:10,opacity:0.5+i*0.15,filter:"grayscale(0.3)"}}>{w.emoji}</span>
+              ))}
+            </>}
           </div>
           {/* 이벤트 배지 */}
           {activeHoliday&&<div style={{display:"flex",alignItems:"center",gap:2,background:"rgba(255,217,61,0.10)",border:"1px solid rgba(255,217,61,0.3)",borderRadius:4,padding:"2px 6px",animation:"pulse 2s infinite"}}>
@@ -2373,6 +2444,24 @@ export default function ParkTycoon(){
                   {curLeague?.id==="diamond"&&<div style={{fontSize:10,color:"#A8D8EA",fontWeight:700,textAlign:"center"}}>💎 {lang==="ko"?"최고 리그 달성!":"Diamond League reached!"}</div>}
                 </div>);
               })()}
+
+              {/* Phase 3-5: 업적 목록 */}
+              <div style={{marginTop:6}}>
+                <div style={{fontSize:10,color:"#FFD93D",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>
+                  🏅 {lang==="ko"?"업적":"Achievements"} ({earnedAchievements.length}/{ACHIEVEMENTS.length})
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3}}>
+                  {ACHIEVEMENTS.map(a=>{
+                    const earned=earnedAchievements.includes(a.id);
+                    return(
+                      <div key={a.id} title={a.desc?.[lang]||a.desc?.ko||""} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 5px",background:earned?`${a.col}18`:"#0E0E1E",border:`1px solid ${earned?a.col+"44":"#1E1E2E"}`,borderRadius:5,opacity:earned?1:0.45,transition:"opacity 0.2s"}}>
+                        <span style={{fontSize:13,filter:earned?`drop-shadow(0 0 4px ${a.col})`:"grayscale(1) opacity(0.4)"}}>{a.emoji}</span>
+                        <div style={{fontSize:9,fontWeight:earned?700:400,color:earned?a.col:"#555577",lineHeight:1.3,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{a.name[lang]||a.name.ko}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </>}
 
           </div>
@@ -2544,6 +2633,7 @@ export default function ParkTycoon(){
                 }
 
                 const owned=ownedGrid[r][c];
+                const obstacle=obstacleMap[`${r},${c}`];
                 const bd=cell?B[cell.type]:null;
                 const bw=cell?bd?.size?.w||1:1;
                 const bh=cell?bd?.size?.h||1:1;
@@ -2566,8 +2656,10 @@ export default function ParkTycoon(){
                 const isRightBoundary=owned&&c+bw<GC&&!ownedGrid[r][c+bw];
                 const isNextBuyable=!owned&&c>0&&ownedGrid[r][c-1]&&gameMode!=="sandbox";
 
+                const OBS_STYLE={rock:{bg:"rgba(70,50,30,0.55)",bd:"rgba(120,90,55,0.6)",emoji:"🪨"},water:{bg:"rgba(10,70,180,0.40)",bd:"rgba(40,130,255,0.55)",emoji:"💧"},rubble:{bg:"rgba(90,80,60,0.50)",bd:"rgba(140,120,90,0.5)",emoji:"🧱"},deadtree:{bg:"rgba(25,55,15,0.50)",bd:"rgba(40,90,25,0.5)",emoji:"🌵"}};
                 let bg="#080B18";
                 if(!owned) bg="#04060E";
+                else if(obstacle) bg=OBS_STYLE[obstacle.type]?.bg||"rgba(60,60,40,0.4)";
                 else if(broken) bg="linear-gradient(135deg,rgba(255,87,87,0.2),rgba(255,87,87,0.05))";
                 else if(isPath) bg=isFancy?"linear-gradient(135deg,#241C08,#1A1408)":"linear-gradient(135deg,#1A1208,#100C05)";
                 else if(isEntrance) bg="linear-gradient(135deg,rgba(255,217,61,0.15),rgba(255,159,67,0.08))";
@@ -2579,6 +2671,7 @@ export default function ParkTycoon(){
 
                 let borderCol="rgba(255,255,255,0.04)";
                 if(!owned) borderCol="rgba(255,255,255,0.02)";
+                else if(obstacle) borderCol=OBS_STYLE[obstacle.type]?.bd||"rgba(100,90,60,0.5)";
                 else if(isSel) borderCol="#FFD93D";
                 else if(isDemolishHov) borderCol="#FF5757";
                 else if(broken) borderCol="rgba(255,87,87,0.5)";
@@ -2599,7 +2692,7 @@ export default function ParkTycoon(){
                     borderRight:isRightBoundary?`2px solid rgba(168,216,234,0.35)`:`1px solid ${borderCol}`,
                     borderRadius:5,
                     display:"flex",alignItems:"center",justifyContent:"center",
-                    cursor:owned?(buildMode==="demolish"&&cell?"crosshair":"pointer"):isNextBuyable?"pointer":"default",
+                    cursor:owned?(obstacle&&selected?"not-allowed":buildMode==="demolish"&&cell?"crosshair":"pointer"):isNextBuyable?"pointer":"default",
                     transition:"border-color 0.12s,background 0.12s",
                     minHeight:0,overflow:"hidden",position:"relative",
                     background:isNextBuyable?"rgba(77,159,255,0.04)":bg,
@@ -2610,7 +2703,13 @@ export default function ParkTycoon(){
                   {!owned&&isNextBuyable&&<span style={{fontSize:10,opacity:0.6,color:"#4D9FFF"}}>🔓</span>}
                   {!owned&&!isNextBuyable&&<span style={{fontSize:10,opacity:0.5,color:"#333355"}}>▪</span>}
 
-                  {owned&&isPath&&<>
+                  {owned&&obstacle&&<>
+                    <div style={{position:"absolute",inset:0,borderRadius:4,background:OBS_STYLE[obstacle.type]?.bg,opacity:0.7}}/>
+                    <span style={{position:"relative",zIndex:2,fontSize:14,filter:"drop-shadow(0 1px 3px rgba(0,0,0,0.9))"}}>{OBS_STYLE[obstacle.type]?.emoji||"⛰️"}</span>
+                    {isInFootprint&&selected&&<div style={{position:"absolute",inset:0,borderRadius:4,background:"rgba(255,87,87,0.25)",zIndex:3}}/>}
+                  </>}
+
+                  {owned&&!obstacle&&isPath&&<>
                     <div style={{position:"absolute",inset:0,borderRadius:4,
                       background:isFancy
                         ?"linear-gradient(135deg,#D4AF3718 0%,#D4AF3730 50%,#D4AF3718 100%)"
