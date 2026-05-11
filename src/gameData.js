@@ -44,12 +44,12 @@ export const LEAGUES = [
 export const BREAK_CHANCE = {entrance:0.004,ferrisWheel:0.04,rollerCoaster:0.07,carousel:0.03,thrillRide:0.055,waterRide:0.045,bumperCars:0.03,dropTower:0.06,miniTrain:0.025,hauntedHouse:0.02,cinema4D:0.015,balloonRide:0.035};
 export const ZONES = {thrill:{emoji:"🎢",color:"#FF4757",bg:"#FF475718"},family:{emoji:"👨‍👩‍👧",color:"#FF9F43",bg:"#FF9F4318"},food:{emoji:"🍔",color:"#FECA57",bg:"#FECA5718"},nature:{emoji:"🌳",color:"#1DD1A1",bg:"#1DD1A118"},vip:{emoji:"⭐",color:"#A29BFE",bg:"#A29BFE18"}};
 export const PARCELS = [
-  {id:"eastA",cost:10000,cols:[16,19],icon:"🏕️",req:null,label:"East Wing A"},
-  {id:"eastB",cost:18000,cols:[20,23],icon:"🏞️",req:"eastA",label:"East Wing B"},
-  {id:"eastC",cost:28000,cols:[24,27],icon:"🌄",req:"eastB",label:"East Wing C"},
-  {id:"eastD",cost:42000,cols:[28,31],icon:"🌅",req:"eastC",label:"East Wing D"},
-  {id:"eastE",cost:60000,cols:[32,35],icon:"🗻",req:"eastD",label:"East Wing E"},
-  {id:"eastF",cost:80000,cols:[36,39],icon:"🌐",req:"eastE",label:"East Wing F"},
+  {id:"eastA",cost:10000,cols:[16,19],icon:"🏕️",req:null,   label:{ko:"동쪽 A구역",en:"East Wing A"}},
+  {id:"eastB",cost:18000,cols:[20,23],icon:"🏞️",req:"eastA",label:{ko:"동쪽 B구역",en:"East Wing B"}},
+  {id:"eastC",cost:28000,cols:[24,27],icon:"🌄",req:"eastB",label:{ko:"동쪽 C구역",en:"East Wing C"}},
+  {id:"eastD",cost:42000,cols:[28,31],icon:"🌅",req:"eastC",label:{ko:"동쪽 D구역",en:"East Wing D"}},
+  {id:"eastE",cost:60000,cols:[32,35],icon:"🗻",req:"eastD",label:{ko:"동쪽 E구역",en:"East Wing E"}},
+  {id:"eastF",cost:80000,cols:[36,39],icon:"🌐",req:"eastE",label:{ko:"동쪽 F구역",en:"East Wing F"}},
 ];
 export const SEGS = {family:{emoji:"👨‍👩‍👧",color:"#FF9F43",spendMult:1.2},couple:{emoji:"💑",color:"#FF6B9D",spendMult:1.5},thrill:{emoji:"🎢",color:"#FF6B6B",spendMult:0.8},child:{emoji:"👦",color:"#48DBFB",spendMult:0.5},general:{emoji:"🧑",color:"#C7B8EA",spendMult:1.0}};
 export const SEG_PULL = {ferrisWheel:{family:2,couple:4},rollerCoaster:{thrill:5},carousel:{family:3,child:4},thrillRide:{thrill:4},waterRide:{thrill:3,family:2},foodStall:{family:3,child:2},iceCream:{child:4,family:1},giftShop:{couple:2,family:1},restroom:{family:3},garden:{couple:4,family:1},fountain:{couple:5},bumperCars:{child:3,thrill:2},dropTower:{thrill:5},miniTrain:{child:4,family:3},hauntedHouse:{thrill:3,couple:2},cinema4D:{couple:3,general:2},balloonRide:{couple:4,family:2},miniGolf:{family:4,couple:2},arcade:{child:5,general:2},vipLounge:{couple:5,general:1}};
