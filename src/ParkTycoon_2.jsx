@@ -786,14 +786,23 @@ export default function ParkTycoon(){
         const sk=Object.keys(SEGS).reduce((best,k)=>(segData[k]||0)>(segData[best]||0)?k:best,"general");
         return{...dot,r:Math.max(0,Math.min(GR-1,base.r+Math.floor(Math.random()*3)-1)),c:Math.max(0,Math.min(GC-1,base.c+Math.floor(Math.random()*3)-1)),emoji:SEGS[sk].emoji};
       }));
-      // 15% 확률로 랜덤 방문객 말풍선
-      if(Math.random()<0.15&&visitors>0){
+      // 15% 확률로 랜덤 방문객 말풍선 (2-2: 실제 상태 기반 컨텍스트 메시지)
+      if(Math.random()<0.15&&ref.current.visitors>0){
         const curSat=ref.current.sat;
-        const msgs=curSat>75
-          ?["😊 재밌어요!","🎉 신났다!","👍 대박이야!","🎠 즐거워요!","⭐ 또 올게요!"]
-          :curSat>50
-          ?["🤔 그냥 그래요","😐 보통이네..","💭 더 있으면 좋겠는데"]
-          :["😤 혼잡해!","💸 입장료 비싸!","😢 시설 고장났어요","🚫 별로예요"];
+        const curClean=ref.current.clean;
+        const brokenNow=ref.current.grid.flat().filter(c=>c&&!c.ref&&c.broken).length;
+        let msgs;
+        if(curSat>75){
+          msgs=["😊 재밌어요!","🎉 신났다!","👍 대박이야!","🎠 즐거워요!","⭐ 또 올게요!"];
+        } else if(curSat>50){
+          msgs=["🤔 그냥 그래요","😐 보통이네..","💭 더 있으면 좋겠는데"];
+        } else {
+          const base=["🚫 별로예요","👎 실망이에요"];
+          if(brokenNow>0) base.push("😢 기구 고장났어요!","🔧 수리해주세요");
+          if(curClean<40) base.push("🗑️ 너무 더러워요!","😷 청소 좀..");
+          if(curClean>=40&&brokenNow===0) base.push("😤 혼잡해!","💸 입장료 비싸요");
+          msgs=base;
+        }
         const text=msgs[Math.floor(Math.random()*msgs.length)];
         setBubbles(prev=>{
           const now=Date.now();
@@ -1300,9 +1309,29 @@ export default function ParkTycoon(){
     <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"var(--bg-deep)",color:"var(--text-primary)",height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} onClose={()=>setShowSettings(false)} lang={lang}/>}
       {speed===0&&!scenarioResult&&day>1&&(
-        <div onClick={()=>setSpeed(1)} style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"rgba(0,0,0,0.75)",border:"2px solid rgba(120,140,255,0.4)",borderRadius:12,padding:"10px 22px",zIndex:200,cursor:"pointer",display:"flex",alignItems:"center",gap:8,backdropFilter:"blur(6px)",animation:"pulse 1.5s ease-in-out infinite",pointerEvents:"auto"}}>
-          <span style={{fontSize:20}}>⏸</span>
-          <span style={{fontSize:13,fontWeight:700,color:"#DDE2FF",letterSpacing:2,fontFamily:"'Barlow Condensed',sans-serif"}}>{lang==="ko"?"일시정지 — 클릭하여 재개":"PAUSED — Click to Resume"}</span>
+        <div onClick={()=>setSpeed(1)} style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"rgba(5,8,28,0.92)",border:"2px solid rgba(120,140,255,0.4)",borderRadius:14,padding:"12px 20px",zIndex:200,cursor:"pointer",backdropFilter:"blur(10px)",pointerEvents:"auto",minWidth:220,boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:stats.brokenCount>0||clean<40||sat<50?8:0,animation:"pulse 1.5s ease-in-out infinite"}}>
+            <span style={{fontSize:20}}>⏸</span>
+            <span style={{fontSize:13,fontWeight:700,color:"#DDE2FF",letterSpacing:2,fontFamily:"'Barlow Condensed',sans-serif"}}>{lang==="ko"?"일시정지 — 클릭하여 재개":"PAUSED — Click to Resume"}</span>
+          </div>
+          {/* 2-3: 오늘의 문제점 요약 */}
+          {(()=>{
+            const issues=[];
+            if(stats.brokenCount>0) issues.push({emoji:"🔧",col:"#FF9F43",msg:lang==="ko"?`${stats.brokenCount}개 시설 고장 — 수리 필요`:`${stats.brokenCount} broken rides — repair needed`});
+            if(clean<40) issues.push({emoji:"🗑️",col:"#FF5757",msg:lang==="ko"?`청결도 ${Math.round(clean)}% — 청소부 부족`:`Cleanliness ${Math.round(clean)}% — need janitors`});
+            if(sat<50&&sat>0) issues.push({emoji:"😔",col:"#FF6B9D",msg:lang==="ko"?`만족도 ${Math.round(sat)}% — 방문객 감소 중`:`Satisfaction ${Math.round(sat)}% — visitors leaving`});
+            if(hired.janitor===0&&hired.mechanic===0&&day>3) issues.push({emoji:"👷",col:"#4D9FFF",msg:lang==="ko"?"직원 없음 — 경영 탭에서 고용하세요":"No staff — hire in Manage tab"});
+            if(hasNoPath&&stats.hasEntrance) issues.push({emoji:"🛤️",col:"#FFD93D",msg:lang==="ko"?"통로 없음 — 어트랙션 수익 -40%":"No paths — ride income -40%"});
+            if(issues.length===0) return null;
+            return(<div style={{borderTop:"1px solid rgba(255,255,255,0.08)",paddingTop:8}} onClick={e=>e.stopPropagation()}>
+              <div style={{fontSize:9,color:"#444466",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>{lang==="ko"?"⚠ 현재 문제점":"⚠ CURRENT ISSUES"}</div>
+              {issues.slice(0,3).map(({emoji,col,msg},i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:6,padding:"3px 0",fontSize:10,color:col,fontWeight:600}}>
+                  <span>{emoji}</span><span>{msg}</span>
+                </div>
+              ))}
+            </div>);
+          })()}
         </div>
       )}
 
@@ -1462,6 +1491,22 @@ export default function ParkTycoon(){
               )}
             </div>
           ))}
+          {/* 2-4: 구역 시너지 활성 배지 */}
+          {(()=>{
+            const mastered=Object.entries(zoneMastery).filter(([,zm])=>zm.mastered);
+            if(mastered.length===0) return null;
+            const totalBonus=mastered.reduce((t,[,zm])=>t+zm.bonus,0);
+            return(
+              <div title={mastered.map(([k,zm])=>`${ZONES[k]?.emoji} +${Math.round(zm.bonus*100)}%`).join(" · ")}
+                style={{display:"flex",alignItems:"center",gap:3,background:"rgba(29,209,161,0.08)",border:"1px solid rgba(29,209,161,0.3)",borderRadius:6,padding:"2px 7px",cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}} onClick={()=>setTab("mission")}>
+                <span style={{fontSize:10}}>⚡</span>
+                <div>
+                  <div style={{fontSize:8,color:"#1DD1A188",letterSpacing:1,textTransform:"uppercase",lineHeight:1}}>ZONE</div>
+                  <div style={{fontSize:10,fontWeight:700,color:"#1DD1A1",fontFamily:"'Barlow Condensed',sans-serif",lineHeight:1.1}}>+{Math.round(totalBonus*100)}%</div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
         {/* 방문객 공식 breakdown 패널 */}
         {showVisBreakdown && visitorFactors && (
@@ -1588,9 +1633,27 @@ export default function ParkTycoon(){
                       </div>
                       <button style={{marginLeft:"auto",fontSize:10,color:"#7788BB",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}} onClick={()=>setClickedTile(null)}>✕</button>
                     </div>
-                    <div style={{fontSize:10,color:"#6B7CA1",marginBottom:6}}>
+                    <div style={{fontSize:10,color:"#6B7CA1",marginBottom:4}}>
                       ⭐{Math.round(st.attraction)}{st.maintenance>0&&<> · 💰-${Math.round(st.maintenance)}</>}{st.cap>0&&<> · 👥{st.cap}</>}
                     </div>
+                    {/* 2-1: 일 수익 예상 */}
+                    {(()=>{
+                      const zone2=zoneGrid[r]?.[c];
+                      const zm2=zone2?zoneMastery[zone2]:null;
+                      const zoneMult=zm2?.mastered?1+zm2.bonus:1;
+                      const admEst=pricingMode!=="per_ride"&&cell.type==="entrance"?Math.round(visitors*fee):0;
+                      const shopEst=st.rpv>0?Math.round(visitors*st.rpv*zoneMult):0;
+                      const rideTicket=pricingMode==="per_ride"&&bd.cat==="ride"&&cell.type!=="entrance"?(ridePrices[cell.type]??DEFAULT_RIDE_PRICES[cell.type]??5):0;
+                      if(!admEst&&!shopEst&&!rideTicket) return null;
+                      return(
+                        <div style={{fontSize:10,color:"#5EF6A0",marginBottom:6,background:"rgba(94,246,160,0.06)",border:"1px solid rgba(94,246,160,0.15)",borderRadius:4,padding:"3px 7px",display:"flex",gap:8,alignItems:"center"}}>
+                          <span>💵</span>
+                          {admEst>0&&<span>~${admEst.toLocaleString()}/{lang==="ko"?"일":"day"}</span>}
+                          {shopEst>0&&<span>~${shopEst.toLocaleString()}/{lang==="ko"?"일":"day"}{zm2?.mastered&&<span style={{color:"#FECA57",marginLeft:3}}>⚡+{Math.round(zm2.bonus*100)}%</span>}</span>}
+                          {rideTicket>0&&<span>🎟️ ${rideTicket}/{lang==="ko"?"인":"pp"}</span>}
+                        </div>
+                      );
+                    })()}
                     {upCost&&nextSt&&<div style={{display:"flex",gap:6,marginBottom:3,padding:"3px 6px",background:"rgba(255,255,255,0.03)",borderRadius:4,fontSize:10,color:"#6B7CA1"}}>
                       <span style={{color:"#AABBFF"}}>Lv{cell.level+2}:</span>
                       {attrDelta>0&&<span>⭐+{attrDelta}</span>}
@@ -2569,6 +2632,11 @@ export default function ParkTycoon(){
 
                   {owned&&cell&&!isPath&&!isEntrance&&<>
                     {zone&&<div style={{position:"absolute",inset:0,background:ZONES[zone]?.bg,borderRadius:4,opacity:0.6}}/>}
+                    {/* 2-5: 대형 건물 배경 그라데이션 */}
+                    {bw>=3&&!broken&&<>
+                      <div style={{position:"absolute",inset:0,borderRadius:4,background:`radial-gradient(circle at 50% 50%,${bd.color}28 0%,transparent 70%)`,zIndex:1}}/>
+                      <div style={{position:"absolute",inset:0,borderRadius:4,background:`linear-gradient(135deg,${bd.color}14 0%,transparent 50%,${bd.color}0A 100%)`,zIndex:1}}/>
+                    </>}
                     <div style={{
                       position:"relative",zIndex:2,
                       opacity:broken?0.25:isDemolishHov?0.5:1,
@@ -2580,6 +2648,7 @@ export default function ParkTycoon(){
                         : <span style={{fontSize:bw>=3?32:bw>=2?26:cell.level>=2?22:20,lineHeight:1}}>{bd.emoji}</span>}
                     </div>
                     {cell.level>0&&!broken&&<div style={{position:"absolute",top:2,right:3,fontSize:11,color:"#FFD93D",lineHeight:1.2,fontWeight:900,zIndex:3,textShadow:"0 0 3px #000"}}>{cell.level===2?"★★":"★"}</div>}
+                    {bw>=3&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:8,color:bd.color,opacity:0.7,fontWeight:700,zIndex:3,fontFamily:"'Barlow Condensed',monospace",lineHeight:1}}>{bw}×{bh}</div>}
                     {broken&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:bw>=2?18:14,zIndex:3,background:"rgba(0,0,0,0.4)",borderRadius:4}}>🔧</div>}
                     {isolated&&!broken&&<>
                       <div style={{position:"absolute",inset:0,borderRadius:4,border:"2px solid rgba(255,87,87,0.7)",zIndex:3,pointerEvents:"none",animation:"pulse-glow 2s ease-in-out infinite"}}/>
@@ -2859,6 +2928,22 @@ export default function ParkTycoon(){
             </div>
           </div>
         )}
+
+      {/* 2-6: 모바일 플로팅 퀵액션 버튼 */}
+      {isMobile&&screen==="game"&&panelCollapsed&&(
+        <div style={{position:"fixed",bottom:12,right:12,zIndex:60,display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
+          {[
+            {ic:"⚙️",label:lang==="ko"?"경영":"Mgmt",  tab:"manage",  col:"#4ECDC4"},
+            {ic:"🏗️",label:lang==="ko"?"건설":"Build", tab:"build",   col:"#FFD93D"},
+            {ic:"🎯",label:lang==="ko"?"미션":"Quest",  tab:"mission", col:"#A29BFE"},
+          ].map(({ic,label,tab:t2,col})=>(
+            <button key={t2} onClick={()=>{setTab(t2);setPanelCollapsed(false);}}
+              style={{display:"flex",alignItems:"center",gap:6,background:`rgba(5,8,28,0.95)`,border:`1px solid ${col}55`,borderRadius:20,padding:"7px 12px",cursor:"pointer",fontSize:11,fontWeight:700,color:col,fontFamily:"inherit",boxShadow:`0 4px 16px rgba(0,0,0,0.6), 0 0 8px ${col}22`,backdropFilter:"blur(8px)"}}>
+              <span style={{fontSize:14}}>{ic}</span>{label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {scenarioResult&&(()=>{
         const bestMedal=earnedMedals.filter(m=>m.scenarioId===currentScenario).sort((a,b)=>['bronze','silver','gold'].indexOf(b.medalId)-['bronze','silver','gold'].indexOf(a.medalId))[0];
