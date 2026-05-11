@@ -142,6 +142,7 @@ export default function ParkTycoon(){
   const firstVisitorRef=useRef(false);
   const [showVisBreakdown,setShowVisBreakdown]=useState(false);
   const [showSatTooltip,setShowSatTooltip]=useState(false);
+  const [satTooltipPos,setSatTooltipPos]=useState({x:0,y:0});
   const [gridScale,setGridScale]=useState(1);
   const [gridScaleOrigin,setGridScaleOrigin]=useState({x:50,y:50});
   const pinchRef=useRef({active:false, startDist:0, startScale:1});
@@ -1286,6 +1287,12 @@ export default function ParkTycoon(){
   return(
     <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"var(--bg-deep)",color:"var(--text-primary)",height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} onClose={()=>setShowSettings(false)} lang={lang}/>}
+      {speed===0&&!scenarioResult&&day>1&&(
+        <div onClick={()=>setSpeed(1)} style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"rgba(0,0,0,0.75)",border:"2px solid rgba(120,140,255,0.4)",borderRadius:12,padding:"10px 22px",zIndex:200,cursor:"pointer",display:"flex",alignItems:"center",gap:8,backdropFilter:"blur(6px)",animation:"pulse 1.5s ease-in-out infinite",pointerEvents:"auto"}}>
+          <span style={{fontSize:20}}>⏸</span>
+          <span style={{fontSize:13,fontWeight:700,color:"#DDE2FF",letterSpacing:2,fontFamily:"'Barlow Condensed',sans-serif"}}>{lang==="ko"?"일시정지 — 클릭하여 재개":"PAUSED — Click to Resume"}</span>
+        </div>
+      )}
 
       {/* TOP BAR — 2행 구조 */}
       <div style={{background:"linear-gradient(180deg,#0A0D22 0%,#07091A 100%)",borderBottom:"1px solid rgba(100,120,255,0.15)",boxShadow:"0 2px 20px rgba(0,0,0,0.5)",flexShrink:0}}>
@@ -1399,7 +1406,7 @@ export default function ParkTycoon(){
             <div key={l} style={{position:"relative"}}>
               <div
                 onClick={isVis?()=>setShowVisBreakdown(x=>!x):undefined}
-                onMouseEnter={isSat?()=>setShowSatTooltip(true):undefined}
+                onMouseEnter={isSat?(e)=>{const r=e.currentTarget.getBoundingClientRect();setSatTooltipPos({x:r.left,y:r.bottom+4});setShowSatTooltip(true);}:undefined}
                 onMouseLeave={isSat?()=>setShowSatTooltip(false):undefined}
                 style={{display:"flex",alignItems:"center",gap:4,background:big?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.03)",border:`1px solid ${isVis&&showVisBreakdown?"#4D9FFF66":isSat&&showSatTooltip?col+"66":big?col+"33":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:big?"3px 10px":"3px 8px",whiteSpace:"nowrap",flexShrink:0,cursor:isVis||isSat?"pointer":"default",transition:"border-color 0.15s"}}>
                 <span style={{fontSize:big?14:11}}>{ic}</span>
@@ -1410,7 +1417,7 @@ export default function ParkTycoon(){
               </div>
               {/* 만족도 hover 툴팁 */}
               {isSat&&showSatTooltip&&(
-                <div style={{position:"absolute",top:"100%",left:0,marginTop:4,background:"rgba(8,12,32,0.97)",border:`1px solid ${col}44`,borderRadius:8,padding:"8px 10px",zIndex:50,minWidth:180,backdropFilter:"blur(8px)",animation:"slide-in 0.15s ease",pointerEvents:"none"}}>
+                <div style={{position:"fixed",top:satTooltipPos.y,left:satTooltipPos.x,background:"rgba(8,12,32,0.97)",border:`1px solid ${col}44`,borderRadius:8,padding:"8px 10px",zIndex:9999,minWidth:180,backdropFilter:"blur(8px)",animation:"slide-in 0.15s ease",pointerEvents:"none"}}>
                   <div style={{fontSize:9,fontWeight:700,color:col,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>😊 {lang==="ko"?"만족도 영향 요인":"Satisfaction Factors"}</div>
                   {[
                     {label:lang==="ko"?"🏗️ 시설 보너스":"🏗️ Facilities", val:+stats.satBonus.toFixed(1), pos:stats.satBonus>=0},
@@ -2824,7 +2831,7 @@ export default function ParkTycoon(){
             )}
             <div style={{display:"flex",gap:10,justifyContent:"center"}}>
               <button style={{background:"rgba(255,217,61,0.12)",border:"2px solid rgba(255,217,61,0.5)",color:"#FFD93D",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(0);setScreen("menu");}}>{t("res.backMenu")}</button>
-              <button style={{background:"rgba(0,229,160,0.12)",border:"2px solid rgba(0,229,160,0.4)",color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>setScenarioResult(null)}>{t("res.continue")}</button>
+              <button style={{background:"rgba(0,229,160,0.12)",border:"2px solid rgba(0,229,160,0.4)",color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(1);}}>{t("res.continue")}</button>
             </div>
           </div>
         </div>
