@@ -11,7 +11,7 @@ import {
 } from './gameData.js';
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
 import {
-  tFn, pickWeather, getReachablePaths, hasPath, getZM, calcStats, calcSegs,
+  tFn, pickWeather, getReachablePaths, hasPath, hasBuildingPath, getZM, calcStats, calcSegs,
   segSatMod, checkVIPReq, bldCounts, calcParkRating, calcRideTicketRev, avgShopMult,
   calcStage, stageVisBonus, stageRevBonus, calcLeague, getRB,
   loadSaveSlots, writeSaveSlots, mkGrid, mkOwned, timeAgoL, playSound,
@@ -242,7 +242,14 @@ export default function ParkTycoon(){
       startMoney=Math.floor(sc.startMoney*sdiff.moneyMult);
       const effTimeLimit=sc.timeLimit?Math.floor(sc.timeLimit*sdiff.timeMult):0;
       setScenarioTimeLimit(effTimeLimit);
-      sc.preBuilt.forEach(b=>{startGrid[b.r][b.c]={type:b.type,level:b.level,broken:b.broken};});
+      sc.preBuilt.forEach(b=>{
+        const bd=B[b.type]; const bw=bd?.size?.w||1; const bh=bd?.size?.h||1;
+        startGrid[b.r][b.c]={type:b.type,level:b.level,broken:b.broken};
+        for(let dr=0;dr<bh;dr++) for(let dc=0;dc<bw;dc++){
+          if(dr===0&&dc===0) continue;
+          if(b.r+dr<GR&&b.c+dc<GC) startGrid[b.r+dr][b.c+dc]={type:b.type,ref:[b.r,b.c]};
+        }
+      });
       if(sc.gridRestrict) startOwned=mkOwned(sc.gridRestrict);
     }
 
@@ -322,7 +329,7 @@ export default function ParkTycoon(){
       const mechRepairMult=mechUpg.repairMult||0.3;
       const mechBreakMult=mechUpg.breakMult||0.3;
       const newGrid=g.map(row=>row.map(cell=>{
-        if(!cell) return null;
+        if(!cell||cell.ref) return cell;
         const bc=BREAK_CHANCE[cell.type];if(!bc) return cell;
         if(cell.broken) return(hired.mechanic>0&&Math.random()<(hired.mechanic*mechRepairMult+rb.autoRepairBonus))?{...cell,broken:false}:cell;
         return Math.random()<Math.max(0.001,bc*rb.breakMult*(1-hired.mechanic*mechBreakMult))?{...cell,broken:true}:cell;
@@ -462,7 +469,7 @@ export default function ParkTycoon(){
               const targets=[];
               for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
                 const cell=n[r][c];
-                if(cell&&BREAK_CHANCE[cell.type]&&!cell.broken) targets.push({r,c});
+                if(cell&&!cell.ref&&BREAK_CHANCE[cell.type]&&!cell.broken) targets.push({r,c});
               }
               targets.sort(()=>Math.random()-0.5).slice(0,2).forEach(({r,c})=>{n[r][c]={...n[r][c],broken:true};});
               return n;
@@ -639,7 +646,7 @@ export default function ParkTycoon(){
       if(congested){
         for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
           const cell=newGrid[r][c];
-          if(cell&&B[cell.type]?.cat==="ride"&&cell.type!=="entrance"&&!cell.broken){
+          if(cell&&!cell.ref&&B[cell.type]?.cat==="ride"&&cell.type!=="entrance"&&!cell.broken){
             newCongestedCells.add(`${r},${c}`);
           }
         }
@@ -787,48 +794,95 @@ export default function ParkTycoon(){
   const handleGridClick=(r,c)=>{
     const{ownedGrid:og,grid:g,money:m}=ref.current;
     if(!og[r][c]){addLog(t("log.unownedLand"));return;}
-    if(buildMode==="zone"&&zonePaint){setZoneGrid(prev=>{const n=prev.map(r=>[...r]);n[r][c]=zonePaint==="clear"?null:zonePaint;return n;});return;}
+
+    // 존 페인트 모드 — 멀티셀 건물이면 전체 footprint에 존 적용
+    if(buildMode==="zone"&&zonePaint){
+      const clickedCell=g[r][c];
+      let ar=r,ac=c;
+      if(clickedCell?.ref){[ar,ac]=clickedCell.ref;}
+      const anchorCell=g[ar][ac];
+      const bw=anchorCell?B[anchorCell.type]?.size?.w||1:1;
+      const bh=anchorCell?B[anchorCell.type]?.size?.h||1:1;
+      setZoneGrid(prev=>{
+        const n=prev.map(row=>[...row]);
+        for(let dr=0;dr<bh;dr++) for(let dc=0;dc<bw;dc++){
+          if(ar+dr<GR&&ac+dc<GC) n[ar+dr][ac+dc]=zonePaint==="clear"?null:zonePaint;
+        }
+        return n;
+      });
+      return;
+    }
+
+    // 철거 모드 — 클릭한 건물의 모든 셀 선택 토글
     if(buildMode==="demolish"){
       if(g[r][c]){
-        const key=`${r},${c}`;
-        setMultiSelectedCells(prev=>{const n=new Set(prev);n.has(key)?n.delete(key):n.add(key);return n;});
+        let ar=r,ac=c;
+        if(g[r][c].ref){[ar,ac]=g[r][c].ref;}
+        const anchorCell=g[ar][ac];
+        const bw=B[anchorCell?.type]?.size?.w||1;
+        const bh=B[anchorCell?.type]?.size?.h||1;
+        const cells=[];
+        for(let dr=0;dr<bh;dr++) for(let dc=0;dc<bw;dc++) cells.push(`${ar+dr},${ac+dc}`);
+        setMultiSelectedCells(prev=>{
+          const n=new Set(prev);
+          const allSel=cells.every(k=>n.has(k));
+          allSel?cells.forEach(k=>n.delete(k)):cells.forEach(k=>n.add(k));
+          return n;
+        });
       }
       return;
     }
-    if(!selected){setClickedTile({r,c,cell:g[r][c]});return;}
-    if(g[r][c]){
-      const refund=Math.floor(B[g[r][c].type].baseCost*0.4);
-      setOverwriteConfirm({r,c,existing:g[r][c],newType:selected,refund});
+
+    // 건물 없고 선택도 없으면 — ref는 앵커로 라우팅
+    if(!selected){
+      const clickedCell=g[r][c];
+      if(!clickedCell){setClickedTile(null);return;}
+      if(clickedCell.ref){const[ar,ac]=clickedCell.ref;setClickedTile({r:ar,c:ac,cell:g[ar][ac]});}
+      else{setClickedTile({r,c,cell:clickedCell});}
       return;
     }
-    const bd=B[selected];if(m<bd.baseCost){addLog(t("log.noMoney"));return;}
+
+    const bd=B[selected];
+    if(m<bd.baseCost){addLog(t("log.noMoney"));return;}
     if(bd.locked&&!researched.includes("r4")&&gameMode!=="sandbox"){addLog(t("log.locked"));return;}
     if(selected==="entrance"){for(const row of g) for(const cell of row) if(cell?.type==="entrance"){addLog(t("log.oneEntrance"));return;}}
-    setGrid(prev=>{const n=prev.map(r=>[...r]);n[r][c]={type:selected,level:0,broken:false};return n;});
-    setMoney(mo=>mo-bd.baseCost);addLog(t("log.build", {name: t(`b.${selected}`)}));if(soundOn) playSound("build");
-    // 파티클 생성
-    const pId = Date.now();
-    const pColor = B[selected]?.color || "#FFD93D";
-    const particles = Array.from({length: 8}, (_, i) => {
-      const angle = (i / 8) * Math.PI * 2;
-      const dist = 30 + Math.random() * 25;
-      return {
-        tx: `${Math.cos(angle) * dist}px`,
-        ty: `${Math.sin(angle) * dist}px`,
-        col: pColor,
-      };
+
+    const bw=bd.size?.w||1, bh=bd.size?.h||1;
+    // 범위 확인 및 빈 칸 확인
+    for(let dr=0;dr<bh;dr++) for(let dc=0;dc<bw;dc++){
+      const nr=r+dr,nc=c+dc;
+      if(nr>=GR||nc>=GC){addLog(t("log.unownedLand"));return;}
+      if(!og[nr][nc]){addLog(t("log.unownedLand"));return;}
+      if(g[nr][nc]){addLog(t("log.alreadyBuilt"));return;}
+    }
+
+    setGrid(prev=>{
+      const n=prev.map(row=>[...row]);
+      n[r][c]={type:selected,level:0,broken:false};
+      for(let dr=0;dr<bh;dr++) for(let dc=0;dc<bw;dc++){
+        if(dr===0&&dc===0) continue;
+        n[r+dr][c+dc]={type:selected,ref:[r,c]};
+      }
+      return n;
     });
-    setBuildParticles(prev => [...prev, {id: pId, r, c, color: pColor, particles}]);
-    setTimeout(() => setBuildParticles(prev => prev.filter(p => p.id !== pId)), 700);
+    setMoney(mo=>mo-bd.baseCost);addLog(t("log.build",{name:t(`b.${selected}`)}));if(soundOn) playSound("build");
+    const pId=Date.now();
+    const pColor=B[selected]?.color||"#FFD93D";
+    const particles=Array.from({length:8},(_,i)=>{
+      const angle=(i/8)*Math.PI*2; const dist=30+Math.random()*25;
+      return{tx:`${Math.cos(angle)*dist}px`,ty:`${Math.sin(angle)*dist}px`,col:pColor};
+    });
+    setBuildParticles(prev=>[...prev,{id:pId,r,c,color:pColor,particles}]);
+    setTimeout(()=>setBuildParticles(prev=>prev.filter(p=>p.id!==pId)),700);
   };
   const upgradeBuilding=()=>{const{r,c,cell}=clickedTile;if(cell.level>=2||cell.broken) return;const cost=B[cell.type].upgradeCost[cell.level];if(!cost) return;if(ref.current.money<cost){addLog(t("log.noMoney"));return;}const lv=cell.level+1;setGrid(prev=>{const n=prev.map(r=>[...r]);n[r][c]={...cell,level:lv};return n;});setMoney(m=>m-cost);setClickedTile(p=>({...p,cell:{...p.cell,level:lv}}));addLog(t("log.upgrade", {name: t(`b.${cell.type}`), lv: lv+1}));if(soundOn) playSound("upgrade");};
   const repairBuilding=()=>{const{r,c,cell}=clickedTile;if(!cell.broken) return;const cost=Math.max(500,Math.floor(B[cell.type].baseCost*0.15));if(ref.current.money<cost){addLog(t("log.repairNoMoney"));return;}setGrid(prev=>{const n=prev.map(r=>[...r]);n[r][c]={...cell,broken:false};return n;});setMoney(m=>m-cost);setClickedTile(p=>({...p,cell:{...p.cell,broken:false}}));addLog(t("log.repair"));};
   const demolish=()=>{const{r,c,cell}=clickedTile;const refund=Math.floor(B[cell.type].baseCost*0.4);setDemolishConfirm({r,c,cell,refund});};
-  const confirmDemolish=()=>{if(!demolishConfirm) return;const{r,c,cell,refund}=demolishConfirm;setGrid(prev=>{const n=prev.map(row=>[...row]);n[r][c]=null;return n;});setMoney(m=>m+refund);addLog(t("log.demolish"));setClickedTile(null);if(soundOn) playSound("demolish");setDemolishConfirm(null);};
+  const confirmDemolish=()=>{if(!demolishConfirm) return;const{r,c,cell,refund}=demolishConfirm;const bw=B[cell.type]?.size?.w||1;const bh=B[cell.type]?.size?.h||1;setGrid(prev=>{const n=prev.map(row=>[...row]);for(let dr=0;dr<bh;dr++) for(let dc=0;dc<bw;dc++) n[r+dr][c+dc]=null;return n;});setMoney(m=>m+refund);addLog(t("log.demolish"));setClickedTile(null);if(soundOn) playSound("demolish");setDemolishConfirm(null);};
   const hire=k=>{if(ref.current.money<STAFF[k].hire){addLog(t("log.noMoney"));return;}setHired(h=>({...h,[k]:h[k]+1}));setMoney(m=>m-STAFF[k].hire);addLog(t("log.hire", {name: t(`st.${k}`)}));};
   const fire=k=>{if(hired[k]<=0)return;setHired(h=>({...h,[k]:h[k]-1}));addLog(t("log.fire", {name: t(`st.${k}`)}));};
   const takeLoan=opt=>{const total=Math.floor(opt.amount*(1+opt.rate));const daily=Math.ceil(total/opt.days);setLoans(l=>[...l,{id:Date.now(),amount:opt.amount,remaining:total,dailyPayment:daily,rate:opt.rate}]);setMoney(m=>m+opt.amount);addLog(t("log.loan"));};
-  const buyParcel=p=>{if(ref.current.money<p.cost){addLog(t("log.noMoney"));return;}if(p.req&&!parcels.includes(p.req)){addLog(t("log.needPrevParcel"));return;}setOwnedGrid(prev=>{const n=prev.map(r=>[...r]);for(let r=0;r<GR;r++) for(const c of[p.cols[0],p.cols[1]]) n[r][c]=true;return n;});setParcels(prev=>[...prev,p.id]);setMoney(m=>m-p.cost);addLog(t("log.parcelBought", {name: p.label}));};
+  const buyParcel=p=>{if(ref.current.money<p.cost){addLog(t("log.noMoney"));return;}if(p.req&&!parcels.includes(p.req)){addLog(t("log.needPrevParcel"));return;}setOwnedGrid(prev=>{const n=prev.map(r=>[...r]);for(let r=0;r<GR;r++) for(let co=p.cols[0];co<=p.cols[1];co++) n[r][co]=true;return n;});setParcels(prev=>[...prev,p.id]);setMoney(m=>m-p.cost);addLog(t("log.parcelBought",{name:p.label}));};
   const launchCampaign=key=>{const c=CAMPAIGNS_DATA[key];if(ref.current.money<c.cost){addLog(t("log.noMoney"));return;}setCampaigns(p=>[...p,{id:Date.now(),key,emoji:c.emoji,boost:c.boost,seg:c.seg,remaining:c.days,days:c.days}]);setMoney(m=>m-c.cost);addLog(t("log.campaignStart", {name: t(`camp.${key}`)}));};
   const acceptVIP=()=>{const evt=pendingVIP;const ok=checkVIPReq(ref.current.grid,evt.req);if(!ok){addLog(t("log.vipReqFail", {name: t(`vip.${evt.id}`)}));setPendingVIP(null);return;}setMoney(m=>m+evt.bonusRev);setPrestigeBonus(s=>s+evt.presBonus);setVipCount(v=>v+1);setPendingVIP(null);addLog(t("log.vipSuccess", {name: t(`vip.${evt.id}`)}));};
   const resolveDisaster=()=>{if(!activeDisaster?.resolveCost) return;if(ref.current.money<activeDisaster.resolveCost){addLog(t("log.resolveNoMoney"));return;}setMoney(m=>m-activeDisaster.resolveCost);setActiveDisaster(null);addLog(t("log.disasterSolved"));};
@@ -868,8 +922,8 @@ export default function ParkTycoon(){
         ctx.strokeStyle = owned ? 'rgba(100,120,255,0.15)' : 'rgba(100,120,255,0.04)';
         ctx.lineWidth = 0.5;
         ctx.strokeRect(x + 0.5, y + 0.5, CELL - 2, CELL - 2);
-        // 이모지
-        if (cell) {
+        // 이모지 (앵커 셀만)
+        if (cell && !cell.ref) {
           const bd = B[cell.type];
           ctx.font = `${CELL * 0.55}px serif`;
           ctx.textAlign = 'center';
@@ -902,6 +956,16 @@ export default function ParkTycoon(){
 
 
   // stats, cc, parkRating, totalBldCount, currentStage computed above (pre-hook section)
+  // 호버 footprint 계산 (선택된 건물의 배치 가능 여부 미리보기)
+  const selBd=selected?B[selected]:null;
+  const selW=selBd?.size?.w||1, selH=selBd?.size?.h||1;
+  let hovFootprintValid=true;
+  if(hovered&&selected){
+    outer: for(let dr=0;dr<selH;dr++) for(let dc=0;dc<selW;dc++){
+      const nr=hovered.r+dr,nc=hovered.c+dc;
+      if(nr>=GR||nc>=GC||!ownedGrid[nr]?.[nc]||grid[nr]?.[nc]){hovFootprintValid=false;break outer;}
+    }
+  }
   const segs=calcSegs(grid);
   const spendMult=(segs.family||0)*1.2+(segs.couple||0)*1.5+(segs.thrill||0)*0.8+(segs.child||0)*0.5+(segs.general||0)*1.0;
   const wages=Object.entries(hired).reduce((t,[k,v])=>t+STAFF[k].daily*v,0);
@@ -926,7 +990,7 @@ export default function ParkTycoon(){
         if(zoneGrid[r][c]===ztype){
           zoneTiles++;
           const cell=grid[r][c];
-          if(cell&&!cell.broken&&B[cell.type]?.cat===zm.cat) matchBlds++;
+          if(cell&&!cell.ref&&!cell.broken&&B[cell.type]?.cat===zm.cat) matchBlds++;
         }
       }
       const ratio=zoneTiles>0?matchBlds/zoneTiles:0;
@@ -1407,7 +1471,7 @@ export default function ParkTycoon(){
                   <button style={{marginTop:4,width:"100%",padding:"5px 0",background:"rgba(255,87,87,0.18)",border:"2px solid rgba(255,87,87,0.5)",color:"#FF5757",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}
                     onClick={()=>{
                       let totalRefund=0;
-                      setGrid(prev=>{const n=prev.map(row=>[...row]);multiSelectedCells.forEach(key=>{const[r,c]=key.split(",").map(Number);if(n[r][c]){totalRefund+=Math.floor(B[n[r][c].type].baseCost*0.4);n[r][c]=null;}});return n;});
+                      setGrid(prev=>{const n=prev.map(row=>[...row]);multiSelectedCells.forEach(key=>{const[r,c]=key.split(",").map(Number);if(n[r][c]){if(!n[r][c].ref) totalRefund+=Math.floor(B[n[r][c].type].baseCost*0.4);n[r][c]=null;}});return n;});
                       setMoney(m=>m+totalRefund);
                       addLog(lang==="ko"?`🔨 ${multiSelectedCells.size}개 건물 철거 완료 (+$${totalRefund.toLocaleString()})`:`🔨 Demolished ${multiSelectedCells.size} buildings (+$${totalRefund.toLocaleString()})`);
                       setMultiSelectedCells(new Set());
@@ -2292,7 +2356,10 @@ export default function ParkTycoon(){
           </div>}
 
           <div style={{position:"relative",flex:1,minHeight:0}}>
-            <div style={{display:"grid",gridTemplateColumns:`repeat(${GC},1fr)`,gap:2,width:"100%",height:"100%",
+            <div style={{display:"grid",
+              gridTemplateColumns:`repeat(${GC},1fr)`,
+              gridTemplateRows:`repeat(${GR},1fr)`,
+              gap:2,width:"100%",height:"100%",
               background:"#020408",borderRadius:10,padding:4,boxSizing:"border-box",
               border:"1px solid rgba(100,120,255,0.08)",
               boxShadow:"inset 0 0 40px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.6)",
@@ -2301,26 +2368,32 @@ export default function ParkTycoon(){
               transition:'transform 0.05s linear'}}
               onDoubleClick={()=>setGridScale(1)}>
               {grid.map((row,r)=>row.map((cell,c)=>{
+                // ref 셀은 명시적 위치만 잡는 투명 스페이서
+                if(cell?.ref){
+                  return <div key={`${r}-${c}`} style={{gridColumn:c+1,gridRow:r+1,pointerEvents:"none"}} onClick={()=>handleGridClick(r,c)} onMouseEnter={()=>setHovered({r,c})} onMouseLeave={()=>setHovered(null)}/>;
+                }
+
                 const owned=ownedGrid[r][c];
                 const bd=cell?B[cell.type]:null;
-                const isHov=hovered?.r===r&&hovered?.c===c;
+                const bw=cell?bd?.size?.w||1:1;
+                const bh=cell?bd?.size?.h||1:1;
+                // hover footprint 포함 여부
+                const isInFootprint=hovered&&selected&&r>=hovered.r&&r<hovered.r+selH&&c>=hovered.c&&c<hovered.c+selW;
                 const isSel=clickedTile?.r===r&&clickedTile?.c===c;
                 const broken=cell?.broken;
                 const zone=zoneGrid[r][c];
                 const isPath=cell?.type==="_path"||cell?.type==="_pathFancy";
                 const isFancy=cell?.type==="_pathFancy";
-                const isDeco=cell&&B[cell.type]?.cat==="deco";
+                const isDeco=cell&&bd?.cat==="deco";
                 const isEntrance=cell?.type==="entrance";
-                const isolated=cell&&!broken&&!isPath&&!isDeco&&anyGridPaths&&!hasPath(reachablePaths,r,c);
+                const isolated=cell&&!broken&&!isPath&&!isDeco&&anyGridPaths&&!hasBuildingPath(reachablePaths,r,c,bw,bh);
                 const tutHighlight=(tutorialStep===1&&!cell&&owned)||
                                    (tutorialStep===2&&!cell&&owned&&stats.hasEntrance)||
                                    (tutorialStep===3&&!cell&&owned);
-                const isDemolishHov=buildMode==="demolish"&&isHov&&cell&&owned;
+                const isDemolishHov=buildMode==="demolish"&&hovered?.r===r&&hovered?.c===c&&cell&&owned;
                 const isMultiSelected=buildMode==="demolish"&&multiSelectedCells.has(`${r},${c}`);
                 const isCongested=congestedCells.has(`${r},${c}`);
-                // 소유 경계: 현재 셀이 소유됐고 오른쪽 셀이 미소유 → 경계 표시
-                const isRightBoundary=owned&&c+1<GC&&!ownedGrid[r][c+1];
-                // 미소유 셀이 첫 번째 구매 가능 칸인지 (구매 안내)
+                const isRightBoundary=owned&&c+bw<GC&&!ownedGrid[r][c+bw];
                 const isNextBuyable=!owned&&c>0&&ownedGrid[r][c-1]&&gameMode!=="sandbox";
 
                 let bg="#080B18";
@@ -2330,7 +2403,7 @@ export default function ParkTycoon(){
                 else if(isEntrance) bg="linear-gradient(135deg,rgba(255,217,61,0.15),rgba(255,159,67,0.08))";
                 else if(cell) bg=`linear-gradient(135deg,${bd.color}18,${bd.color}06)`;
                 else if(zone) bg=ZONES[zone]?.bg||"#0C0F22";
-                else if(isHov&&(selected||buildMode==="demolish")) bg="rgba(77,159,255,0.08)";
+                else if(isInFootprint&&selected) bg=hovFootprintValid?"rgba(0,229,160,0.10)":"rgba(255,87,87,0.10)";
                 else bg="#080B18";
                 if(isMultiSelected) bg="rgba(255,87,87,0.25)";
 
@@ -2343,12 +2416,14 @@ export default function ParkTycoon(){
                 else if(isPath) borderCol=isFancy?"rgba(212,175,55,0.4)":"rgba(139,115,85,0.3)";
                 else if(isEntrance) borderCol="rgba(255,217,61,0.5)";
                 else if(cell) borderCol=bd.color+"44";
-                else if(isHov&&(selected||buildMode==="demolish")) borderCol="rgba(77,159,255,0.3)";
+                else if(isInFootprint&&selected) borderCol=hovFootprintValid?"rgba(0,229,160,0.5)":"rgba(255,87,87,0.5)";
                 else borderCol="rgba(255,255,255,0.04)";
                 if(isMultiSelected) borderCol="rgba(255,87,87,0.8)";
 
                 return(<div key={`${r}-${c}`}
                   style={{
+                    gridColumn:`${c+1} / span ${bw}`,
+                    gridRow:`${r+1} / span ${bh}`,
                     border:`1px solid ${borderCol}`,
                     borderRight:isRightBoundary?`2px solid rgba(168,216,234,0.35)`:`1px solid ${borderCol}`,
                     borderRadius:5,
@@ -2370,58 +2445,53 @@ export default function ParkTycoon(){
                         ?"linear-gradient(135deg,#D4AF3718 0%,#D4AF3730 50%,#D4AF3718 100%)"
                         :"linear-gradient(135deg,#8B735518 0%,#8B735530 50%,#8B735518 100%)"
                     }}/>
-                    {/* 중앙 굵은 선 - 가로 */}
-                    <div style={{position:"absolute",top:"42%",left:"15%",right:"15%",height:"16%",
-                      borderRadius:99,background:isFancy?"#D4AF3760":"#8B735560"
-                    }}/>
-                    {/* 중앙 굵은 선 - 세로 */}
-                    <div style={{position:"absolute",left:"42%",top:"15%",bottom:"15%",width:"16%",
-                      borderRadius:99,background:isFancy?"#D4AF3760":"#8B735560"
-                    }}/>
+                    <div style={{position:"absolute",top:"42%",left:"15%",right:"15%",height:"16%",borderRadius:99,background:isFancy?"#D4AF3760":"#8B735560"}}/>
+                    <div style={{position:"absolute",left:"42%",top:"15%",bottom:"15%",width:"16%",borderRadius:99,background:isFancy?"#D4AF3760":"#8B735560"}}/>
                   </>}
 
                   {owned&&isEntrance&&!broken&&<>
                     <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at center,rgba(255,217,61,0.12),transparent 70%)",borderRadius:4}}/>
                     <div style={{position:"relative",zIndex:2,filter:"drop-shadow(0 0 8px rgba(255,217,61,0.7))"}}>
                       {hasBuildingIcon(cell.type)
-                        ? getBuildingIcon(cell.type, "#FFD93D", 32)
-                        : <span style={{fontSize:24,lineHeight:1}}>{bd.emoji}</span>}
+                        ? getBuildingIcon(cell.type, "#FFD93D", 36)
+                        : <span style={{fontSize:28,lineHeight:1}}>{bd.emoji}</span>}
                     </div>
                     {cell.level>0&&<div style={{position:"absolute",top:1,right:1,fontSize:10,color:"#FFD93D",fontWeight:900,zIndex:3,textShadow:"0 0 4px #FFD93D"}}>{"★".repeat(cell.level)}</div>}
                   </>}
 
                   {owned&&cell&&!isPath&&!isEntrance&&<>
                     {zone&&<div style={{position:"absolute",inset:0,background:ZONES[zone]?.bg,borderRadius:4,opacity:0.6}}/>}
-                    {/* SVG 아이콘 or 이모지 폴백 */}
                     <div style={{
-                      position:"relative", zIndex:2,
-                      opacity: broken ? 0.25 : isDemolishHov ? 0.5 : 1,
-                      filter: broken ? "grayscale(1)" : `drop-shadow(0 1px 3px rgba(0,0,0,0.8))`,
+                      position:"relative",zIndex:2,
+                      opacity:broken?0.25:isDemolishHov?0.5:1,
+                      filter:broken?"grayscale(1)":`drop-shadow(0 1px 3px rgba(0,0,0,0.8))`,
                       transition:"opacity 0.1s,filter 0.1s",
                     }}>
                       {hasBuildingIcon(cell.type)
-                        ? getBuildingIcon(cell.type, bd.color, cell.level>=2?32:28)
-                        : <span style={{fontSize:cell.level>=2?24:cell.level===1?22:20,lineHeight:1}}>{bd.emoji}</span>}
+                        ? getBuildingIcon(cell.type, bd.color, bw>=3?44:bw>=2?36:cell.level>=2?32:28)
+                        : <span style={{fontSize:bw>=3?32:bw>=2?26:cell.level>=2?22:20,lineHeight:1}}>{bd.emoji}</span>}
                     </div>
-                    {cell.level>0&&!broken&&<div style={{position:"absolute",top:0,right:1,fontSize:10,color:"#FFD93D",lineHeight:1.2,fontWeight:900,zIndex:3,textShadow:"0 0 3px #000"}}>{cell.level===2?"★★":"★"}</div>}
-                    {broken&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,zIndex:3,background:"rgba(0,0,0,0.4)",borderRadius:4}}>🔧</div>}
-                    {isolated&&!broken&&<div style={{position:"absolute",bottom:0,right:0,fontSize:10,zIndex:3,lineHeight:1,filter:"drop-shadow(0 0 2px #000)"}}>🔗</div>}
-                    {ridePrices[cell.type]&&pricingMode!=="admission"&&!broken&&<div style={{position:"absolute",top:0,left:1,fontSize:5,color:"#FF9FF3",lineHeight:1.2,zIndex:3,textShadow:"0 0 2px #000"}}>${ridePrices[cell.type]}</div>}
-                    {isDemolishHov&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,zIndex:4,background:"rgba(255,50,50,0.15)",borderRadius:4}}>🔨</div>}
-                    {isCongested&&!broken&&<div style={{position:"absolute",top:0,right:0,fontSize:10,zIndex:5,lineHeight:1,filter:"drop-shadow(0 0 2px #000)"}}>🚶</div>}
+                    {cell.level>0&&!broken&&<div style={{position:"absolute",top:2,right:3,fontSize:11,color:"#FFD93D",lineHeight:1.2,fontWeight:900,zIndex:3,textShadow:"0 0 3px #000"}}>{cell.level===2?"★★":"★"}</div>}
+                    {broken&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:bw>=2?18:14,zIndex:3,background:"rgba(0,0,0,0.4)",borderRadius:4}}>🔧</div>}
+                    {isolated&&!broken&&<div style={{position:"absolute",bottom:2,right:2,fontSize:11,zIndex:3,lineHeight:1,filter:"drop-shadow(0 0 2px #000)"}}>🔗</div>}
+                    {ridePrices[cell.type]&&pricingMode!=="admission"&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:9,color:"#FF9FF3",lineHeight:1.2,zIndex:3,textShadow:"0 0 2px #000"}}>${ridePrices[cell.type]}</div>}
+                    {isDemolishHov&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:bw>=2?20:14,zIndex:4,background:"rgba(255,50,50,0.15)",borderRadius:4}}>🔨</div>}
+                    {isCongested&&!broken&&<div style={{position:"absolute",top:2,right:2,fontSize:12,zIndex:5,lineHeight:1,filter:"drop-shadow(0 0 2px #000)"}}>🚶</div>}
                   </>}
 
-                  {owned&&zone&&!cell&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,opacity:0.15}}>{ZONES[zone]?.emoji}</div>}
-                  {owned&&cell&&!isPath&&zone&&<div style={{position:"absolute",bottom:1,left:1,width:4,height:4,borderRadius:"50%",background:ZONES[zone]?.color,zIndex:4,boxShadow:`0 0 3px ${ZONES[zone]?.color}`}}/>}
+                  {owned&&zone&&!cell&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,opacity:0.15}}>{ZONES[zone]?.emoji}</div>}
+                  {owned&&cell&&!isPath&&zone&&<div style={{position:"absolute",bottom:2,left:2,width:5,height:5,borderRadius:"50%",background:ZONES[zone]?.color,zIndex:4,boxShadow:`0 0 3px ${ZONES[zone]?.color}`}}/>}
 
                   {tutHighlight&&<div style={{position:"absolute",inset:0,borderRadius:4,background:"#FECA5710",animation:"pulse 1s infinite"}}/>}
-                  {buildParticles.filter(p => p.r===r && p.c===c).map(p => (
-                    <div key={p.id} className="build-flash" style={{background: p.color + "44"}}/>
+                  {/* footprint 미리보기 오버레이 */}
+                  {isInFootprint&&selected&&!cell&&owned&&<div style={{position:"absolute",inset:0,borderRadius:4,background:hovFootprintValid?"rgba(0,229,160,0.08)":"rgba(255,87,87,0.08)"}}/>}
+                  {buildParticles.filter(p=>p.r===r&&p.c===c).map(p=>(
+                    <div key={p.id} className="build-flash" style={{background:p.color+"44"}}/>
                   ))}
-                  {buildParticles.filter(p => p.r===r && p.c===c).flatMap(p =>
-                    p.particles.map((pt, i) => (
+                  {buildParticles.filter(p=>p.r===r&&p.c===c).flatMap(p=>
+                    p.particles.map((pt,i)=>(
                       <div key={`${p.id}-${i}`} className="particle"
-                        style={{'--tx': pt.tx, '--ty': pt.ty, background: pt.col, left:'50%', top:'50%', marginLeft:'-3px', marginTop:'-3px'}}/>
+                        style={{'--tx':pt.tx,'--ty':pt.ty,background:pt.col,left:'50%',top:'50%',marginLeft:'-3px',marginTop:'-3px'}}/>
                     ))
                   )}
                 </div>);

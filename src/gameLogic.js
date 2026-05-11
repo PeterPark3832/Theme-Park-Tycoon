@@ -68,6 +68,13 @@ export function hasPath(reach, r, c) {
   );
 }
 
+export function hasBuildingPath(reach, anchorR, anchorC, w, h) {
+  for (let dr = 0; dr < h; dr++)
+    for (let dc = 0; dc < w; dc++)
+      if (hasPath(reach, anchorR + dr, anchorC + dc)) return true;
+  return false;
+}
+
 export function calcZoneInfo(zg) {
   const GR_=zg.length, GC_=zg[0]?.length||0;
   const visited=Array(GR_).fill(null).map(()=>Array(GC_).fill(false));
@@ -134,7 +141,7 @@ export function calcStats(grid, zg, hired, rb) {
   const reach=anyPaths?getReachablePaths(grid):new Set();
   const zoneInfo=calcZoneInfo(zg);
   for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
-    const cell=grid[r][c]; if(!cell) continue;
+    const cell=grid[r][c]; if(!cell||cell.ref) continue;
     if(cell.broken){brokenCount++;continue;}
     const bd=B[cell.type]; if(!bd) continue;
     const st=bd.stats(cell.level);
@@ -142,7 +149,8 @@ export function calcStats(grid, zg, hired, rb) {
     const zAdj=zoneInfo.cellAdjacentZones[r]?.[c];
     const zm=getZM(cell.type,zg?.[r]?.[c],zSize,zAdj);
     const passive=bd.cat==="path"||bd.cat==="deco";
-    const ok=passive||!anyPaths||hasPath(reach,r,c);
+    const w=bd.size?.w||1, h=bd.size?.h||1;
+    const ok=passive||!anyPaths||hasBuildingPath(reach,r,c,w,h);
     if(!ok) isolatedCount++;
     const pm=ok?1:0.6;
     attraction+=st.attraction*zm.am*pm*(bd.cat==="ride"?rb.attractionMult:1);
@@ -164,7 +172,7 @@ export function calcStats(grid, zg, hired, rb) {
 export function calcSegs(grid) {
   const sc = { family: 0, couple: 0, thrill: 0, child: 0 };
   for (let r = 0; r < GR; r++) for (let c = 0; c < GC; c++) {
-    const cell = grid[r][c]; if (!cell || cell.broken) continue;
+    const cell = grid[r][c]; if (!cell || cell.ref || cell.broken) continue;
     const p = SEG_PULL[cell.type]; if (!p) continue;
     for (const [k, v] of Object.entries(p)) sc[k] = (sc[k] || 0) + v * (1 + cell.level * 0.3);
   }
@@ -178,7 +186,7 @@ export function calcSegs(grid) {
 export function segSatMod(grid, segs) {
   const cc = {};
   for (let r = 0; r < GR; r++) for (let c = 0; c < GC; c++) {
-    const cell = grid[r][c]; if (cell) cc[cell.type] = (cc[cell.type] || 0) + 1;
+    const cell = grid[r][c]; if (cell && !cell.ref) cc[cell.type] = (cc[cell.type] || 0) + 1;
   }
   let mod = 0;
   if ((segs.family || 0) > 0.15) mod += (cc.carousel && cc.restroom) ? (segs.family * 8) : -(segs.family * 6);
@@ -192,7 +200,7 @@ export function checkVIPReq(grid, req) {
   if (!req || !Object.keys(req).length) return true;
   const cc = {};
   for (let r = 0; r < GR; r++) for (let c = 0; c < GC; c++) {
-    const cell = grid[r][c]; if (cell) cc[cell.type] = (cc[cell.type] || 0) + 1;
+    const cell = grid[r][c]; if (cell && !cell.ref) cc[cell.type] = (cc[cell.type] || 0) + 1;
   }
   return Object.entries(req).every(([k, v]) => (cc[k] || 0) >= v);
 }
@@ -200,7 +208,7 @@ export function checkVIPReq(grid, req) {
 export function bldCounts(grid) {
   const c = {};
   for (let r = 0; r < GR; r++) for (let co = 0; co < GC; co++) {
-    const cell = grid[r][co]; if (cell) c[cell.type] = (c[cell.type] || 0) + 1;
+    const cell = grid[r][co]; if (cell && !cell.ref) c[cell.type] = (c[cell.type] || 0) + 1;
   }
   return c;
 }
@@ -319,7 +327,7 @@ export function writeSaveSlots(slots) {
 export const mkGrid = () => Array(GR).fill(null).map(() => Array(GC).fill(null));
 export const mkOwned = (restrict) => Array(GR).fill(null).map((_, r) => Array(GC).fill(null).map((_, c) => {
   if (restrict) { return c >= restrict.cols[0] && c <= restrict.cols[1]; }
-  return c <= 7;
+  return c <= 15;
 }));
 
 export function timeAgoL(ts, t) {
