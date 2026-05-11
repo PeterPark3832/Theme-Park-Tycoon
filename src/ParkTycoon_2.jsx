@@ -98,6 +98,7 @@ export default function ParkTycoon(){
   const [earnedMedals,setEarnedMedals]=useState([]);
 
   // UI-only states (not saved)
+  const [isMobile,setIsMobile]=useState(()=>window.innerWidth<600);
   const [panelCollapsed,setPanelCollapsed]=useState(false);
   const [logCollapsed,setLogCollapsed]=useState(false);
   const [buildParticles,setBuildParticles]=useState([]); // [{id,r,c,color,particles:[{tx,ty,col}]}]
@@ -120,6 +121,8 @@ export default function ParkTycoon(){
   const [dailyChallengeHistory,setDailyChallengeHistory]=useState([]);
   const [bankruptcyDays,setBankruptcyDays]=useState(0); // 연속 적자 일수
   const [demolishConfirm,setDemolishConfirm]=useState(null); // null | {r,c,cell,refund}
+  const [multiSelectedCells,setMultiSelectedCells]=useState(()=>new Set());
+  const [overwriteConfirm,setOverwriteConfirm]=useState(null); // null | {r,c,existing,newType,refund}
   const [soundOn,setSoundOn]=useState(true);
 
   const ref=useRef();
@@ -294,8 +297,19 @@ export default function ParkTycoon(){
   },[grid,speed,tutorialStep,screen]);
 
   useEffect(()=>{
+    const handleResize=()=>{
+      const mobile=window.innerWidth<600;
+      setIsMobile(mobile);
+      if(mobile) setPanelCollapsed(true);
+    };
+    window.addEventListener('resize',handleResize);
+    handleResize(); // call once on mount
+    return()=>window.removeEventListener('resize',handleResize);
+  },[]);
+
+  useEffect(()=>{
     if(speed===0||screen!=="game") return;
-    const ms=speed===2?TICK/2.5:TICK;
+    const ms=speed===3?TICK/5:speed===2?TICK/2.5:TICK;
     const id=setInterval(()=>{
       const{grid:g,zoneGrid:zg,sat:s0,clean:cl0,fee,hired,day,loans,campaigns:camps,passOn:pe,passPrice:pp,passHolders:ph,prestigeBonus:pb,researched:res,activeMissions:ams,completedMissions:cms,activeDisaster:ad,ridePrices:rp,shopMults:sm,pricingMode:pm,gameMode:gm,currentScenario:cs,difficulty:diff,scenarioResult:sr,weather:wth,weatherTimer:wthTimer,staffLevels:sLvls,rivals:rivalsCur,pressReviews:prevReviews,visitorRatings:vRatings,buildingFranchises:bFranch,activeHoliday:ah,holidayHistory:hhist,pendingInvestor:pinv,activeInvestment:ainv,investmentHistory:invHist,mapType:mtype,earnedMedals:emed}=ref.current;
       const ssn=SEASONS[Math.floor(((day-1)%120)/SL)];
@@ -503,7 +517,8 @@ export default function ParkTycoon(){
         const scenario=SCENARIOS.find(s2=>s2.id===cs);
         if(scenario){
           const checkS={vis,sat:newSat,stars:parkRat.stars,net,brokenCount:s.brokenCount,fee,coupleRatio:segs.couple||0,childRatio:segs.child||0,pres:parkRat.stars};
-          const earnedMedalsNow=[...scenario.goals].filter(g=>g.check(checkS));
+          const alreadyEarnedIds=emed.filter(m=>m.scenarioId===cs).map(m=>m.medalId);
+          const earnedMedalsNow=[...scenario.goals].filter(g=>g.check(checkS)&&!alreadyEarnedIds.includes(g.id));
           if(earnedMedalsNow.length>0){
             const best=earnedMedalsNow[earnedMedalsNow.length-1];
             setScenarioResult({medal:best.medal,medalId:best.id,scenario:cs,day:day+1});
@@ -747,6 +762,7 @@ export default function ParkTycoon(){
       if(e.code==="Space"){e.preventDefault();setSpeed(s=>s>0?0:1);}
       if(e.key==="1") setSpeed(1);
       if(e.key==="2") setSpeed(2);
+      if(e.key==="3") setSpeed(3);
       if(e.code==="Escape"){setSelected(null);setClickedTile(null);setBuildMode("build");setDemolishConfirm(null);}
     };
     window.addEventListener("keydown",handler);
@@ -773,11 +789,18 @@ export default function ParkTycoon(){
     if(!og[r][c]){addLog(t("log.unownedLand"));return;}
     if(buildMode==="zone"&&zonePaint){setZoneGrid(prev=>{const n=prev.map(r=>[...r]);n[r][c]=zonePaint==="clear"?null:zonePaint;return n;});return;}
     if(buildMode==="demolish"){
-      if(g[r][c]){const refund=Math.floor(B[g[r][c].type].baseCost*0.4);setDemolishConfirm({r,c,cell:g[r][c],refund});}
+      if(g[r][c]){
+        const key=`${r},${c}`;
+        setMultiSelectedCells(prev=>{const n=new Set(prev);n.has(key)?n.delete(key):n.add(key);return n;});
+      }
       return;
     }
     if(!selected){setClickedTile({r,c,cell:g[r][c]});return;}
-    if(g[r][c]){setSelected(null);setClickedTile({r,c,cell:g[r][c]});return;}
+    if(g[r][c]){
+      const refund=Math.floor(B[g[r][c].type].baseCost*0.4);
+      setOverwriteConfirm({r,c,existing:g[r][c],newType:selected,refund});
+      return;
+    }
     const bd=B[selected];if(m<bd.baseCost){addLog(t("log.noMoney"));return;}
     if(bd.locked&&!researched.includes("r4")&&gameMode!=="sandbox"){addLog(t("log.locked"));return;}
     if(selected==="entrance"){for(const row of g) for(const cell of row) if(cell?.type==="entrance"){addLog(t("log.oneEntrance"));return;}}
@@ -994,11 +1017,12 @@ export default function ParkTycoon(){
 
           {!menuSubScreen&&<>
             <div style={{fontSize:10,color:"#2E3A5C",textAlign:"center",letterSpacing:3,textTransform:"uppercase",marginBottom:12}}>{t("menu.newGame")}</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:24}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:24}}>
               {[
                 {mode:"campaign",emoji:"🎯",name:t("mode.campaign"),desc:t("mode.campaign.desc"),color:"#00E5A0",action:()=>setMenuSubScreen("scenario")},
                 {mode:"sandbox", emoji:"🏗️",name:t("mode.sandbox"), desc:t("mode.sandbox.desc"), color:"#FFD93D",action:()=>startGame("sandbox",null,"normal")},
                 {mode:"challenge",emoji:"⚡",name:t("mode.challenge"),desc:t("mode.challenge.desc"),color:"#FF6B9D",action:()=>setMenuSubScreen("difficulty")},
+                {mode:"tutorial",emoji:"🎓",name:lang==="ko"?"튜토리얼":"Tutorial",desc:lang==="ko"?"처음 하시나요?\n단계별로 게임을 배워보세요":"New to the game?\nLearn step by step",color:"#9B7FFF",action:()=>{startGame("sandbox",null,"normal");setTutorialStep(1);}},
               ].map(({mode,emoji,name,desc,color,action})=>(
                 <button key={mode} style={{background:"rgba(255,255,255,0.02)",border:`2px solid ${color}22`,borderRadius:14,padding:"20px 14px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",transition:"all 0.2s",backdropFilter:"blur(4px)"}}
                   onMouseEnter={e=>{e.currentTarget.style.border=`2px solid ${color}`;e.currentTarget.style.background=color+"0A";e.currentTarget.style.boxShadow=`0 8px 30px ${color}22, inset 0 0 20px ${color}06`;}}
@@ -1161,7 +1185,7 @@ export default function ParkTycoon(){
       {/* TOP BAR — 2행 구조 */}
       <div style={{background:"linear-gradient(180deg,#0A0D22 0%,#07091A 100%)",borderBottom:"1px solid rgba(100,120,255,0.15)",boxShadow:"0 2px 20px rgba(0,0,0,0.5)",flexShrink:0}}>
         {/* 1행: 로고 / 모드 / 날씨·별점·단계 / 저장·속도 */}
-        <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px"}}>
+        <div className="topbar-row1" style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
           <button style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.10)",color:"#6B7CA1",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:10,fontFamily:"inherit",whiteSpace:"nowrap",transition:"all 0.15s"}} onClick={()=>{setSpeed(0);setScreen("menu");}}>{t("btn.menu")}</button>
           <div style={{fontSize:13,fontWeight:800,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:4,color:"transparent",background:"linear-gradient(135deg,#FFD93D,#FF9F43)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",whiteSpace:"nowrap"}}>🎡 PARK</div>
           <div style={{fontSize:10,borderRadius:4,padding:"2px 6px",background:gameMode==="sandbox"?"rgba(255,217,61,0.10)":gameMode==="campaign"?"rgba(0,229,160,0.10)":"rgba(255,107,157,0.10)",border:`1px solid ${gameMode==="sandbox"?"rgba(255,217,61,0.3)":gameMode==="campaign"?"rgba(0,229,160,0.3)":"rgba(255,107,157,0.3)"}`,color:gameMode==="sandbox"?"#FFD93D":gameMode==="campaign"?"#00E5A0":"#FF6B9D",whiteSpace:"nowrap",fontWeight:600}}>
@@ -1243,9 +1267,9 @@ export default function ParkTycoon(){
           </button>
           {/* 속도 */}
           <div style={{display:"flex",gap:2}}>
-            {[["⏸",0],["▶",1],["⏩",2]].map(([ic,sp])=>{
-              const spCol=sp===0?"#4A5880":sp===1?"#00E5A0":"#FF9F43";
-              return(<button key={sp} style={{background:speed===sp?`${spCol}18`:"rgba(255,255,255,0.04)",border:`1px solid ${speed===sp?spCol:"rgba(255,255,255,0.08)"}`,color:speed===sp?spCol:"#4A5880",borderRadius:4,padding:"2px 4px",cursor:"pointer",fontSize:11,fontFamily:"inherit",transition:"all 0.15s",boxShadow:speed===sp?`0 0 8px ${spCol}44`:"none"}} onClick={()=>setSpeed(sp)}>{ic}</button>);
+            {[["⏸",0],["▶",1],["⏩",2],["⚡",3]].map(([ic,sp])=>{
+              const spCol=sp===0?"#4A5880":sp===1?"#00E5A0":sp===2?"#FF9F43":"#FF6B9D";
+              return(<button key={sp} title={sp===0?(lang==="ko"?"일시정지":"Pause"):sp===1?(lang==="ko"?"보통 속도":"Normal"):sp===2?(lang==="ko"?"빨리 감기":"Fast"):lang==="ko"?"매우 빨리 감기":"Very Fast"} style={{background:speed===sp?`${spCol}18`:"rgba(255,255,255,0.04)",border:`1px solid ${speed===sp?spCol:"rgba(255,255,255,0.08)"}`,color:speed===sp?spCol:"#4A5880",borderRadius:4,padding:"2px 4px",cursor:"pointer",fontSize:11,fontFamily:"inherit",transition:"all 0.15s",boxShadow:speed===sp?`0 0 8px ${spCol}44`:"none"}} onClick={()=>setSpeed(sp)}>{ic}</button>);
             })}
           </div>
         </div>
@@ -1338,7 +1362,10 @@ export default function ParkTycoon(){
       </div>
 
       <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-        <div className="side-panel" style={{width:panelCollapsed?0:190,minWidth:panelCollapsed?0:190,overflow:panelCollapsed?"hidden":"visible",transition:"width 0.2s",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",flexShrink:0}}>
+        {isMobile && !panelCollapsed && (
+          <div onClick={() => setPanelCollapsed(true)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:49}} />
+        )}
+        <div className="side-panel" style={isMobile ? {position:"fixed",top:0,left:0,bottom:0,width:230,zIndex:50,transform:panelCollapsed?"translateX(-100%)":"translateX(0)",transition:"transform 0.25s ease",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",overflowY:"auto"} : {width:panelCollapsed?0:190,minWidth:panelCollapsed?0:190,overflow:panelCollapsed?"hidden":"visible",transition:"width 0.2s",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",flexShrink:0}}>
           <div style={{display:"flex",background:"rgba(0,0,0,0.3)",borderBottom:"1px solid rgba(255,255,255,0.06)",flexShrink:0,flexWrap:"wrap"}}>
             {[
               {k:"build",    ic:"🏗️", label:{ko:"건설",en:"Build"}},
@@ -1364,7 +1391,7 @@ export default function ParkTycoon(){
                   const label=lk==="tab.build"?t("tab.build"):lk==="zone"?(lang==="ko"?"구역":"Zone"):lk==="demolish"?(lang==="ko"?"철거":"Demo"):t("map.land");
                   const active=buildMode===m;
                   const col=m==="demolish"?"#FF6B6B":sc;
-                  return(<button key={m} style={{flex:1,padding:"3px 0",background:active?(m==="demolish"?"#FF6B6B18":"#1E1E40"):"#181830",border:`1px solid ${active?col:"#2A2A4A"}`,color:active?col:"#6666AA",borderRadius:4,cursor:"pointer",fontSize:10,fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:1}} onClick={()=>{setBuildMode(m);setSelected(null);if(m!=="zone")setZonePaint(null);}}>
+                  return(<button key={m} style={{flex:1,padding:"3px 0",background:active?(m==="demolish"?"#FF6B6B18":"#1E1E40"):"#181830",border:`1px solid ${active?col:"#2A2A4A"}`,color:active?col:"#6666AA",borderRadius:4,cursor:"pointer",fontSize:10,fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:1}} onClick={()=>{setBuildMode(m);setSelected(null);if(m!=="zone")setZonePaint(null);setMultiSelectedCells(new Set());}}>
                     <span style={{fontSize:11}}>{ic}</span>
                     <span>{label}</span>
                   </button>);
@@ -1374,7 +1401,21 @@ export default function ParkTycoon(){
               {buildMode==="demolish"&&<div style={{padding:"6px 5px",background:"#FF6B6B0D",border:"1px solid #FF6B6B33",borderRadius:5,marginBottom:4,textAlign:"center"}}>
                 <div style={{fontSize:13,marginBottom:2}}>🔨</div>
                 <div style={{fontSize:10,color:"#FF6B6B",fontWeight:700}}>{lang==="ko"?"철거 모드":"Demolish Mode"}</div>
-                <div style={{fontSize:10,color:"#FF8888",marginTop:2}}>{lang==="ko"?"건물 클릭 → 40% 환불":"Click building → 40% refund"}</div>
+                <div style={{fontSize:10,color:"#FF8888",marginTop:2}}>{lang==="ko"?"건물 클릭 → 선택, 다중 선택 가능":"Click to select, multi-select allowed"}</div>
+                {multiSelectedCells.size>0&&<>
+                  <div style={{fontSize:10,color:"#FF6B6B",marginTop:4}}>{lang==="ko"?`${multiSelectedCells.size}개 선택됨`:`${multiSelectedCells.size} selected`}</div>
+                  <button style={{marginTop:4,width:"100%",padding:"5px 0",background:"rgba(255,87,87,0.18)",border:"2px solid rgba(255,87,87,0.5)",color:"#FF5757",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}
+                    onClick={()=>{
+                      let totalRefund=0;
+                      setGrid(prev=>{const n=prev.map(row=>[...row]);multiSelectedCells.forEach(key=>{const[r,c]=key.split(",").map(Number);if(n[r][c]){totalRefund+=Math.floor(B[n[r][c].type].baseCost*0.4);n[r][c]=null;}});return n;});
+                      setMoney(m=>m+totalRefund);
+                      addLog(lang==="ko"?`🔨 ${multiSelectedCells.size}개 건물 철거 완료 (+$${totalRefund.toLocaleString()})`:`🔨 Demolished ${multiSelectedCells.size} buildings (+$${totalRefund.toLocaleString()})`);
+                      setMultiSelectedCells(new Set());
+                      if(soundOn) playSound("demolish");
+                    }}>
+                    {lang==="ko"?`🔨 전체 철거 (${multiSelectedCells.size})`:`🔨 Demolish All (${multiSelectedCells.size})`}
+                  </button>
+                </>}
               </div>}
               {buildMode==="build"&&<>
                 {selected?<div style={{display:"flex",gap:2,marginBottom:3}}>
@@ -1535,13 +1576,40 @@ export default function ParkTycoon(){
               </>}
 
               {buildMode==="zone"&&<>
+                {/* Synergy info panel */}
+                {(()=>{
+                  const allZones=new Set();
+                  for(let r=0;r<zoneGrid.length;r++) for(let c=0;c<zoneGrid[0].length;c++) if(zoneGrid[r][c]) allZones.add(zoneGrid[r][c]);
+                  const divBonus=allZones.size>=4?15:allZones.size>=3?8:allZones.size>=2?3:0;
+                  return allZones.size>0&&(<div style={{padding:"5px 6px",background:"rgba(162,155,254,0.08)",border:"1px solid rgba(162,155,254,0.2)",borderRadius:5,marginBottom:6}}>
+                    <div style={{fontSize:10,color:"#A29BFE",fontWeight:700,marginBottom:2}}>⚡ {lang==="ko"?"구역 시너지":"Zone Synergy"}</div>
+                    <div style={{fontSize:9,color:"#8888AA"}}>{lang==="ko"?`활성 구역 ${allZones.size}종 → 다양성 보너스 +${divBonus}%`:`${allZones.size} zone types → Diversity +${divBonus}%`}</div>
+                    <div style={{fontSize:9,color:"#666688",marginTop:2}}>{lang==="ko"?"💡 3칸 이상 연결해야 구역 효과 활성화":"💡 Connect 3+ cells to activate zone bonus"}</div>
+                    <div style={{fontSize:9,color:"#666688"}}>{lang==="ko"?"6칸+: 1.5배, 10칸+: 2배":"6+ cells: 1.5x, 10+ cells: 2x bonus"}</div>
+                  </div>);
+                })()}
                 {[...Object.entries(ZONES),["clear",{emoji:"🚫",color:"#666688",bg:"#66668818"}]].map(([k,z])=>(
                   <div key={k} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 5px",marginBottom:2,background:zonePaint===k?z.bg:"#181830",border:`1px solid ${zonePaint===k?z.color:z.color+"33"}`,borderRadius:5,cursor:"pointer"}} onClick={()=>setZonePaint(zonePaint===k?null:k)}>
                     <span style={{fontSize:13}}>{z.emoji}</span>
-                    <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700,color:z.color}}>{t(`z.${k}`)}</div><div style={{fontSize:10,color:"#666688"}}>{t(`z.${k}.desc`)}</div></div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:10,fontWeight:700,color:z.color}}>{t(`z.${k}`)}</div>
+                      <div style={{fontSize:9,color:"#666688"}}>{t(`z.${k}.desc`)}</div>
+                      {k!=="clear"&&<div style={{fontSize:9,color:"#444466"}}>{lang==="ko"?"3칸↑활성·6칸↑1.5x·10칸↑2x":"3+:active·6+:1.5x·10+:2x"}</div>}
+                    </div>
                     {zonePaint===k&&<span style={{color:z.color}}>●</span>}
                   </div>
                 ))}
+                {/* Cross-zone bonus hints */}
+                <div style={{padding:"4px 5px",background:"rgba(0,0,0,0.2)",borderRadius:4,marginTop:4}}>
+                  <div style={{fontSize:9,color:"#444466",marginBottom:2}}>{lang==="ko"?"인접 구역 시너지":"Adjacent Zone Synergy"}</div>
+                  {[
+                    {a:"🎢",b:"🍔",desc:lang==="ko"?"스릴+푸드 → 매출↑12%":"Thrill+Food → Rev↑12%"},
+                    {a:"⭐",b:"🌳",desc:lang==="ko"?"VIP+자연 → 매력·매출↑10%":"VIP+Nature → Attr·Rev↑10%"},
+                    {a:"🌳",b:"👨‍👩‍👧",desc:lang==="ko"?"자연+가족 → 만족도↑15%":"Nature+Family → Sat↑15%"},
+                  ].map(({a,b,desc})=>(
+                    <div key={a+b} style={{fontSize:9,color:"#556688",padding:"1px 0"}}>{a}+{b}: {desc}</div>
+                  ))}
+                </div>
               </>}
 
               {buildMode==="map"&&<>
@@ -2104,7 +2172,7 @@ export default function ParkTycoon(){
         </div>
 
         {/* ── Panel Collapse Toggle ── */}
-        <button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#4A5880",cursor:"pointer",fontSize:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?"패널 열기":"패널 닫기"}>{panelCollapsed?"▶":"◀"}</button>
+        <button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:isMobile?36:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#4A5880",cursor:"pointer",fontSize:isMobile?16:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?"패널 열기":"패널 닫기"}>{panelCollapsed?"▶":"◀"}</button>
 
         {/* ── GRID + LOG ── */}
         <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:7,gap:5,overflow:"hidden",background:"var(--bg-deep)"}}
@@ -2248,6 +2316,7 @@ export default function ParkTycoon(){
                                    (tutorialStep===2&&!cell&&owned&&stats.hasEntrance)||
                                    (tutorialStep===3&&!cell&&owned);
                 const isDemolishHov=buildMode==="demolish"&&isHov&&cell&&owned;
+                const isMultiSelected=buildMode==="demolish"&&multiSelectedCells.has(`${r},${c}`);
                 const isCongested=congestedCells.has(`${r},${c}`);
                 // 소유 경계: 현재 셀이 소유됐고 오른쪽 셀이 미소유 → 경계 표시
                 const isRightBoundary=owned&&c+1<GC&&!ownedGrid[r][c+1];
@@ -2263,6 +2332,7 @@ export default function ParkTycoon(){
                 else if(zone) bg=ZONES[zone]?.bg||"#0C0F22";
                 else if(isHov&&(selected||buildMode==="demolish")) bg="rgba(77,159,255,0.08)";
                 else bg="#080B18";
+                if(isMultiSelected) bg="rgba(255,87,87,0.25)";
 
                 let borderCol="rgba(255,255,255,0.04)";
                 if(!owned) borderCol="rgba(255,255,255,0.02)";
@@ -2275,6 +2345,7 @@ export default function ParkTycoon(){
                 else if(cell) borderCol=bd.color+"44";
                 else if(isHov&&(selected||buildMode==="demolish")) borderCol="rgba(77,159,255,0.3)";
                 else borderCol="rgba(255,255,255,0.04)";
+                if(isMultiSelected) borderCol="rgba(255,87,87,0.8)";
 
                 return(<div key={`${r}-${c}`}
                   style={{
@@ -2483,18 +2554,20 @@ export default function ParkTycoon(){
                   </div>
                   {/* 단계별 내용 */}
                   {(()=>{
-                    const steps=[
-                      {emoji:"🎪",title:lang==="ko"?"입구 게이트 배치":"Place Entrance Gate",
-                       desc:lang==="ko"?"왼쪽 건물 목록에서 🎪 입구 게이트를 선택하고\n그리드 아무 곳에나 클릭하세요":"Select 🎪 Entrance Gate from the list\nand click anywhere on the grid"},
-                      {emoji:"🛤️",title:lang==="ko"?"통로로 연결":"Connect with Paths",
-                       desc:lang==="ko"?"입구 옆에 🟫 통로를 배치하세요.\n통로가 없으면 방문객이 시설을 이용할 수 없어요":"Place 🟫 paths next to the entrance.\nWithout paths, visitors can't use facilities"},
-                      {emoji:"🎡",title:lang==="ko"?"어트랙션 배치":"Add an Attraction",
-                       desc:lang==="ko"?"통로 옆에 어트랙션을 배치하세요.\n관람차나 회전목마로 시작하면 좋아요":"Place an attraction next to the path.\nTry a Ferris Wheel or Carousel"},
-                      {emoji:"▶",title:lang==="ko"?"게임 시작!":"Start the Game!",
-                       desc:lang==="ko"?"상단의 ▶ 버튼을 눌러 시간을 진행시키세요.\n방문객들이 곧 도착할 거예요!":"Press ▶ at the top to start time.\nVisitors will arrive soon!"},
-                      {emoji:"🎊",title:lang==="ko"?"완벽해요!":"You're All Set!",
-                       desc:lang==="ko"?"공원이 운영을 시작했어요!\n왼쪽 탭에서 경영·재무·마케팅을 관리하세요":"Your park is running!\nUse the tabs to manage Operations & Finance"},
-                    ][tutorialStep-1];
+                    const allSteps=[
+                      {emoji:"🎪",title:lang==="ko"?"[1/5] 입구 게이트 배치":"[1/5] Place Entrance Gate",
+                       desc:lang==="ko"?"왼쪽 패널 '건설' 탭에서 🎪 입구 게이트를 선택하고\n그리드 아무 곳에나 클릭해서 배치하세요.\n입구가 없으면 방문객이 입장할 수 없어요!":"In the left Build tab, select 🎪 Entrance Gate\nand click the grid to place it.\nNo entrance = no visitors!"},
+                      {emoji:"🛤️",title:lang==="ko"?"[2/5] 통로 연결":"[2/5] Connect with Paths",
+                       desc:lang==="ko"?"입구 옆에 🟫 통로를 배치하세요.\n통로가 없으면 방문객이 어트랙션까지\n이동할 수 없어요. 연속으로 여러 개 배치하세요!":"Place paths 🟫 next to the entrance.\nVisitors need paths to reach attractions.\nPlace several to extend coverage!"},
+                      {emoji:"🎡",title:lang==="ko"?"[3/5] 어트랙션 배치":"[3/5] Add Attractions",
+                       desc:lang==="ko"?"통로 옆에 어트랙션을 배치하세요.\n관람차·회전목마부터 시작하고,\n여러 종류를 배치할수록 방문객이 늘어요!":"Place attractions next to paths.\nStart with Ferris Wheel or Carousel.\nMore variety = more visitors!"},
+                      {emoji:"▶",title:lang==="ko"?"[4/5] 시간 시작":"[4/5] Start Time",
+                       desc:lang==="ko"?"상단의 ▶ 버튼으로 시간을 진행시키세요.\n⏩ 빨리 감기, ⚡ 매우 빨리 감기도 있어요.\n방문객이 들어오기 시작할 거예요!":"Press ▶ to start time.\nUse ⏩ Fast or ⚡ Very Fast to speed up.\nVisitors will start arriving!"},
+                      {emoji:"🎊",title:lang==="ko"?"[5/5] 수익 관리":"[5/5] Manage Revenue",
+                       desc:lang==="ko"?"방문객이 왔군요! 왼쪽 '재무' 탭에서\n입장료를 조정하고 수익을 확인하세요.\n만족도(😊)가 높을수록 방문객이 늘어요!":"Visitors arrived! Go to Finance tab\nto adjust admission fee and track revenue.\nHigher satisfaction = more visitors!"},
+                    ];
+                    const steps=allSteps[Math.min(tutorialStep-1, allSteps.length-1)];
+                    const totalSteps=allSteps.length;
                     return(
                       <>
                         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
@@ -2506,7 +2579,7 @@ export default function ParkTycoon(){
                     );
                   })()}
                   {/* 버튼 */}
-                  <div style={{display:"flex",justifyContent:"flex-end"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
                     <button onClick={()=>setTutorialStep(0)}
                       style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",
                         color:"#6B7CA1",borderRadius:8,padding:"5px 14px",cursor:"pointer",
@@ -2514,6 +2587,17 @@ export default function ParkTycoon(){
                       onMouseEnter={e=>e.currentTarget.style.color="#DDE2FF"}
                       onMouseLeave={e=>e.currentTarget.style.color="#6B7CA1"}>
                       {lang==="ko"?"건너뛰기":"Skip"}
+                    </button>
+                    <button onClick={()=>{
+                        if(tutorialStep>=5) setTutorialStep(0);
+                        else setTutorialStep(s=>s+1);
+                      }}
+                      style={{background:"rgba(255,217,61,0.15)",border:"1px solid rgba(255,217,61,0.5)",
+                        color:"#FFD93D",borderRadius:8,padding:"5px 16px",cursor:"pointer",
+                        fontSize:10,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="rgba(255,217,61,0.25)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="rgba(255,217,61,0.15)"}>
+                      {tutorialStep>=5?(lang==="ko"?"완료 ✓":"Done ✓"):(lang==="ko"?"다음 →":"Next →")}
                     </button>
                   </div>
                 </div>
@@ -2546,6 +2630,30 @@ export default function ParkTycoon(){
             <div style={{display:"flex",gap:10,justifyContent:"center"}}>
               <button onClick={()=>{saveToSlot(saveConfirm.slotIdx);setSaveConfirm(null);}} style={{background:"#FFD93D22",border:"2px solid #FFD93D",color:"#FFD93D",borderRadius:8,padding:"8px 20px",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}>{lang==="ko"?"덮어쓰기":"Overwrite"}</button>
               <button onClick={()=>setSaveConfirm(null)} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.15)",color:"#6B7CA1",borderRadius:8,padding:"8px 20px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>{lang==="ko"?"취소":"Cancel"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {overwriteConfirm&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(2,5,16,0.85)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200}}>
+          <div style={{background:"linear-gradient(135deg,#1A0A0A,#0D0D1A)",border:"2px solid rgba(255,159,67,0.5)",borderRadius:16,padding:"28px 36px",textAlign:"center",maxWidth:320,fontFamily:"'Rajdhani','Barlow Condensed',sans-serif"}}>
+            <div style={{fontSize:36,marginBottom:8}}>🔄</div>
+            <div style={{fontSize:16,fontWeight:900,color:"#FF9F43",marginBottom:6,letterSpacing:1}}>{lang==="ko"?"건물 덮어쓰기":"Replace Building"}</div>
+            <div style={{fontSize:11,color:"#DDE2FF",marginBottom:4}}>{lang==="ko"?`기존: ${overwriteConfirm.existing?.type} → 신규: ${overwriteConfirm.newType}`:`Replace: ${overwriteConfirm.existing?.type} → ${overwriteConfirm.newType}`}</div>
+            <div style={{fontSize:10,color:"#6B7CA1",marginBottom:16}}>{lang==="ko"?`기존 건물 환불: $${overwriteConfirm.refund?.toLocaleString()} (40%) + 신규 건설 비용 차감`:`Refund $${overwriteConfirm.refund?.toLocaleString()} (40%) then build new`}</div>
+            <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+              <button style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",color:"#8899CC",borderRadius:8,padding:"8px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}} onClick={()=>setOverwriteConfirm(null)}>{lang==="ko"?"취소":"Cancel"}</button>
+              <button style={{background:"rgba(255,159,67,0.15)",border:"2px solid rgba(255,159,67,0.5)",color:"#FF9F43",borderRadius:8,padding:"8px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}} onClick={()=>{
+                const{r,c,existing,newType,refund}=overwriteConfirm;
+                const bd=B[newType];
+                if(ref.current.money+refund<bd.baseCost){addLog(t("log.noMoney"));setOverwriteConfirm(null);return;}
+                setGrid(prev=>{const n=prev.map(row=>[...row]);n[r][c]={type:newType,level:0,broken:false};return n;});
+                setMoney(m=>m+refund-bd.baseCost);
+                addLog(lang==="ko"?`🔄 ${t(`b.${existing.type}`)} → ${t(`b.${newType}`)} 교체 완료`:`🔄 Replaced ${existing.type} with ${newType}`);
+                if(soundOn) playSound("build");
+                setOverwriteConfirm(null);
+              }}>{lang==="ko"?"교체":"Replace"}</button>
             </div>
           </div>
         </div>

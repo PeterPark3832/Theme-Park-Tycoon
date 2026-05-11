@@ -154,3 +154,26 @@ body {
   animation: build-flash 0.35s ease-out forwards;
   pointer-events: none; z-index: 20;
 }
+
+/* 모바일 최적화 */
+@media (max-width: 600px) {
+  .topbar-row1 {
+    padding: 2px 4px !important;
+    gap: 2px !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .topbar-row1::-webkit-scrollbar { display: none; }
+  .topbar-stats {
+    padding: 2px 4px !important;
+    gap: 3px !important;
+  }
+  .topbar-stats > * {
+    flex-shrink: 0;
+  }
+  .side-panel {
+    width: 230px !important;
+    min-width: 230px !important;
+  }
+}
