@@ -172,7 +172,7 @@ export default function ParkTycoon(){
 
   const ref=useRef();
   const diffSettings=DIFFICULTY_SETTINGS[difficulty]||DIFFICULTY_SETTINGS.normal;
-  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,soundOn,ftueGoalDone,scenarioTimeLimit,rivalEventActive};
+  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,soundOn,ftueGoalDone,scenarioTimeLimit,rivalEventActive,lang};
 
   const season=SEASONS[Math.floor(((day-1)%120)/SL)];
   const rb=getRB(researched);
@@ -857,15 +857,16 @@ export default function ParkTycoon(){
         const curClean=ref.current.clean;
         const brokenNow=ref.current.grid.flat().filter(c=>c&&!c.ref&&c.broken).length;
         let msgs;
+        const isKo=ref.current.lang==="ko";
         if(curSat>75){
-          msgs=["😊 재밌어요!","🎉 신났다!","👍 대박이야!","🎠 즐거워요!","⭐ 또 올게요!"];
+          msgs=isKo?["😊 재밌어요!","🎉 신났다!","👍 대박이야!","🎠 즐거워요!","⭐ 또 올게요!"]:["😊 So fun!","🎉 Excited!","👍 Amazing!","🎠 Enjoying it!","⭐ Coming back!"];
         } else if(curSat>50){
-          msgs=["🤔 그냥 그래요","😐 보통이네..","💭 더 있으면 좋겠는데"];
+          msgs=isKo?["🤔 그냥 그래요","😐 보통이네..","💭 더 있으면 좋겠는데"]:["🤔 It's okay","😐 Pretty average..","💭 Could be better"];
         } else {
-          const base=["🚫 별로예요","👎 실망이에요"];
-          if(brokenNow>0) base.push("😢 기구 고장났어요!","🔧 수리해주세요");
-          if(curClean<40) base.push("🗑️ 너무 더러워요!","😷 청소 좀..");
-          if(curClean>=40&&brokenNow===0) base.push("😤 혼잡해!","💸 입장료 비싸요");
+          const base=isKo?["🚫 별로예요","👎 실망이에요"]:["🚫 Not great","👎 Disappointed"];
+          if(brokenNow>0) base.push(...(isKo?["😢 기구 고장났어요!","🔧 수리해주세요"]:["😢 Ride is broken!","🔧 Please fix it"]));
+          if(curClean<40) base.push(...(isKo?["🗑️ 너무 더러워요!","😷 청소 좀.."]:["🗑️ Too dirty!","😷 Need cleaning.."]));
+          if(curClean>=40&&brokenNow===0) base.push(...(isKo?["😤 혼잡해!","💸 입장료 비싸요"]:["😤 So crowded!","💸 Tickets too pricey"]));
           msgs=base;
         }
         const text=msgs[Math.floor(Math.random()*msgs.length)];
@@ -1072,7 +1073,7 @@ export default function ParkTycoon(){
     ctx.font = 'bold 11px Rajdhani, monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`🎡 PARK TYCOON  Day ${day}  ⭐${parkRating.stars}  👥 ${visitors}명  😊 ${Math.round(sat)}%`, 8, H + 20);
+    ctx.fillText(`🎡 PARK TYCOON  Day ${day}  ⭐${parkRating.stars}  👥 ${visitors}${lang==="ko"?"명":" ppl"}  😊 ${Math.round(sat)}%`, 8, H + 20);
     // 다운로드
     const link = document.createElement('a');
     link.download = `parktycoon-day${day}.png`;
@@ -1451,7 +1452,7 @@ export default function ParkTycoon(){
           <button style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.10)",color:"#6B7CA1",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:10,fontFamily:"inherit",whiteSpace:"nowrap",transition:"all 0.15s"}} onClick={()=>{setSpeed(0);setScreen("menu");}}>{t("btn.menu")}</button>
           <div style={{fontSize:13,fontWeight:800,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:4,color:"transparent",background:"linear-gradient(135deg,#FFD93D,#FF9F43)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",whiteSpace:"nowrap"}}>🎡 PARCADIA</div>
           <div style={{fontSize:10,borderRadius:4,padding:"2px 6px",background:gameMode==="sandbox"?"rgba(255,217,61,0.10)":gameMode==="campaign"?"rgba(0,229,160,0.10)":"rgba(255,107,157,0.10)",border:`1px solid ${gameMode==="sandbox"?"rgba(255,217,61,0.3)":gameMode==="campaign"?"rgba(0,229,160,0.3)":"rgba(255,107,157,0.3)"}`,color:gameMode==="sandbox"?"#FFD93D":gameMode==="campaign"?"#00E5A0":"#FF6B9D",whiteSpace:"nowrap",fontWeight:600}}>
-            {gameMode==="sandbox"?t("misc.sandbox"):gameMode==="campaign"?`🎯 ${t(`scn.${currentScenarioData?.id}`)||"캠페인"}`:`⚡ ${t(`diff.${difficulty}`)}`}
+            {gameMode==="sandbox"?t("misc.sandbox"):gameMode==="campaign"?`🎯 ${t(`scn.${currentScenarioData?.id}`)||(lang==="ko"?"캠페인":"Campaign")}`:`⚡ ${t(`diff.${difficulty}`)}`}
           </div>
           {gameMode==="campaign"&&currentScenarioData?.timeLimit&&(
             <div style={{fontSize:10,padding:"2px 5px",background:day>currentScenarioData.timeLimit-5?"rgba(255,71,87,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${day>currentScenarioData.timeLimit-5?"rgba(255,71,87,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:4,color:day>currentScenarioData.timeLimit-5?"#FF5757":"#6B7CA1",whiteSpace:"nowrap"}}>
@@ -1739,7 +1740,7 @@ export default function ParkTycoon(){
                   const reach3=anyPaths2?getReachablePaths(grid):new Set();
                   const ok3=bd.cat==="path"||bd.cat==="deco"||!anyPaths2||hasPath(reach3,r,c);
                   return(<div style={{marginBottom:8,padding:10,background:`linear-gradient(135deg,${bd.color}0A,rgba(255,255,255,0.02))`,border:`2px solid ${cell.broken?"rgba(255,87,87,0.4)":bd.color+"66"}`,borderRadius:10,boxShadow:`0 2px 12px ${cell.broken?"rgba(255,87,87,0.2)":bd.color+"22"}`}}>
-                    {cell.broken&&<div style={{fontSize:10,color:"#FF5757",marginBottom:4,fontWeight:600}}>🔧 수리비: ${rpc.toLocaleString()}</div>}
+                    {cell.broken&&<div style={{fontSize:10,color:"#FF5757",marginBottom:4,fontWeight:600}}>🔧 {lang==="ko"?"수리비":"Repair"}: ${rpc.toLocaleString()}</div>}
                     {!ok3&&!cell.broken&&<div style={{fontSize:10,color:"#FF9F43",marginBottom:3,background:"rgba(255,159,67,0.08)",borderRadius:3,padding:"2px 5px"}}>{t("bld.pathNote")}</div>}
                     <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
                       <div style={{width:32,height:32,borderRadius:8,background:`${bd.color}22`,border:`1px solid ${bd.color}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,filter:cell.broken?"grayscale(1) opacity(0.4)":"none"}}>{bd.emoji}</div>
@@ -1958,14 +1959,14 @@ export default function ParkTycoon(){
 
             {tab==="manage"&&<>
               <div style={{background:"#0C1128",border:"1px solid #FFD93D33",borderRadius:8,padding:8,marginBottom:8}}>
-                <div style={{fontSize:10,fontWeight:700,color:"#FFD93D",marginBottom:5}}>😊 만족도 영향 요인</div>
+                <div style={{fontSize:10,fontWeight:700,color:"#FFD93D",marginBottom:5}}>😊 {lang==="ko"?"만족도 영향 요인":"Satisfaction Factors"}</div>
                 {[
-                  {label:"🏗️ 시설 보너스", val:+stats.satBonus.toFixed(1), pos:true},
-                  {label:"☀️ 날씨", val:weather.satMod, pos:weather.satMod>=0},
-                  {label:"🔧 고장 시설", val:-(stats.brokenCount*5), pos:stats.brokenCount===0},
-                  {label:"💸 입장료", val:fee>maxFee?-5:0, pos:fee<=maxFee},
-                  {label:"🚶 혼잡도", val:congestedCells.size>0?-8:0, pos:congestedCells.size===0},
-                  {label:"📉 자연 감소", val:-0.3, pos:false},
+                  {label:lang==="ko"?"🏗️ 시설 보너스":"🏗️ Attraction Bonus", val:+stats.satBonus.toFixed(1), pos:true},
+                  {label:lang==="ko"?"☀️ 날씨":"☀️ Weather", val:weather.satMod, pos:weather.satMod>=0},
+                  {label:lang==="ko"?"🔧 고장 시설":"🔧 Broken Rides", val:-(stats.brokenCount*5), pos:stats.brokenCount===0},
+                  {label:lang==="ko"?"💸 입장료":"💸 Admission Fee", val:fee>maxFee?-5:0, pos:fee<=maxFee},
+                  {label:lang==="ko"?"🚶 혼잡도":"🚶 Congestion", val:congestedCells.size>0?-8:0, pos:congestedCells.size===0},
+                  {label:lang==="ko"?"📉 자연 감소":"📉 Natural Decay", val:-0.3, pos:false},
                 ].map(({label,val,pos})=>(
                   <div key={label} style={{display:"flex",justifyContent:"space-between",fontSize:10,padding:"2px 0",borderBottom:"1px solid #1A1A30"}}>
                     <span style={{color:"#8888AA"}}>{label}</span>
@@ -2572,13 +2573,13 @@ export default function ParkTycoon(){
         >
           {/* Feature 6: Disaster pre-warning banners */}
           {screen==="game"&&stats.brokenCount>0&&(
-            <div style={{background:"rgba(255,87,87,0.12)",border:"1px solid rgba(255,87,87,0.5)",borderRadius:6,padding:"5px 10px",color:"#FF5757",fontSize:10,fontWeight:700,display:"flex",gap:6,alignItems:"center",marginBottom:4,flexShrink:0}}>
-              ⚠️ 고장 시설 {stats.brokenCount}개 — 경영 탭에서 수리하거나 정비공을 고용하세요
+            <div style={{background:"rgba(255,87,87,0.12)",border:"1px solid rgba(255,87,87,0.5)",borderRadius:6,padding:"5px 10px",color:"#FF5757",fontSize:10,fontWeight:700,display:"flex",gap:6,alignItems:"center",marginBottom:4,flexShrink:0,position:"relative",zIndex:10}}>
+              {lang==="ko"?`⚠️ 고장 시설 ${stats.brokenCount}개 — 경영 탭에서 수리하거나 정비공을 고용하세요`:`⚠️ ${stats.brokenCount} broken ride${stats.brokenCount>1?"s":""} — repair in Manage tab or hire a mechanic`}
             </div>
           )}
           {screen==="game"&&hired.mechanic===0&&stats.brokenCount===0&&(cc.rollerCoaster||cc.dropTower||cc.thrillRide)&&(
-            <div style={{background:"rgba(255,159,67,0.10)",border:"1px solid rgba(255,159,67,0.4)",borderRadius:6,padding:"5px 10px",color:"#FF9F43",fontSize:10,fontWeight:700,display:"flex",gap:6,alignItems:"center",marginBottom:4,flexShrink:0}}>
-              🔧 정비공 없음 — 고위험 어트랙션 고장 확률이 높습니다
+            <div style={{background:"rgba(255,159,67,0.10)",border:"1px solid rgba(255,159,67,0.4)",borderRadius:6,padding:"5px 10px",color:"#FF9F43",fontSize:10,fontWeight:700,display:"flex",gap:6,alignItems:"center",marginBottom:4,flexShrink:0,position:"relative",zIndex:10}}>
+              {lang==="ko"?"🔧 정비공 없음 — 고위험 어트랙션 고장 확률이 높습니다":"🔧 No mechanic — high-risk attractions have increased breakdown chance"}
             </div>
           )}
           {screen==="game"&&!ftueGoalDone&&tutorialStep===0&&stats.hasEntrance&&visitors===0&&(
@@ -2684,7 +2685,7 @@ export default function ParkTycoon(){
             </div>
           </div>}
 
-          <div style={{position:"relative",flex:1,minHeight:0}}>
+          <div style={{position:"relative",flex:1,minHeight:0,overflow:"hidden"}}>
             <div style={{display:"grid",
               gridTemplateColumns:`repeat(${GC},1fr)`,
               gridTemplateRows:`repeat(${GR},1fr)`,
