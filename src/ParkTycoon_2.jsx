@@ -164,6 +164,8 @@ export default function ParkTycoon(){
   const [rivalEventActive,setRivalEventActive]=useState(null); // {event,remaining,rivalName}
   const [earnedAchievements,setEarnedAchievements]=useState([]);
   const [achievementFlash,setAchievementFlash]=useState(null);
+  const [lastDemolishGrid,setLastDemolishGrid]=useState(null);
+  const undoTimerRef=useRef(null);
 
   const ref=useRef();
   const diffSettings=DIFFICULTY_SETTINGS[difficulty]||DIFFICULTY_SETTINGS.normal;
@@ -212,6 +214,10 @@ export default function ParkTycoon(){
 
   const loadFromSlot=useCallback((slotData)=>{
     if(!slotData) return;
+    const requiredKeys=['grid','money','day','visitors'];
+    if(!requiredKeys.every(k=>k in slotData)){
+      console.warn('Save data missing required keys, using fallbacks');
+    }
     setGrid(slotData.grid||mkGrid());
     setZoneGrid(slotData.zoneGrid||Array(GR).fill(null).map(()=>Array(GC).fill(null)));
     setOwnedGrid(slotData.ownedGrid||mkOwned());
@@ -457,6 +463,10 @@ export default function ParkTycoon(){
       const congested=s.capacity>0&&rawVis>s.capacity;
       let vis=Math.floor(Math.max(0,(congested?s.capacity*1.05:rawVis)*visMult));
       if(s.hasEntrance&&s.attraction>0&&vis<3) vis=3;
+      // Press review visitor boost/penalty (active for 12 days after review)
+      const activeReview=prevReviews.length>0?prevReviews[prevReviews.length-1]:null;
+      const pressVisBoost=(activeReview&&(day+1-activeReview.day)<=12)?(activeReview.grade==="S"?0.20:activeReview.grade==="A"?0.10:activeReview.grade==="C"?-0.05:activeReview.grade==="D"?-0.15:0):0;
+      vis=Math.max(0,Math.round(vis*(1+pressVisBoost)));
 
       const admRev=pm!=="per_ride"?vis*fee*rb.admissionMult:0;
       const rideRev=calcRideTicketRev(cc2,vis,s.attraction,rp,pm);
@@ -540,6 +550,7 @@ export default function ParkTycoon(){
           newDisaster={...d,remaining:d.dur,damage:1};
           addLog(t("log.disasterStart", {name: t(`dis.${d.id}`), desc: t(`dis.${d.id}.desc`), dur: d.dur}));
           if(ref.current.soundOn) playSound("disaster");
+          saveToSlot(0);
         }
       }
 
@@ -769,11 +780,11 @@ export default function ParkTycoon(){
   },[speed,screen,t]);
 
   // === Pre-hook derivations (needed by useEffect dep arrays below) ===
-  const stats=calcStats(grid,zoneGrid,hired,rb);
-  const cc=bldCounts(grid);
-  const parkRating=calcParkRating(grid,zoneGrid,stats,sat,clean);
-  const totalBldCount=Object.values(cc).reduce((t,v)=>t+v,0);
-  const currentStage=calcStage(totalBldCount,parkRating.stars,money);
+  const stats=useMemo(()=>calcStats(grid,zoneGrid,hired,rb),[grid,zoneGrid,hired,rb]);
+  const cc=useMemo(()=>bldCounts(grid),[grid]);
+  const parkRating=useMemo(()=>calcParkRating(grid,zoneGrid,stats,sat,clean),[grid,zoneGrid,stats,sat,clean]);
+  const totalBldCount=useMemo(()=>Object.values(cc).reduce((t,v)=>t+v,0),[cc]);
+  const currentStage=useMemo(()=>calcStage(totalBldCount,parkRating.stars,money),[totalBldCount,parkRating.stars,money]);
   const stageProgress=currentStage.next?{
     bld:Math.min(1,totalBldCount/currentStage.next.bld),
     stars:Math.min(1,parkRating.stars/currentStage.next.stars),
@@ -799,7 +810,7 @@ export default function ParkTycoon(){
   const lastAutoSaveDay=useRef(-1);
   useEffect(()=>{
     if(screen!=="game"||day<2) return;
-    if(day%5===0&&lastAutoSaveDay.current!==day){
+    if(day%2===0&&lastAutoSaveDay.current!==day){
       lastAutoSaveDay.current=day;
       saveToSlot(0);
     }
@@ -985,10 +996,15 @@ export default function ParkTycoon(){
   const upgradeBuilding=()=>{const{r,c,cell}=clickedTile;if(cell.level>=2||cell.broken) return;const cost=B[cell.type].upgradeCost[cell.level];if(!cost) return;if(ref.current.money<cost){addLog(t("log.noMoney"));return;}const lv=cell.level+1;setGrid(prev=>{const n=prev.map(r=>[...r]);n[r][c]={...cell,level:lv};return n;});setMoney(m=>m-cost);setClickedTile(p=>({...p,cell:{...p.cell,level:lv}}));addLog(t("log.upgrade", {name: t(`b.${cell.type}`), lv: lv+1}));if(soundOn) playSound("upgrade");};
   const repairBuilding=()=>{const{r,c,cell}=clickedTile;if(!cell.broken) return;const cost=Math.max(500,Math.floor(B[cell.type].baseCost*0.15));if(ref.current.money<cost){addLog(t("log.repairNoMoney"));return;}setGrid(prev=>{const n=prev.map(r=>[...r]);n[r][c]={...cell,broken:false};return n;});setMoney(m=>m-cost);setClickedTile(p=>({...p,cell:{...p.cell,broken:false}}));addLog(t("log.repair"));};
   const demolish=()=>{const{r,c,cell}=clickedTile;const refund=Math.floor(B[cell.type].baseCost*0.4);setDemolishConfirm({r,c,cell,refund});};
-  const confirmDemolish=()=>{if(!demolishConfirm) return;const{r,c,cell,refund}=demolishConfirm;const bw=B[cell.type]?.size?.w||1;const bh=B[cell.type]?.size?.h||1;setGrid(prev=>{const n=prev.map(row=>[...row]);for(let dr=0;dr<bh;dr++) for(let dc=0;dc<bw;dc++) n[r+dr][c+dc]=null;return n;});setMoney(m=>m+refund);addLog(t("log.demolish"));setClickedTile(null);if(soundOn) playSound("demolish");setDemolishConfirm(null);};
+  const confirmDemolish=()=>{if(!demolishConfirm) return;const{r,c,cell,refund}=demolishConfirm;const bw=B[cell.type]?.size?.w||1;const bh=B[cell.type]?.size?.h||1;const savedGrid=grid.map(row=>[...row]);setLastDemolishGrid(savedGrid);if(undoTimerRef.current) clearTimeout(undoTimerRef.current);undoTimerRef.current=setTimeout(()=>setLastDemolishGrid(null),30000);setGrid(prev=>{const n=prev.map(row=>[...row]);for(let dr=0;dr<bh;dr++) for(let dc=0;dc<bw;dc++) n[r+dr][c+dc]=null;return n;});setMoney(m=>m+refund);addLog(t("log.demolish"));setClickedTile(null);if(soundOn) playSound("demolish");setDemolishConfirm(null);};
+  const undoDemolish=()=>{if(!lastDemolishGrid) return;setGrid(lastDemolishGrid);setLastDemolishGrid(null);if(undoTimerRef.current) clearTimeout(undoTimerRef.current);addLog(lang==="ko"?"↩️ 철거 취소됨":"↩️ Demolish undone");};
   const hire=k=>{if(ref.current.money<STAFF[k].hire){addLog(t("log.noMoney"));return;}setHired(h=>({...h,[k]:h[k]+1}));setMoney(m=>m-STAFF[k].hire);addLog(t("log.hire", {name: t(`st.${k}`)}));};
   const fire=k=>{if(hired[k]<=0)return;setHired(h=>({...h,[k]:h[k]-1}));addLog(t("log.fire", {name: t(`st.${k}`)}));};
-  const takeLoan=opt=>{const total=Math.floor(opt.amount*(1+opt.rate));const daily=Math.ceil(total/opt.days);setLoans(l=>[...l,{id:Date.now(),amount:opt.amount,remaining:total,dailyPayment:daily,rate:opt.rate}]);setMoney(m=>m+opt.amount);addLog(t("log.loan"));};
+  const takeLoan=opt=>{
+    if(loans.length>=2){addLog(lang==="ko"?"대출은 최대 2개까지만 가능합니다":"Maximum 2 loans at once");return;}
+    if(opt.amount>money*2){addLog(lang==="ko"?"대출 한도 초과 (현재 자금의 2배)":"Loan limit exceeded (2× current funds)");return;}
+    const total=Math.floor(opt.amount*(1+opt.rate));const daily=Math.ceil(total/opt.days);setLoans(l=>[...l,{id:Date.now(),amount:opt.amount,remaining:total,dailyPayment:daily,rate:opt.rate}]);setMoney(m=>m+opt.amount);addLog(t("log.loan"));
+  };
   const buyParcel=p=>{if(ref.current.money<p.cost){addLog(t("log.noMoney"));return;}if(p.req&&!parcels.includes(p.req)){addLog(t("log.needPrevParcel"));return;}setOwnedGrid(prev=>{const n=prev.map(r=>[...r]);for(let r=0;r<GR;r++) for(let co=p.cols[0];co<=p.cols[1];co++) n[r][co]=true;return n;});setParcels(prev=>[...prev,p.id]);setMoney(m=>m-p.cost);addLog(t("log.parcelBought",{name:p.label?.[lang]||p.label?.ko||p.label}));};
   const launchCampaign=key=>{const c=CAMPAIGNS_DATA[key];if(ref.current.money<c.cost){addLog(t("log.noMoney"));return;}setCampaigns(p=>[...p,{id:Date.now(),key,emoji:c.emoji,boost:c.boost,seg:c.seg,remaining:c.days,days:c.days}]);setMoney(m=>m-c.cost);addLog(t("log.campaignStart", {name: t(`camp.${key}`)}));};
   const acceptVIP=()=>{const evt=pendingVIP;const ok=checkVIPReq(ref.current.grid,evt.req);if(!ok){addLog(t("log.vipReqFail", {name: t(`vip.${evt.id}`)}));setPendingVIP(null);return;}setMoney(m=>m+evt.bonusRev);setPrestigeBonus(s=>s+evt.presBonus);setVipCount(v=>v+1);setPendingVIP(null);addLog(t("log.vipSuccess", {name: t(`vip.${evt.id}`)}));};
@@ -1056,7 +1072,7 @@ export default function ParkTycoon(){
   };
   const doResearch=id=>{const r=RESEARCH.find(x=>x.id===id);if(!r) return;if(researchPoints<r.cost){addLog(t("log.rpLacking"));return;}if(r.req&&!researched.includes(r.req)){addLog(t("log.resReq"));return;}if(researched.includes(id)) return;setResearched(p=>[...p,id]);setResearchPoints(p=>p-r.cost);addLog(t("log.resComplete", {name: t(`res.${r.id}.name`)}));};
   const upgradeStaff=k=>{const cur=staffLevels[k];if(cur>=3) return;const upg=STAFF_UPGRADES[k][cur];if(!upg) return;if(money<upg.upgCost){addLog(t("log.noMoney"));return;}setMoney(m=>m-upg.upgCost);setStaffLevels(p=>({...p,[k]:cur+1}));addLog(`⬆️ ${t(`st.${k}`)} Lv.${cur+1}!`);};
-  const acceptInvestor=()=>{const offer=pendingInvestor.offer;setMoney(m=>m+offer.amount);setActiveInvestment({offerId:offer.id,amount:offer.amount,goal:offer.goal,deadline:day+offer.goal.days});setPendingInvestor(null);addLog(`💼 ${offer.name[lang]||offer.name.ko} ${lang==="ko"?"수락!":"accepted!"} +$${offer.amount.toLocaleString()}`);};
+  const acceptInvestor=()=>{const offer=pendingInvestor.offer;setMoney(m=>m+offer.amount);setActiveInvestment({offerId:offer.id,amount:offer.amount,goal:offer.goal,deadline:day+offer.goal.days});setPendingInvestor(null);addLog(`💼 ${offer.name[lang]||offer.name.ko} ${lang==="ko"?"수락!":"accepted!"} +$${offer.amount.toLocaleString()}`);saveToSlot(0);};;
   const declineInvestor=()=>{setPendingInvestor(null);addLog(`💼 ${lang==="ko"?"투자 거절.":"Investment declined."}`);};;
   const applyFranchise=(r,c,fid)=>{const cell=grid[r][c];if(!cell) return;const flist=FRANCHISES[cell.type];if(!flist) return;const fdata=flist.find(f=>f.id===fid);if(!fdata) return;if(fdata.cost>0&&money<fdata.cost){addLog(t("log.noMoney"));return;}if(fdata.cost>0) setMoney(m=>m-fdata.cost);setBuildingFranchises(p=>({...p,[`${r},${c}`]:fid}));addLog(`🏪 ${fdata.name[lang]||fdata.name.ko}!`);};
   const removeFranchise=(r,c)=>{setBuildingFranchises(p=>{const n={...p};delete n[`${r},${c}`];return n;});};
@@ -1166,6 +1182,7 @@ export default function ParkTycoon(){
     };
   })() : null;
 
+  const [buildSearch,setBuildSearch]=useState("");
   const rideList=Object.entries(B).filter(([,b])=>b.cat==="ride");
   const shopList=Object.entries(B).filter(([,b])=>b.cat==="shop");
   const facilList=Object.entries(B).filter(([,b])=>b.cat==="facility");
@@ -1685,6 +1702,7 @@ export default function ParkTycoon(){
                 <div style={{fontSize:13,marginBottom:2}}>🔨</div>
                 <div style={{fontSize:10,color:"#FF6B6B",fontWeight:700}}>{lang==="ko"?"철거 모드":"Demolish Mode"}</div>
                 <div style={{fontSize:10,color:"#FF8888",marginTop:2}}>{lang==="ko"?"건물 클릭 → 선택, 다중 선택 가능":"Click to select, multi-select allowed"}</div>
+                {lastDemolishGrid&&<button style={{marginTop:4,width:"100%",padding:"5px 0",background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.4)",color:"#9B9FFF",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}} onClick={undoDemolish}>↩️ {lang==="ko"?"철거 취소":"Undo Demolish"}</button>}
                 {multiSelectedCells.size>0&&<>
                   <div style={{fontSize:10,color:"#FF6B6B",marginTop:4}}>{lang==="ko"?`${multiSelectedCells.size}개 선택됨`:`${multiSelectedCells.size} selected`}</div>
                   <button style={{marginTop:4,width:"100%",padding:"5px 0",background:"rgba(255,87,87,0.18)",border:"2px solid rgba(255,87,87,0.5)",color:"#FF5757",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}
@@ -1765,6 +1783,14 @@ export default function ParkTycoon(){
                     </div>
                   </div>);
                 })()}
+                {/* Building search */}
+                <input
+                  type="text"
+                  placeholder={lang==="ko"?"건물 검색...":"Search buildings..."}
+                  value={buildSearch}
+                  onChange={e=>setBuildSearch(e.target.value)}
+                  style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:5,padding:"4px 8px",color:"#DDE2FF",fontSize:11,fontFamily:"inherit",outline:"none",marginBottom:6}}
+                />
                 {/* 카테고리 퀵점프 아이콘 바 */}
                 <div style={{display:"flex",gap:2,marginBottom:6,background:"rgba(0,0,0,0.3)",borderRadius:6,padding:3}}>
                   {[["🎠","ride",t("cat.ride")],["🍔","shop",t("cat.shop")],["🌿","facility",t("cat.facility")],["🛤️","path",t("cat.path")],["🌸","deco",t("cat.deco")]].map(([ic,cat,lbl])=>{
@@ -1782,10 +1808,13 @@ export default function ParkTycoon(){
                     );
                   })}
                 </div>
-                {[[t("cat.ride"),"ride",rideList],[t("cat.shop"),"shop",shopList],[t("cat.facility"),"facility",facilList],[t("cat.path"),"path",pathList],[t("cat.deco"),"deco",decoList]].map(([lbl,cat,list])=>(
+                {[[t("cat.ride"),"ride",rideList],[t("cat.shop"),"shop",shopList],[t("cat.facility"),"facility",facilList],[t("cat.path"),"path",pathList],[t("cat.deco"),"deco",decoList]].map(([lbl,cat,list])=>{
+                  const filteredList=buildSearch.trim()?list.filter(([id])=>{const name=t(`b.${id}`)||id;return name.toLowerCase().includes(buildSearch.toLowerCase())||id.toLowerCase().includes(buildSearch.toLowerCase());}):list;
+                  if(filteredList.length===0) return null;
+                  return(
                   <div key={lbl} data-cat={cat}>
                     <div style={{fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:"#7788BB",margin:"8px 0 4px",paddingLeft:4,borderLeft:"2px solid rgba(255,255,255,0.15)"}}>{lbl}</div>
-                    {list.map(([id,bd])=>{
+                    {filteredList.map(([id,bd])=>{
                       const isLocked=bd.locked&&!researched.includes("r4")&&gameMode!=="sandbox";
                       const ok=money>=bd.baseCost&&!isLocked,sel=selected===id;
                       const isBldHov=hovered===id;
@@ -1816,7 +1845,7 @@ export default function ParkTycoon(){
                       </div>);
                     })}
                   </div>
-                ))}
+                )})}
                 {clickedTile?.cell&&(()=>{
                   const{r,c,cell}=clickedTile,bd=B[cell.type];
                   const st=bd.stats(cell.level),upCost=cell.level<2?bd.upgradeCost[cell.level]:null;
@@ -2491,7 +2520,7 @@ export default function ParkTycoon(){
         </div>
 
         {/* ── Panel Collapse Toggle ── */}
-        <button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:isMobile?36:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#7788BB",cursor:"pointer",fontSize:isMobile?16:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?"패널 열기":"패널 닫기"}>{panelCollapsed?"▶":"◀"}</button>
+        <button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:isMobile?36:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#7788BB",cursor:"pointer",fontSize:isMobile?16:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?(lang==="ko"?"패널 열기":"Open panel"):(lang==="ko"?"패널 닫기":"Close panel")}>{panelCollapsed?"▶":"◀"}</button>
 
         {/* ── GRID + LOG ── */}
         <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:7,gap:5,overflow:"hidden",background:"var(--bg-deep)"}}
@@ -2648,7 +2677,7 @@ export default function ParkTycoon(){
               transform:`scale(${gridScale})`,
               transformOrigin:`${gridScaleOrigin.x}% ${gridScaleOrigin.y}%`,
               transition:'transform 0.05s linear'}}
-              onDoubleClick={()=>setGridScale(1)}>
+              onDoubleClick={()=>setGridScale(s=>s>=1.8?1.0:s>=1.3?1.8:1.3)}>
               {grid.map((row,r)=>row.map((cell,c)=>{
                 // ref 셀은 명시적 위치만 잡는 투명 스페이서
                 if(cell?.ref){
@@ -2774,7 +2803,7 @@ export default function ParkTycoon(){
                     {broken&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:bw>=2?18:14,zIndex:3,background:"rgba(0,0,0,0.4)",borderRadius:4}}>🔧</div>}
                     {isolated&&!broken&&<>
                       <div style={{position:"absolute",inset:0,borderRadius:4,border:"2px solid rgba(255,87,87,0.7)",zIndex:3,pointerEvents:"none",animation:"pulse-glow 2s ease-in-out infinite"}}/>
-                      <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(255,87,87,0.82)",borderRadius:"0 0 3px 3px",zIndex:4,textAlign:"center",fontSize:8,fontWeight:700,color:"#fff",lineHeight:"14px",letterSpacing:0.5}}>통로없음</div>
+                      <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(255,87,87,0.82)",borderRadius:"0 0 3px 3px",zIndex:4,textAlign:"center",fontSize:8,fontWeight:700,color:"#fff",lineHeight:"14px",letterSpacing:0.5}}>{lang==="ko"?"통로없음":"No path"}</div>
                     </>}
                     {ridePrices[cell.type]&&pricingMode!=="admission"&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:9,color:"#FF9FF3",lineHeight:1.2,zIndex:3,textShadow:"0 0 2px #000"}}>${ridePrices[cell.type]}</div>}
                     {isDemolishHov&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:bw>=2?20:14,zIndex:4,background:"rgba(255,50,50,0.15)",borderRadius:4}}>🔨</div>}
