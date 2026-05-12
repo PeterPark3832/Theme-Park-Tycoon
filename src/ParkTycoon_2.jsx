@@ -165,6 +165,7 @@ export default function ParkTycoon(){
   const [earnedAchievements,setEarnedAchievements]=useState([]);
   const [achievementFlash,setAchievementFlash]=useState(null);
   const [lastDemolishGrid,setLastDemolishGrid]=useState(null);
+  const [buildSearch,setBuildSearch]=useState("");
   const undoTimerRef=useRef(null);
 
   const ref=useRef();
@@ -780,11 +781,11 @@ export default function ParkTycoon(){
   },[speed,screen,t]);
 
   // === Pre-hook derivations (needed by useEffect dep arrays below) ===
-  const stats=useMemo(()=>calcStats(grid,zoneGrid,hired,rb),[grid,zoneGrid,hired,rb]);
-  const cc=useMemo(()=>bldCounts(grid),[grid]);
-  const parkRating=useMemo(()=>calcParkRating(grid,zoneGrid,stats,sat,clean),[grid,zoneGrid,stats,sat,clean]);
-  const totalBldCount=useMemo(()=>Object.values(cc).reduce((t,v)=>t+v,0),[cc]);
-  const currentStage=useMemo(()=>calcStage(totalBldCount,parkRating.stars,money),[totalBldCount,parkRating.stars,money]);
+  const stats=calcStats(grid,zoneGrid,hired,rb);
+  const cc=bldCounts(grid);
+  const parkRating=calcParkRating(grid,zoneGrid,stats,sat,clean);
+  const totalBldCount=Object.values(cc).reduce((t,v)=>t+v,0);
+  const currentStage=calcStage(totalBldCount,parkRating.stars,money);
   const stageProgress=currentStage.next?{
     bld:Math.min(1,totalBldCount/currentStage.next.bld),
     stars:Math.min(1,parkRating.stars/currentStage.next.stars),
@@ -1182,7 +1183,6 @@ export default function ParkTycoon(){
     };
   })() : null;
 
-  const [buildSearch,setBuildSearch]=useState("");
   const rideList=Object.entries(B).filter(([,b])=>b.cat==="ride");
   const shopList=Object.entries(B).filter(([,b])=>b.cat==="shop");
   const facilList=Object.entries(B).filter(([,b])=>b.cat==="facility");
@@ -1836,16 +1836,16 @@ export default function ParkTycoon(){
                           {bd.stats(0).attraction>0&&<span style={{fontSize:10,padding:"1px 5px",background:"rgba(255,217,61,0.12)",border:"1px solid rgba(255,217,61,0.3)",borderRadius:4,color:"#FFD93D",fontWeight:700,fontFamily:"'Barlow Condensed',monospace",flexShrink:0}}>⭐{bd.stats(0).attraction}</span>}
                         </div>
                         {isBldHov&&<div style={{background:"#1A1A3A",borderRadius:"0 0 5px 5px",padding:"4px 6px",marginBottom:2,fontSize:10,color:"#C7B8EA",lineHeight:1.6,border:`1px solid ${bd.color}22`,borderTop:"none"}}>
-                          {bd.stats(0).attraction>0&&<div>⭐ 어트랙션 +{bd.stats(0).attraction}</div>}
-                          {bd.stats(0).maintenance>0&&<div>🔧 유지비 ${bd.stats(0).maintenance}/일</div>}
-                          {bd.stats(0).satBonus>0&&<div>😊 만족도 +{bd.stats(0).satBonus}</div>}
-                          {bd.stats(0).rpv>0&&<div>💰 수익/방문객 +{bd.stats(0).rpv}</div>}
-                          {bd.stats(0).cap>0&&<div>👥 수용인원 +{bd.stats(0).cap}</div>}
+                          {bd.stats(0).attraction>0&&<div>⭐ {lang==="ko"?"어트랙션":"Attraction"} +{bd.stats(0).attraction}</div>}
+                          {bd.stats(0).maintenance>0&&<div>🔧 {lang==="ko"?"유지비":"Upkeep"} ${bd.stats(0).maintenance}/{lang==="ko"?"일":"day"}</div>}
+                          {bd.stats(0).satBonus>0&&<div>😊 {lang==="ko"?"만족도":"Happiness"} +{bd.stats(0).satBonus}</div>}
+                          {bd.stats(0).rpv>0&&<div>💰 {lang==="ko"?"수익/방문객":"Rev/visitor"} +{bd.stats(0).rpv}</div>}
+                          {bd.stats(0).cap>0&&<div>👥 {lang==="ko"?"수용인원":"Capacity"} +{bd.stats(0).cap}</div>}
                         </div>}
                       </div>);
                     })}
                   </div>
-                )})}
+                );})}
                 {clickedTile?.cell&&(()=>{
                   const{r,c,cell}=clickedTile,bd=B[cell.type];
                   const st=bd.stats(cell.level),upCost=cell.level<2?bd.upgradeCost[cell.level]:null;
