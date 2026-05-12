@@ -131,7 +131,10 @@ export default function ParkTycoon(){
   const [earnedMedals,setEarnedMedals]=useState([]);
 
   // UI-only states (not saved)
-  const [isMobile,setIsMobile]=useState(()=>window.innerWidth<600);
+  const [bp,setBp]=useState(()=>window.innerWidth<600?"mobile":window.innerWidth<1024?"tablet":"pc");
+  const isMobile=bp==="mobile";
+  const isTablet=bp==="tablet";
+  const isPC=bp==="pc";
   const [panelCollapsed,setPanelCollapsed]=useState(false);
   const [logCollapsed,setLogCollapsed]=useState(false);
   const [buildParticles,setBuildParticles]=useState([]); // [{id,r,c,color,particles:[{tx,ty,col}]}]
@@ -359,9 +362,11 @@ export default function ParkTycoon(){
 
   useEffect(()=>{
     const handleResize=()=>{
-      const mobile=window.innerWidth<600;
-      setIsMobile(mobile);
-      if(mobile) setPanelCollapsed(true);
+      const w=window.innerWidth;
+      const newBp=w<600?"mobile":w<1024?"tablet":"pc";
+      setBp(newBp);
+      if(newBp==="mobile") setPanelCollapsed(true);
+      if(newBp==="pc") setPanelCollapsed(false);
     };
     window.addEventListener('resize',handleResize);
     handleResize(); // call once on mount
@@ -1688,7 +1693,11 @@ export default function ParkTycoon(){
         {isMobile && !panelCollapsed && (
           <div onClick={() => setPanelCollapsed(true)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:49}} />
         )}
-        <div className="side-panel" style={isMobile ? {position:"fixed",top:0,left:0,bottom:0,width:230,zIndex:50,transform:panelCollapsed?"translateX(-100%)":"translateX(0)",transition:"transform 0.25s ease",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",overflowY:"auto"} : {width:panelCollapsed?0:190,minWidth:panelCollapsed?0:190,overflow:panelCollapsed?"hidden":"visible",transition:"width 0.2s",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",flexShrink:0}}>
+        <div className="side-panel" style={
+          isMobile?{position:"fixed",top:0,left:0,bottom:0,width:230,zIndex:50,transform:panelCollapsed?"translateX(-100%)":"translateX(0)",transition:"transform 0.25s ease",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",overflowY:"auto"}:
+          isPC?{width:216,minWidth:216,overflow:"hidden",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",display:"flex",flexDirection:"column",flexShrink:0}:
+          {width:panelCollapsed?0:190,minWidth:panelCollapsed?0:190,overflow:panelCollapsed?"hidden":"visible",transition:"width 0.2s",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",flexShrink:0}
+        }>
           <div style={{display:"flex",background:"rgba(0,0,0,0.3)",borderBottom:"1px solid rgba(255,255,255,0.06)",flexShrink:0,flexWrap:"wrap"}}>
             {[
               {k:"build",    ic:"🏗️", label:{ko:"건설",en:"Build"}},
@@ -2542,8 +2551,8 @@ export default function ParkTycoon(){
           </div>
         </div>
 
-        {/* ── Panel Collapse Toggle ── */}
-        <button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:isMobile?36:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#7788BB",cursor:"pointer",fontSize:isMobile?16:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?(lang==="ko"?"패널 열기":"Open panel"):(lang==="ko"?"패널 닫기":"Close panel")}>{panelCollapsed?"▶":"◀"}</button>
+        {/* ── Panel Collapse Toggle (tablet/mobile only) ── */}
+        {!isPC&&<button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:isMobile?36:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#7788BB",cursor:"pointer",fontSize:isMobile?16:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?(lang==="ko"?"패널 열기":"Open panel"):(lang==="ko"?"패널 닫기":"Close panel")}>{panelCollapsed?"▶":"◀"}</button>}
 
         {/* ── GRID + LOG ── */}
         <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:7,gap:5,overflow:"hidden",background:"var(--bg-deep)"}}
@@ -2589,6 +2598,8 @@ export default function ParkTycoon(){
           }}
           onTouchEnd={() => { pinchRef.current.active = false; panRef.current.active = false; }}
         >
+          {/* Banners + event popups — in grid-area on tablet/mobile, in right panel on PC */}
+          {!isPC&&<>
           {/* Feature 6: Disaster pre-warning banners */}
           {screen==="game"&&stats.brokenCount>0&&(
             <div style={{background:"rgba(255,87,87,0.12)",border:"1px solid rgba(255,87,87,0.5)",borderRadius:6,padding:"5px 10px",color:"#FF5757",fontSize:10,fontWeight:700,display:"flex",gap:6,alignItems:"center",marginBottom:4,flexShrink:0,position:"relative",zIndex:10}}>
@@ -2657,12 +2668,14 @@ export default function ParkTycoon(){
               </button>
             </div>
           )}
+          </>}
           {buildMode==="zone"&&zonePaint&&<div style={{display:"flex",alignItems:"center",gap:5,padding:"2px 8px",background:ZONES[zonePaint]?.bg||"#66668818",border:`1px solid ${ZONES[zonePaint]?.color||"#666688"}44`,borderRadius:4,flexShrink:0}}>
             <span style={{fontSize:11}}>{ZONES[zonePaint]?.emoji||"🚫"}</span>
             <span style={{fontSize:10,color:ZONES[zonePaint]?.color||"#666688",fontWeight:700}}>{ZONES[zonePaint]?t(`z.${zonePaint}`):t("z.clear")}</span>
             <button style={{marginLeft:"auto",background:"none",border:"1px solid #666688",color:"#888888",borderRadius:4,padding:"1px 6px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}} onClick={()=>setZonePaint(null)}>{t("misc.done")}</button>
           </div>}
 
+          {!isPC&&<>
           {/* Phase 2-3: Press Review Popup */}
           {pendingReview&&!pendingVIP&&!pendingInvestor&&<div style={{background:"linear-gradient(135deg,rgba(13,18,53,0.98),rgba(8,11,32,0.98))",border:`2px solid ${pendingReview.grade==="S"?"rgba(255,217,61,0.4)":pendingReview.grade==="A"?"rgba(0,229,160,0.4)":pendingReview.grade==="D"?"rgba(255,87,87,0.4)":"rgba(100,140,255,0.3)"}`,borderRadius:12,padding:"10px 14px",flexShrink:0,backdropFilter:"blur(8px)",boxShadow:"0 8px 40px rgba(0,0,0,0.6), inset 0 0 20px rgba(100,140,255,0.03)",animation:"slide-in 0.2s ease"}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -2702,6 +2715,7 @@ export default function ParkTycoon(){
               <button style={{background:"rgba(255,87,87,0.06)",border:"1px solid rgba(255,87,87,0.25)",color:"#FF5757",borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>setPendingVIP(null)}>{t("vip.decline")}</button>
             </div>
           </div>}
+          </>}
 
           <div style={{position:"relative",flex:1,minHeight:0,overflow:"hidden"}}>
             <div style={{display:"grid",
@@ -3067,7 +3081,7 @@ export default function ParkTycoon(){
             )}
           </div>
 
-          <div style={{background:"linear-gradient(90deg,#05060F,#08091A)",border:"1px solid rgba(100,120,255,0.08)",borderRadius:8,padding:"5px 10px",flexShrink:0}}>
+          {!isPC&&<div style={{background:"linear-gradient(90deg,#05060F,#08091A)",border:"1px solid rgba(100,120,255,0.08)",borderRadius:8,padding:"5px 10px",flexShrink:0}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:logCollapsed?0:3,cursor:"pointer"}} onClick={()=>setLogCollapsed(v=>!v)}>
               <div style={{fontSize:10,color:"#7788BB",letterSpacing:3,fontWeight:700,textTransform:"uppercase"}}>▸ Event Log</div>
               <span style={{fontSize:10,color:"#7788BB",transition:"transform 0.2s",display:"inline-block",transform:logCollapsed?"rotate(-90deg)":"rotate(0deg)"}}>▾</span>
@@ -3079,8 +3093,126 @@ export default function ParkTycoon(){
                 {l}
               </div>);
             })}
-          </div>
+          </div>}
         </div>
+
+        {/* ── RIGHT PANEL (PC only) ── */}
+        {isPC&&screen==="game"&&(
+          <div style={{width:220,minWidth:220,flexShrink:0,display:"flex",flexDirection:"column",background:"linear-gradient(180deg,#080B1E 0%,#060818 100%)",borderLeft:"1px solid rgba(100,120,255,0.10)",overflowY:"auto"}}>
+            {/* Events section */}
+            <div style={{padding:"8px 8px 4px",flexShrink:0}}>
+              <div style={{fontSize:9,color:"#3A4A6A",letterSpacing:3,textTransform:"uppercase",fontWeight:700,marginBottom:6}}>⚡ {lang==="ko"?"알림":"Alerts"}</div>
+
+              {stats.brokenCount>0&&(
+                <div style={{background:"rgba(255,87,87,0.10)",border:"1px solid rgba(255,87,87,0.4)",borderRadius:6,padding:"6px 8px",color:"#FF5757",fontSize:10,fontWeight:700,marginBottom:4,lineHeight:1.4}}>
+                  {lang==="ko"?`⚠️ 고장 시설 ${stats.brokenCount}개 — 경영 탭에서 수리하세요`:`⚠️ ${stats.brokenCount} broken ride${stats.brokenCount>1?"s":""} — go to Manage`}
+                </div>
+              )}
+              {hired.mechanic===0&&stats.brokenCount===0&&(cc.rollerCoaster||cc.dropTower||cc.thrillRide)&&(
+                <div style={{background:"rgba(255,159,67,0.08)",border:"1px solid rgba(255,159,67,0.35)",borderRadius:6,padding:"6px 8px",color:"#FF9F43",fontSize:10,fontWeight:700,marginBottom:4,lineHeight:1.4}}>
+                  {lang==="ko"?"🔧 정비공 없음 — 고위험 어트랙션 고장 확률↑":"🔧 No mechanic — breakdown risk↑"}
+                </div>
+              )}
+              {!ftueGoalDone&&tutorialStep===0&&stats.hasEntrance&&visitors===0&&(
+                <div style={{background:"rgba(0,229,160,0.07)",border:"1px solid rgba(0,229,160,0.3)",borderRadius:6,padding:"6px 8px",color:"#00E5A0",fontSize:10,fontWeight:700,marginBottom:4,lineHeight:1.4,display:"flex",gap:6,alignItems:"flex-start"}}>
+                  <span>🎯</span>
+                  <div style={{flex:1}}>{lang==="ko"?"재생 버튼을 눌러 방문객을 맞이하세요!":"Press ▶ to welcome your first visitors!"}</div>
+                  <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:11,padding:0,lineHeight:1}} onClick={()=>setFtueGoalDone(true)}>✕</button>
+                </div>
+              )}
+              {(()=>{
+                const hints=[
+                  {id:"h_staff",show:day>=4&&hired.janitor===0&&hired.mechanic===0&&!stats.brokenCount,col:"#4D9FFF",msg:lang==="ko"?"🧹 청소부·정비공 없음 — 경영 탭에서 고용":"🧹 No janitor/mechanic — hire in Manage"},
+                  {id:"h_path",show:day>=3&&stats.hasEntrance&&grid.flat().filter(Boolean).some(c=>c&&!c.ref&&B[c.type]?.cat==="ride"&&c.type!=="entrance")&&!grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy"),col:"#FF9F43",msg:lang==="ko"?"🛤️ 통로 없음 — 수익 -40%":"🛤️ No paths — income -40%"},
+                  {id:"h_sat",show:day>=6&&sat<50&&sat>0&&visitors>0,col:"#FF6B9D",msg:lang==="ko"?"😟 만족도 낮음 — 😊 아이콘 호버":"😟 Low happiness — hover 😊"},
+                  {id:"h_research",show:day>=10&&researchPoints>=5&&researched.length===0,col:"#A29BFE",msg:lang==="ko"?"🔬 연구 포인트 활용 가능":"🔬 Research points available"},
+                ];
+                const h=hints.find(x=>x.show&&!dismissedHints.includes(x.id));
+                if(!h) return null;
+                return(
+                  <div style={{background:`${h.col}10`,border:`1px solid ${h.col}44`,borderRadius:6,padding:"6px 8px",color:h.col,fontSize:10,fontWeight:700,marginBottom:4,lineHeight:1.4,display:"flex",gap:6,alignItems:"flex-start"}}>
+                    <div style={{flex:1}}>{h.msg}</div>
+                    <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:11,padding:0,flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,h.id];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
+                  </div>
+                );
+              })()}
+              {bankruptcyDays>0&&bankruptcyDays<5&&(
+                <div style={{background:"rgba(255,50,50,0.12)",border:"2px solid rgba(255,87,87,0.6)",borderRadius:6,padding:"6px 8px",color:"#FF5757",fontSize:10,fontWeight:700,marginBottom:4,lineHeight:1.4,animation:"pulse 1s infinite"}}>
+                  💸 {lang==="ko"?`파산 위험! ${5-bankruptcyDays}일 남음`:`Bankruptcy! ${5-bankruptcyDays} days left`}
+                </div>
+              )}
+              {disasterWarning&&(
+                <div style={{background:"rgba(255,150,0,0.10)",border:"2px solid rgba(255,150,0,0.45)",borderRadius:6,padding:"6px 8px",color:"#FF9F43",fontSize:10,fontWeight:700,marginBottom:4,lineHeight:1.4,animation:"pulse 1.5s infinite"}}>
+                  <div>⚡ {lang==="ko"?`${disasterWarning.dis.emoji} 위험: ${t("dis."+disasterWarning.dis.id)}`:`${disasterWarning.dis.emoji} Risk: ${t("dis."+disasterWarning.dis.id)}`}</div>
+                  <div style={{opacity:0.75,fontSize:9,marginBottom:4}}>{lang==="ko"?`${disasterWarning.countdown}일 후 발생`:`${disasterWarning.countdown} days away`}</div>
+                  <button onClick={mitigateDisaster} style={{background:"#FF9F4320",border:"1px solid #FF9F4370",color:"#FF9F43",borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:9,fontWeight:700,fontFamily:"inherit"}}>🛡️ {lang==="ko"?"대비 $800":"Mitigate $800"}</button>
+                </div>
+              )}
+
+              {/* Event popups */}
+              {pendingReview&&!pendingVIP&&!pendingInvestor&&(
+                <div style={{background:"linear-gradient(135deg,rgba(13,18,53,0.98),rgba(8,11,32,0.98))",border:`2px solid ${pendingReview.grade==="S"?"rgba(255,217,61,0.4)":pendingReview.grade==="A"?"rgba(0,229,160,0.4)":pendingReview.grade==="D"?"rgba(255,87,87,0.4)":"rgba(100,140,255,0.3)"}`,borderRadius:10,padding:"8px 10px",marginBottom:4,animation:"slide-in 0.2s ease"}}>
+                  <div style={{fontSize:9,color:"#9B7FFF",letterSpacing:2,marginBottom:3}}>📰 {lang==="ko"?"언론 평가":"Press Review"} · Day {day}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:20}}>{pendingReview.emoji}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",color:pendingReview.grade==="S"?"#FFD93D":pendingReview.grade==="A"?"#00E5A0":pendingReview.grade==="D"?"#FF5757":"var(--text-primary)"}}>{pendingReview.grade} {lang==="ko"?"등급":"grade"}</div>
+                      <div style={{fontSize:9,color:"var(--text-secondary)",lineHeight:1.3}}>"{pendingReview.headline}"</div>
+                    </div>
+                    <button style={{background:"rgba(255,217,61,0.12)",border:"1px solid rgba(255,217,61,0.4)",color:"#FFD93D",borderRadius:5,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit",whiteSpace:"nowrap"}} onClick={()=>setPendingReview(null)}>{lang==="ko"?"확인":"OK"}</button>
+                  </div>
+                </div>
+              )}
+              {pendingInvestor&&!pendingVIP&&(()=>{const offer=pendingInvestor.offer;const penalty=Math.floor(offer.amount*offer.penalty);return(
+                <div style={{background:"linear-gradient(135deg,rgba(13,18,53,0.98),rgba(8,11,32,0.98))",border:"2px solid rgba(100,140,255,0.2)",borderRadius:10,padding:"8px 10px",marginBottom:4,animation:"slide-in 0.2s ease"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <span style={{fontSize:20}}>{offer.emoji}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:11,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",color:"#00E5A0"}}>{offer.name[lang]||offer.name.ko}</div>
+                      <div style={{fontSize:9,color:"#FF9F43"}}>⚠️ {lang==="ko"?"실패 시":"Fail"}: -${penalty.toLocaleString()} · {pendingInvestor.expiresIn}d</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:4}}>
+                    <button style={{flex:1,background:"rgba(0,229,160,0.12)",border:"2px solid rgba(0,229,160,0.5)",color:"#00E5A0",borderRadius:5,padding:"3px 0",cursor:"pointer",fontSize:9,fontWeight:700,fontFamily:"inherit"}} onClick={acceptInvestor}>{t("vip.accept")}</button>
+                    <button style={{flex:1,background:"rgba(255,87,87,0.06)",border:"1px solid rgba(255,87,87,0.25)",color:"#FF5757",borderRadius:5,padding:"3px 0",cursor:"pointer",fontSize:9,fontFamily:"inherit"}} onClick={declineInvestor}>{t("vip.decline")}</button>
+                  </div>
+                </div>
+              );})()}
+              {pendingVIP&&(
+                <div style={{background:"linear-gradient(135deg,rgba(13,18,53,0.98),rgba(8,11,32,0.98))",border:"2px solid rgba(100,140,255,0.2)",borderRadius:10,padding:"8px 10px",marginBottom:4,animation:"slide-in 0.2s ease"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <span style={{fontSize:20}}>{pendingVIP.emoji}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:11,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",color:"#FFD93D"}}>{t(`vip.${pendingVIP.id}`)}</div>
+                      <div style={{fontSize:9,color:checkVIPReq(grid,pendingVIP.req)?"#00E5A0":"#FF5757"}}>{checkVIPReq(grid,pendingVIP.req)?t("vip.metReq"):t("vip.noReq")}</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:4}}>
+                    <button style={{flex:1,background:checkVIPReq(grid,pendingVIP.req)?"rgba(0,229,160,0.12)":"rgba(255,255,255,0.04)",border:`2px solid ${checkVIPReq(grid,pendingVIP.req)?"rgba(0,229,160,0.5)":"rgba(255,255,255,0.10)"}`,color:checkVIPReq(grid,pendingVIP.req)?"#00E5A0":"#7788BB",borderRadius:5,padding:"3px 0",cursor:"pointer",fontSize:9,fontWeight:700,fontFamily:"inherit"}} onClick={acceptVIP}>{t("vip.accept")}</button>
+                    <button style={{flex:1,background:"rgba(255,87,87,0.06)",border:"1px solid rgba(255,87,87,0.25)",color:"#FF5757",borderRadius:5,padding:"3px 0",cursor:"pointer",fontSize:9,fontFamily:"inherit"}} onClick={()=>setPendingVIP(null)}>{t("vip.decline")}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div style={{height:1,background:"rgba(100,120,255,0.08)",flexShrink:0}}/>
+
+            {/* Event log */}
+            <div style={{flex:1,overflowY:"auto",padding:"8px 8px"}}>
+              <div style={{fontSize:9,color:"#3A4A6A",letterSpacing:3,textTransform:"uppercase",fontWeight:700,marginBottom:6}}>📋 {lang==="ko"?"이벤트 로그":"Event Log"}</div>
+              {logs.map((l,i)=>{
+                const col=l.startsWith("🚨")||l.startsWith("⚠️")||l.startsWith("💸")?"#FF5757":l.startsWith("✅")||l.startsWith("🎊")||l.startsWith("📣")||l.startsWith("🏗️")?"#00E5A0":l.startsWith("🔬")||l.startsWith("💾")||l.startsWith("⬆️")?"#9B7FFF":l.startsWith("📊")?"#FFD93D":"#6B7CA1";
+                return(
+                  <div key={i} style={{fontSize:10,padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,0.04)",opacity:Math.max(0.35,1-i*0.08),color:col,display:"flex",alignItems:"center",gap:5}}>
+                    <div style={{width:2,minHeight:10,borderRadius:1,background:col,alignSelf:"stretch",flexShrink:0,opacity:0.7}}/>
+                    <span style={{lineHeight:1.4}}>{l}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {saveConfirm&&(
