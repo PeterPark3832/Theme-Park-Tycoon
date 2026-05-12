@@ -145,9 +145,11 @@ export default function ParkTycoon(){
   const [showVisBreakdown,setShowVisBreakdown]=useState(false);
   const [showSatTooltip,setShowSatTooltip]=useState(false);
   const [satTooltipPos,setSatTooltipPos]=useState({x:0,y:0});
-  const [gridScale,setGridScale]=useState(1.2);
+  const [gridScale,setGridScale]=useState(()=>window.innerWidth<600?1.8:1.2);
   const [gridScaleOrigin,setGridScaleOrigin]=useState({x:50,y:50});
+  const [gridPan,setGridPan]=useState({x:0,y:0});
   const pinchRef=useRef({active:false, startDist:0, startScale:1});
+  const panRef=useRef({active:false, startX:0, startY:0, startPanX:0, startPanY:0});
 
   // Saved states for daily challenge
   const [activeDailyChallenge,setActiveDailyChallenge]=useState(null); // null|{...dc, startDay, claimed}
@@ -2528,6 +2530,7 @@ export default function ParkTycoon(){
         <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:7,gap:5,overflow:"hidden",background:"var(--bg-deep)"}}
           onTouchStart={(e) => {
             if (e.touches.length === 2) {
+              panRef.current.active = false;
               const dx = e.touches[0].clientX - e.touches[1].clientX;
               const dy = e.touches[0].clientY - e.touches[1].clientY;
               pinchRef.current = {
@@ -2536,6 +2539,14 @@ export default function ParkTycoon(){
                 startScale: gridScale,
               };
               e.preventDefault();
+            } else if (e.touches.length === 1 && gridScale > 1.05) {
+              panRef.current = {
+                active: true,
+                startX: e.touches[0].clientX,
+                startY: e.touches[0].clientY,
+                startPanX: gridPan.x,
+                startPanY: gridPan.y,
+              };
             }
           }}
           onTouchMove={(e) => {
@@ -2550,9 +2561,14 @@ export default function ParkTycoon(){
               const rect = e.currentTarget.getBoundingClientRect();
               setGridScaleOrigin({ x: ((cx - rect.left) / rect.width) * 100, y: ((cy - rect.top) / rect.height) * 100 });
               e.preventDefault();
+            } else if (panRef.current.active && e.touches.length === 1) {
+              const dx = e.touches[0].clientX - panRef.current.startX;
+              const dy = e.touches[0].clientY - panRef.current.startY;
+              setGridPan({ x: panRef.current.startPanX + dx, y: panRef.current.startPanY + dy });
+              e.preventDefault();
             }
           }}
-          onTouchEnd={() => { pinchRef.current.active = false; }}
+          onTouchEnd={() => { pinchRef.current.active = false; panRef.current.active = false; }}
         >
           {/* Feature 6: Disaster pre-warning banners */}
           {screen==="game"&&stats.brokenCount>0&&(
@@ -2676,10 +2692,10 @@ export default function ParkTycoon(){
               background:"#020408",borderRadius:10,padding:4,boxSizing:"border-box",
               border:"1px solid rgba(100,120,255,0.08)",
               boxShadow:"inset 0 0 40px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.6)",
-              transform:`scale(${gridScale})`,
+              transform:`scale(${gridScale}) translate(${gridPan.x/gridScale}px,${gridPan.y/gridScale}px)`,
               transformOrigin:`${gridScaleOrigin.x}% ${gridScaleOrigin.y}%`,
               transition:'transform 0.05s linear'}}
-              onDoubleClick={()=>setGridScale(s=>s>=1.8?1.0:s>=1.3?1.8:1.3)}>
+              onDoubleClick={()=>{setGridScale(s=>s>=1.8?1.0:s>=1.3?1.8:1.3);setGridPan({x:0,y:0});}}>
               {grid.map((row,r)=>row.map((cell,c)=>{
                 // ref 셀은 명시적 위치만 잡는 투명 스페이서
                 if(cell?.ref){
@@ -2775,7 +2791,7 @@ export default function ParkTycoon(){
 
                   {owned&&isEntrance&&!broken&&<>
                     <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at center,rgba(255,217,61,0.12),transparent 70%)",borderRadius:4}}/>
-                    <div style={{position:"relative",zIndex:2,filter:"drop-shadow(0 0 8px rgba(255,217,61,0.7))"}}>
+                    <div style={{position:"relative",zIndex:2}}>
                       {hasBuildingIcon(cell.type)
                         ? getBuildingIcon(cell.type, "#FFD93D", 36)
                         : <span style={{fontSize:28,lineHeight:1}}>{bd.emoji}</span>}
@@ -2793,7 +2809,7 @@ export default function ParkTycoon(){
                     <div style={{
                       position:"relative",zIndex:2,
                       opacity:broken?0.25:isDemolishHov?0.5:1,
-                      filter:broken?"grayscale(1)":`drop-shadow(0 1px 3px rgba(0,0,0,0.8))`,
+                      filter:broken?"grayscale(1)":"none",
                       transition:"opacity 0.1s,filter 0.1s",
                     }}>
                       {hasBuildingIcon(cell.type)
