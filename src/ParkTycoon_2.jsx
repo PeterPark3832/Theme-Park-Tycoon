@@ -909,6 +909,13 @@ export default function ParkTycoon(){
     }
   }, []); // 마운트 시 1회만
 
+  // obstacleMap must be declared BEFORE handleGridClick to avoid TDZ in minified bundle
+  const currentScenarioData=currentScenario?SCENARIOS.find(s=>s.id===currentScenario):null;
+  const obstacleMap=useMemo(()=>{
+    if(!currentScenarioData?.obstacles) return {};
+    return Object.fromEntries(currentScenarioData.obstacles.map(o=>[`${o.r},${o.c}`,o]));
+  },[currentScenario]);
+
   const handleGridClick=(r,c)=>{
     const{ownedGrid:og,grid:g,money:m}=ref.current;
     if(!og[r][c]){addLog(t("log.unownedLand"));return;}
@@ -1134,11 +1141,6 @@ export default function ParkTycoon(){
   const starStr="⭐".repeat(parkRating.stars)+"☆".repeat(5-parkRating.stars);
   const chartData=dailyHistory.slice(-14);
   const revPieData=useMemo(()=>[{name:t("rev.admission"),value:revBreak.adm,color:"#FECA57"},{name:t("rev.rides"),value:Math.round(revBreak.ride),color:"#FF6B9D"},{name:t("rev.shop"),value:Math.round(revBreak.shop),color:"#48DBFB"},{name:t("rev.pass"),value:revBreak.pass,color:"#5EF6A0"}].filter(d=>d.value>0),[revBreak, t]);
-  const currentScenarioData=currentScenario?SCENARIOS.find(s=>s.id===currentScenario):null;
-  const obstacleMap=useMemo(()=>{
-    if(!currentScenarioData?.obstacles) return {};
-    return Object.fromEntries(currentScenarioData.obstacles.map(o=>[`${o.r},${o.c}`,o]));
-  },[currentScenario]);
   const weatherParticles=useMemo(()=>{
     if(weather.id==="rainy")  return Array.from({length:14},(_,i)=>({id:i,x:(i/14)*100+1, delay:i*0.13, dur:0.65+i%3*0.10}));
     if(weather.id==="stormy") return Array.from({length:22},(_,i)=>({id:i,x:(i/22)*100+0.5,delay:i*0.09, dur:0.42+i%4*0.05}));
