@@ -106,8 +106,10 @@ export default function ParkTycoon(){
   const [dailyHistory,setDailyHistory]=useState([]);
   const [revBreak,setRevBreak]=useState({adm:0,ride:0,shop:0,pass:0});
   const [lang,setLang]=useState(()=>localStorage.getItem("pt_lang")||"ko");
+  const [langChosen,setLangChosen]=useState(()=>!!localStorage.getItem("pt_lang_chosen"));
   const t=useMemo(()=>tFn(lang),[lang]);
   const changeLang=useCallback(l=>{setLang(l);localStorage.setItem("pt_lang",l);},[]);
+  const chooseLang=useCallback(l=>{setLang(l);localStorage.setItem("pt_lang",l);localStorage.setItem("pt_lang_chosen","1");setLangChosen(true);},[]);
 
   // Phase 2 states
   const [staffLevels,setStaffLevels]=useState({janitor:1,mechanic:1,security:1,entertainer:1});
@@ -1194,6 +1196,22 @@ export default function ParkTycoon(){
   const pathList=Object.entries(B).filter(([,b])=>b.cat==="path");
   const decoList=Object.entries(B).filter(([,b])=>b.cat==="deco");
 
+  if(!langChosen){
+    return(
+      <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%,#0D1535 0%,#020510 60%)",color:"#DDE2FF",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{textAlign:"center",maxWidth:420}}>
+          <div style={{fontSize:44,marginBottom:12}}>🎡</div>
+          <div style={{fontSize:36,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:6,color:"#FFD93D",textShadow:"0 0 40px rgba(255,217,61,0.5)",lineHeight:1,marginBottom:8}}>PARCADIA</div>
+          <div style={{fontSize:13,color:"#7788BB",marginBottom:28,letterSpacing:1}}>언어를 선택하세요 · Choose your language</div>
+          <div style={{display:"flex",flexDirection:"column",gap:12,alignItems:"center"}}>
+            <button onClick={()=>chooseLang("ko")} style={{width:240,padding:"14px 0",background:"rgba(255,217,61,0.08)",border:"2px solid rgba(255,217,61,0.4)",color:"#FFD93D",borderRadius:12,cursor:"pointer",fontSize:16,fontFamily:"inherit",fontWeight:700,letterSpacing:2,transition:"all 0.15s"}}>🇰🇷 한국어</button>
+            <button onClick={()=>chooseLang("en")} style={{width:240,padding:"14px 0",background:"rgba(77,159,255,0.08)",border:"2px solid rgba(77,159,255,0.4)",color:"#4D9FFF",borderRadius:12,cursor:"pointer",fontSize:16,fontFamily:"inherit",fontWeight:700,letterSpacing:2,transition:"all 0.15s"}}>🇺🇸 English</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if(screen==="menu"){
     const slots=saveSlots;
     return(
@@ -1575,7 +1593,7 @@ export default function ParkTycoon(){
             <div key={l} style={{position:"relative"}}>
               <div
                 onClick={isVis?()=>setShowVisBreakdown(x=>!x):undefined}
-                onMouseEnter={isSat?(e)=>{const r=e.currentTarget.getBoundingClientRect();setSatTooltipPos({x:r.left,y:r.bottom+4});setShowSatTooltip(true);}:undefined}
+                onMouseEnter={isSat?(e)=>{const r=e.currentTarget.getBoundingClientRect();const tw=200,th=180;const x=Math.max(8,Math.min(r.left,window.innerWidth-tw-8));const y=r.bottom+4+th>window.innerHeight?r.top-th-4:r.bottom+4;setSatTooltipPos({x,y});setShowSatTooltip(true);}:undefined}
                 onMouseLeave={isSat?()=>setShowSatTooltip(false):undefined}
                 style={{display:"flex",alignItems:"center",gap:4,background:big?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.03)",border:`1px solid ${isVis&&showVisBreakdown?"#4D9FFF66":isSat&&showSatTooltip?col+"66":big?col+"33":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:big?"3px 10px":"3px 8px",whiteSpace:"nowrap",flexShrink:0,cursor:isVis||isSat?"pointer":"default",transition:"border-color 0.15s"}}>
                 <span style={{fontSize:big?14:11}}>{ic}</span>
