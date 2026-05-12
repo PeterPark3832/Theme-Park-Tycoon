@@ -1845,7 +1845,7 @@ export default function ParkTycoon(){
                       </div>);
                     })}
                   </div>
-                )})}
+                );})}
                 {clickedTile?.cell&&(()=>{
                   const{r,c,cell}=clickedTile,bd=B[cell.type];
                   const st=bd.stats(cell.level),upCost=cell.level<2?bd.upgradeCost[cell.level]:null;
