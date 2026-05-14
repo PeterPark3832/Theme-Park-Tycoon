@@ -18,8 +18,55 @@ import {
   loadSaveSlots, writeSaveSlots, mkGrid, mkOwned, timeAgoL, playSound,
 } from './gameLogic.js';
 
-function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,onClose,lang}){
-  const t=s=>s;
+// ── Background Music Engine ──────────────────────────────────────────────────
+const _BPM=110,_BEAT=60/_BPM,_N=_BEAT/2;
+const _HZ={F2:87.31,G2:98.00,A2:110.00,C3:130.81,E3:164.81,F3:174.61,G3:196.00,A3:220.00,B3:246.94,C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392.00,A4:440.00,B4:493.88,C5:523.25,D5:587.33,E5:659.25};
+const _CHORDS=[
+  {a:[_HZ.C4,_HZ.E4,_HZ.G4,_HZ.C5,_HZ.G4,_HZ.E4,_HZ.C4,_HZ.E4],b:_HZ.C3,m:[_HZ.E5,_HZ.D5,_HZ.C5,_HZ.G4]},
+  {a:[_HZ.A3,_HZ.C4,_HZ.E4,_HZ.A4,_HZ.E4,_HZ.C4,_HZ.A3,_HZ.C4],b:_HZ.A2,m:[_HZ.A4,_HZ.A4,_HZ.G4,_HZ.A4]},
+  {a:[_HZ.F3,_HZ.A3,_HZ.C4,_HZ.F4,_HZ.C4,_HZ.A3,_HZ.F3,_HZ.A3],b:_HZ.F2,m:[_HZ.C5,_HZ.A4,_HZ.G4,_HZ.F4]},
+  {a:[_HZ.G3,_HZ.B3,_HZ.D4,_HZ.G4,_HZ.D4,_HZ.B3,_HZ.G3,_HZ.B3],b:_HZ.G2,m:[_HZ.G4,_HZ.A4,_HZ.B4,_HZ.C5]},
+];
+function _startMusicEngine(mg,ctx){
+  let ch=0,ni=0,next=ctx.currentTime+0.05;
+  function osc(f,t,dur,type,vol){
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(mg);o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.015);
+    g.gain.setValueAtTime(vol*0.75,t+dur*0.75);g.gain.linearRampToValueAtTime(0,t+dur-0.01);
+    o.start(t);o.stop(t+dur);
+  }
+  function hihat(t){
+    const len=Math.floor(ctx.sampleRate*0.055),buf=ctx.createBuffer(1,len,ctx.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    const src=ctx.createBufferSource();src.buffer=buf;
+    const hpf=ctx.createBiquadFilter();hpf.type='highpass';hpf.frequency.value=9000;
+    const g=ctx.createGain();g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
+    src.connect(hpf);hpf.connect(g);g.connect(mg);src.start(t);src.stop(t+0.06);
+  }
+  function kick(t){
+    const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(mg);o.type='sine';
+    o.frequency.setValueAtTime(170,t);o.frequency.exponentialRampToValueAtTime(45,t+0.14);
+    g.gain.setValueAtTime(0.22,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+    o.start(t);o.stop(t+0.2);
+  }
+  function tick(){
+    while(next<ctx.currentTime+0.4){
+      const t=next,c=_CHORDS[ch];
+      osc(c.a[ni],t,_N*0.88,'triangle',0.13);
+      if(ni%2===0) osc(c.m[ni>>1],t,_N*1.9,'sine',0.09);
+      if(ni===0) osc(c.b,t,_N*7.8,'sine',0.17);
+      hihat(t);
+      if(ni===0||ni===4) kick(t);
+      next+=_N;
+      if(++ni>=8){ni=0;ch=(ch+1)%4;}
+    }
+  }
+  const id=setInterval(tick,80);tick();
+  return()=>clearInterval(id);
+}
+
+function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,bgMusicOn,setBgMusicOn,bgVolume,setBgVolume,onClose,lang}){
   const fzLabel={small:lang==="ko"?"작게":"Small",medium:lang==="ko"?"보통":"Medium",large:lang==="ko"?"크게":"Large"};
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
@@ -38,9 +85,20 @@ function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,onClose,lang
           </div>
         </div>
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"사운드":"Sound"}</div>
+          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"효과음":"SFX"}</div>
           <button style={{width:"100%",padding:"7px 0",background:soundOn?"rgba(0,229,160,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${soundOn?"rgba(0,229,160,0.4)":"rgba(255,255,255,0.10)"}`,color:soundOn?"#00E5A0":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,transition:"all 0.15s"}}
             onClick={()=>setSoundOn(s=>!s)}>{soundOn?(lang==="ko"?"🔊 켜짐":"🔊 On"):(lang==="ko"?"🔇 꺼짐":"🔇 Off")}</button>
+        </div>
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"배경음악":"Music"}</div>
+          <button style={{width:"100%",padding:"7px 0",background:bgMusicOn?"rgba(168,139,255,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${bgMusicOn?"rgba(168,139,255,0.5)":"rgba(255,255,255,0.10)"}`,color:bgMusicOn?"#A88BFF":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,transition:"all 0.15s",marginBottom:8}}
+            onClick={()=>setBgMusicOn(s=>!s)}>{bgMusicOn?(lang==="ko"?"🎵 켜짐":"🎵 On"):(lang==="ko"?"🎵 꺼짐":"🎵 Off")}</button>
+          {bgMusicOn&&<div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:10,color:"#6B7CA1",minWidth:24}}>🔈</span>
+            <input type="range" min="0" max="100" value={Math.round(bgVolume*100)} onChange={e=>setBgVolume(Number(e.target.value)/100)}
+              style={{flex:1,accentColor:"#A88BFF",cursor:"pointer"}}/>
+            <span style={{fontSize:10,color:"#6B7CA1",minWidth:28}}>{Math.round(bgVolume*100)}%</span>
+          </div>}
         </div>
         <button style={{width:"100%",padding:"8px 0",background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.3)",color:"#8899CC",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,marginTop:4}} onClick={onClose}>{lang==="ko"?"닫기":"Close"}</button>
       </div>
@@ -164,6 +222,10 @@ export default function ParkTycoon(){
   const [multiSelectedCells,setMultiSelectedCells]=useState(()=>new Set());
   const [overwriteConfirm,setOverwriteConfirm]=useState(null); // null | {r,c,existing,newType,refund}
   const [soundOn,setSoundOn]=useState(true);
+  const [bgMusicOn,setBgMusicOn]=useState(()=>{try{return localStorage.getItem('pt_bgmusic')==='1';}catch{return false;}});
+  const [bgVolume,setBgVolume]=useState(()=>{try{return parseFloat(localStorage.getItem('pt_bgvol'))||0.4;}catch{return 0.4;}});
+  const bgMusicRef=useRef(null); // {ctx, masterGain, cleanup}
+  const bgVolumeRef=useRef(bgVolume);
   const [uiSettings,setUiSettings]=useState(()=>{try{return JSON.parse(localStorage.getItem('uiSettings'))||{fontSize:'medium'};}catch{return{fontSize:'medium'};}});
   const [showSettings,setShowSettings]=useState(false);
   // Phase 3 new states
@@ -924,6 +986,37 @@ export default function ParkTycoon(){
     return()=>window.removeEventListener("mouseup",handler);
   },[]);
 
+  // 배경음악 persistence
+  useEffect(()=>{try{localStorage.setItem('pt_bgmusic',bgMusicOn?'1':'0');}catch{}},[bgMusicOn]);
+  useEffect(()=>{bgVolumeRef.current=bgVolume;try{localStorage.setItem('pt_bgvol',String(bgVolume));}catch{}
+    if(bgMusicRef.current?.masterGain){
+      const{masterGain,ctx}=bgMusicRef.current;
+      masterGain.gain.cancelScheduledValues(ctx.currentTime);
+      masterGain.gain.setValueAtTime(bgVolume*0.5,ctx.currentTime);
+    }
+  },[bgVolume]);
+
+  // 배경음악 start/stop
+  useEffect(()=>{
+    if(bgMusicOn&&screen==='game'){
+      if(bgMusicRef.current) return;
+      try{
+        const ctx=new(window.AudioContext||window.webkitAudioContext)();
+        const masterGain=ctx.createGain();
+        masterGain.gain.setValueAtTime(bgVolumeRef.current*0.5,ctx.currentTime);
+        masterGain.connect(ctx.destination);
+        const cleanup=_startMusicEngine(masterGain,ctx);
+        bgMusicRef.current={ctx,masterGain,cleanup};
+      }catch{}
+    } else {
+      if(!bgMusicRef.current) return;
+      const{cleanup,masterGain,ctx}=bgMusicRef.current;
+      bgMusicRef.current=null;
+      cleanup();
+      try{masterGain.gain.linearRampToValueAtTime(0,ctx.currentTime+0.3);setTimeout(()=>{try{ctx.close();}catch{}},400);}catch{}
+    }
+  },[bgMusicOn,screen]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const saveParam = params.get('save');
@@ -1348,7 +1441,7 @@ export default function ParkTycoon(){
     const slots=saveSlots;
     return(
       <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%, #0D1535 0%, #020510 60%)",color:"var(--text-primary)",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-        {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} onClose={()=>setShowSettings(false)} lang={lang}/>}
+        {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} bgMusicOn={bgMusicOn} setBgMusicOn={setBgMusicOn} bgVolume={bgVolume} setBgVolume={setBgVolume} onClose={()=>setShowSettings(false)} lang={lang}/>}
         <button onClick={()=>setShowSettings(true)} style={{position:"fixed",top:12,right:12,background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.3)",color:"#8899CC",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:16,fontFamily:"inherit",transition:"all 0.15s",zIndex:1000}} title={lang==="ko"?"설정":"Settings"}>⚙️</button>
         <div style={{width:"100%",maxWidth:680}}>
           <div style={{textAlign:"center",marginBottom:28}}>
@@ -1687,6 +1780,13 @@ export default function ParkTycoon(){
             style={{background:"rgba(100,120,255,0.08)",border:"1px solid rgba(100,120,255,0.2)",color:soundOn?"#8899CC":"#7788BB",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:12,fontFamily:"inherit",transition:"all 0.15s"}}
           >
             {soundOn?"🔊":"🔇"}
+          </button>
+          <button
+            onClick={()=>setBgMusicOn(s=>!s)}
+            title={bgMusicOn?(lang==="ko"?"배경음악 끄기":"Music off"):(lang==="ko"?"배경음악 켜기":"Music on")}
+            style={{background:bgMusicOn?"rgba(168,139,255,0.12)":"rgba(100,120,255,0.08)",border:`1px solid ${bgMusicOn?"rgba(168,139,255,0.4)":"rgba(100,120,255,0.2)"}`,color:bgMusicOn?"#A88BFF":"#7788BB",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:12,fontFamily:"inherit",transition:"all 0.15s"}}
+          >
+            🎵
           </button>
           <button
             onClick={()=>setShowSettings(true)}
