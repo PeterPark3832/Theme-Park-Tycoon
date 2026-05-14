@@ -264,7 +264,7 @@ export const SCENARIO_DIFFICULTY = {
   hard:   { moneyMult:0.65, timeMult:0.78, emoji:"🔴", color:"#FF5757", diffKey:"hard",   label:{ko:"어려움", en:"Hard"},   desc:{ko:"자금 -35%, 시간 -22%, 재난 빈번",   en:"-35% funds, -22% time, frequent disasters"} },
 };
 
-export const DIFFICULTY_SETTINGS = {easy:{emoji:"🟢",startMoney:70000,disasterMult:0.4,maintenanceMult:0.8},normal:{emoji:"🟡",startMoney:55000,disasterMult:1.0,maintenanceMult:1.0},hard:{emoji:"🔴",startMoney:30000,disasterMult:2.0,maintenanceMult:1.3},extreme:{emoji:"💀",startMoney:10000,disasterMult:3.0,maintenanceMult:1.6}};
+export const DIFFICULTY_SETTINGS = {easy:{emoji:"🟢",startMoney:70000,disasterMult:0.4,maintenanceMult:0.8},normal:{emoji:"🟡",startMoney:55000,disasterMult:1.0,maintenanceMult:1.0},hard:{emoji:"🔴",startMoney:30000,disasterMult:2.0,maintenanceMult:1.3},extreme:{emoji:"💀",startMoney:18000,disasterMult:3.0,maintenanceMult:1.4}};
 
 export const STAGES = [
   {id:1,emoji:"🌱",color:"#5EF6A0",gradFrom:"#0A2010",gradTo:"#0D0D1A",
@@ -412,13 +412,19 @@ export const RIVAL_EVENTS = [
 export const ACHIEVEMENTS = [
   {id:"ach_first",   emoji:"🎊", col:"#FFD93D", name:{ko:"첫 방문객!",    en:"First Visitor!"},     desc:{ko:"첫 번째 방문객 도착",         en:"Your first visitor arrived"},      check:s=>s.totalVis>=1},
   {id:"ach_100",     emoji:"👥", col:"#4D9FFF", name:{ko:"100명 돌파",    en:"100 Visitors"},       desc:{ko:"누적 방문객 100명",           en:"100 cumulative visitors"},         check:s=>s.totalVis>=100},
+  {id:"ach_500",     emoji:"🎠", col:"#FF9FF3", name:{ko:"500명 돌파",    en:"500 Visitors"},       desc:{ko:"누적 방문객 500명",           en:"500 cumulative visitors"},         check:s=>s.totalVis>=500},
   {id:"ach_1000",    emoji:"🎡", col:"#5EF6A0", name:{ko:"1,000명 입장",  en:"1K Visitors"},        desc:{ko:"누적 방문객 1,000명",         en:"1,000 cumulative visitors"},       check:s=>s.totalVis>=1000},
   {id:"ach_5000",    emoji:"🌟", col:"#FF9F43", name:{ko:"5,000명 방문",  en:"5K Visitors"},        desc:{ko:"누적 방문객 5,000명",         en:"5,000 cumulative visitors"},       check:s=>s.totalVis>=5000},
+  {id:"ach_3star",   emoji:"🌠", col:"#48DBFB", name:{ko:"3성 공원",      en:"3-Star Park"},        desc:{ko:"공원 별점 3성 달성",          en:"Achieved 3-star rating"},          check:s=>s.stars>=3},
   {id:"ach_5star",   emoji:"⭐", col:"#FFD93D", name:{ko:"5성 공원",      en:"5-Star Park"},        desc:{ko:"공원 별점 5성 달성",          en:"Achieved 5-star rating"},          check:s=>s.stars>=5},
+  {id:"ach_100k",    emoji:"💵", col:"#A29BFE", name:{ko:"$10만 달성",    en:"$100K Earner"},       desc:{ko:"보유 자금 $100,000 달성",     en:"Reached $100,000"},                check:s=>s.money>=100000},
   {id:"ach_million", emoji:"💰", col:"#5EF6A0", name:{ko:"백만장자",      en:"Millionaire"},        desc:{ko:"보유 자금 $1,000,000",        en:"Reached $1,000,000"},              check:s=>s.money>=1000000},
+  {id:"ach_stage3",  emoji:"🎯", col:"#1DD1A1", name:{ko:"성장하는 공원",  en:"Growing Park"},       desc:{ko:"Stage 3 달성",               en:"Reached Stage 3"},                 check:s=>s.stageId>=3},
   {id:"ach_stage5",  emoji:"🏆", col:"#FF6B9D", name:{ko:"전설의 공원",   en:"Legendary Park"},     desc:{ko:"Stage 5 달성",               en:"Reached Stage 5"},                 check:s=>s.stageId>=5},
   {id:"ach_clean",   emoji:"✨", col:"#4ECDC4", name:{ko:"완벽한 청결",   en:"Spotless Park"},      desc:{ko:"청결도 100% 달성",            en:"Achieved 100% cleanliness"},       check:s=>s.clean>=100},
+  {id:"ach_sat80",   emoji:"😄", col:"#FF6B9D", name:{ko:"행복한 공원",   en:"Happy Park"},         desc:{ko:"만족도 80% 이상 달성",        en:"Satisfaction 80%+"},               check:s=>s.sat>=80},
   {id:"ach_happy",   emoji:"😊", col:"#FF9F43", name:{ko:"최고 만족도",   en:"Max Happiness"},      desc:{ko:"만족도 90% 이상",             en:"Satisfaction 90%+"},               check:s=>s.sat>=90},
+  {id:"ach_day30",   emoji:"📆", col:"#9B7FFF", name:{ko:"한 달 운영",    en:"One Month"},          desc:{ko:"30일 이상 공원 운영",         en:"30 days of operation"},            check:s=>s.day>=30},
   {id:"ach_day50",   emoji:"📅", col:"#9B7FFF", name:{ko:"50일 운영",     en:"50-Day Veteran"},     desc:{ko:"50일 이상 공원 운영",         en:"50 days of operation"},            check:s=>s.day>=50},
   {id:"ach_day100",  emoji:"🌈", col:"#A29BFE", name:{ko:"100일 공원",    en:"Centennial Park"},    desc:{ko:"100일 이상 공원 운영",        en:"100 days of operation"},           check:s=>s.day>=100},
   {id:"ach_gold",    emoji:"🥇", col:"#FFD93D", name:{ko:"황금 메달",     en:"Gold Medalist"},      desc:{ko:"시나리오 골드 메달 획득",     en:"Earned a scenario gold medal"},    check:s=>s.goldMedals>=1},
