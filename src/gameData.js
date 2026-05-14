@@ -234,7 +234,7 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"공원 2성",en:"2-star park"},check:s=>s.pres>=2},
     {id:"silver",medal:"🥈",desc:{ko:"3성 + 고장 없음",en:"3 stars + no breakdowns"},check:s=>s.pres>=3&&s.brokenCount===0},
     {id:"gold",medal:"🥇",desc:{ko:"4성 + 만족도 75%",en:"4 stars + 75% happiness"},check:s=>s.pres>=4&&s.sat>=75}]},
-  {id:"s4",emoji:"🏙️",difficulty:3,color:"#48DBFB",startMoney:45000,timeLimit:60,preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false}],gridRestrict:{cols:[14,25]},
+  {id:"s4",emoji:"🏙️",difficulty:3,color:"#48DBFB",startMoney:45000,timeLimit:60,preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false}],gridRestrict:{cols:[14,25]},bannedBuildings:["waterRide","miniTrain","balloonRide"],
    obstacles:[{r:5,c:14,type:"rock"},{r:5,c:15,type:"rock"},{r:14,c:14,type:"rock"},{r:14,c:15,type:"rock"}],
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"순이익 $1,000/일",en:"$1,000 daily profit"},check:s=>s.net>=1000},
@@ -253,7 +253,7 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"커플 35% + 방문객 80명",en:"35% couples + 80 visitors"},check:s=>s.coupleRatio>=0.35&&s.vis>=80},
     {id:"silver",medal:"🥈",desc:{ko:"커플 50% + 만족도 70%",en:"50% couples + 70% happiness"},check:s=>s.coupleRatio>=0.50&&s.sat>=70&&s.vis>=130},
     {id:"gold",medal:"🥇",desc:{ko:"커플 60% + 방문객 220명 + 순이익 $2k",en:"60% couples + 220 visitors + $2k profit"},check:s=>s.coupleRatio>=0.60&&s.vis>=220&&s.net>=2000}]},
-  {id:"s7",emoji:"👻",difficulty:4,color:"#5F27CD",startMoney:38000,timeLimit:55,preBuilt:[
+  {id:"s7",emoji:"👻",difficulty:4,color:"#5F27CD",startMoney:38000,timeLimit:55,bannedBuildings:["carousel","miniTrain","iceCream","balloonRide"],preBuilt:[
     {type:"entrance",    r:9,c:15,level:0,broken:false},
     {type:"_path",       r:9,c:17,level:0,broken:false},
     {type:"_path",       r:9,c:18,level:0,broken:false},
@@ -279,6 +279,22 @@ export const SCENARIO_DIFFICULTY = {
 };
 
 export const DIFFICULTY_SETTINGS = {easy:{emoji:"🟢",startMoney:70000,disasterMult:0.4,maintenanceMult:0.8},normal:{emoji:"🟡",startMoney:55000,disasterMult:1.0,maintenanceMult:1.0},hard:{emoji:"🔴",startMoney:30000,disasterMult:2.0,maintenanceMult:1.3},extreme:{emoji:"💀",startMoney:18000,disasterMult:2.2,maintenanceMult:1.4}};
+
+export const STARTING_PERKS = [
+  {id:"disasterGuard",emoji:"🛡️",color:"#5EF6A0",name:{ko:"재난 면역 10일",en:"Disaster Guard"},desc:{ko:"처음 10일간 재난 발생 없음. 초반 안정 확보에 유리.",en:"No disasters for first 10 days. Safe early build phase."}},
+  {id:"rpBoost",      emoji:"🔬",color:"#A29BFE",name:{ko:"연구포인트 2배",en:"Double Research"},desc:{ko:"모든 연구포인트 획득량 2배. 빠른 연구 트리 완성.",en:"Earn double RP from all sources. Rush the research tree."}},
+  {id:"premiumGate",  emoji:"💰",color:"#FFD93D",name:{ko:"입장료 상한 +$10",en:"Premium Gate"},desc:{ko:"각 별점 기준 입장료 한도 $10 상향. 수익 특화 전략.",en:"Admission cap +$10 per star tier. Revenue-focused build."}},
+];
+
+export const WEEKLY_CHALLENGES = [
+  {id:"wc1",emoji:"⛈️",title:{ko:"폭풍의 계절",en:"Storm Season"},      desc:{ko:"폭풍 확률 3배 — 30일 내 별점 3성",en:"3× storm chance — reach 3 stars in 30 days"},          mod:{disasterMult:3,timeLimit:30,targetStars:3}},
+  {id:"wc2",emoji:"💸",title:{ko:"예산 긴축",en:"Budget Crunch"},        desc:{ko:"시작 자금 40% — 45일 내 흑자 $50,000",en:"Start with 40% funds — earn $50k total in 45 days"},   mod:{moneyMult:0.4,timeLimit:45}},
+  {id:"wc3",emoji:"🔬",title:{ko:"무연구 런",en:"No Research Run"},      desc:{ko:"연구 없이 공원 별점 4성 달성",en:"Reach 4-star park without any research"},                   mod:{noResearch:true}},
+  {id:"wc4",emoji:"🏔️",title:{ko:"제한 구역",en:"Restricted Zone"},     desc:{ko:"그리드 중앙 20칸만 사용 — 방문객 150명",en:"Use only 20 central tiles — 150 visitors"},            mod:{gridRestrict:{cols:[13,26]}}},
+  {id:"wc5",emoji:"🌪️",title:{ko:"재난 연속",en:"Disaster Gauntlet"},   desc:{ko:"재난 해결 2배 비용 — 40일 생존 후 3성",en:"2× disaster cost — survive 40 days and 3 stars"},      mod:{disasterCostMult:2,timeLimit:40,targetStars:3}},
+  {id:"wc6",emoji:"👻",title:{ko:"직원 없이",en:"Solo Operation"},       desc:{ko:"직원 고용 불가 — 25일 내 방문객 100명",en:"No staff allowed — 100 visitors in 25 days"},           mod:{noStaff:true,timeLimit:25}},
+  {id:"wc7",emoji:"🎯",title:{ko:"소형 공원",en:"Micro Park"},           desc:{ko:"건물 12개 이하로 순이익 $5,000 달성",en:"Reach $5k net daily profit with 12 or fewer buildings"}, mod:{maxBuildings:12}},
+];
 
 export const STAGES = [
   {id:1,emoji:"🌱",color:"#5EF6A0",gradFrom:"#0A2010",gradTo:"#0D0D1A",

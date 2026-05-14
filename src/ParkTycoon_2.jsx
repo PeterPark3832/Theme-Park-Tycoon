@@ -6,7 +6,7 @@ import {
   BREAK_CHANCE, ZONES, PARCELS, SEGS, SEG_PULL,
   CAMPAIGNS_DATA, VIP_EVENTS, RB_BRANCHES, RESEARCH, MISSIONS, DISASTERS,
   WEATHERS, WEATHER_WEIGHTS, DEFAULT_RIDE_PRICES, DEFAULT_SHOP_MULTS, MAX_FEE_BY_STARS,
-  LANG_FLAGS, TR, SCENARIOS, DIFFICULTY_SETTINGS, STAGES, B,
+  LANG_FLAGS, TR, SCENARIOS, DIFFICULTY_SETTINGS, STAGES, B, STARTING_PERKS, WEEKLY_CHALLENGES,
   STAFF, STAFF_UPGRADES, RIVAL_PARKS, FRANCHISES, ZONE_MASTERY, LOAN_OPTS, DOTS, TUTORIAL_STEPS, DAILY_CHALLENGES, SCENARIO_CLEAR_REWARDS, SCENARIO_DIFFICULTY,
   RIVAL_EVENTS, ACHIEVEMENTS, BONUS_EVENTS,
 } from './gameData.js';
@@ -221,6 +221,9 @@ export default function ParkTycoon(){
   const [bankruptcyDays,setBankruptcyDays]=useState(0); // 연속 적자 일수
   const [profitStreakDays,setProfitStreakDays]=useState(0); // 연속 흑자 일수
   const [pendingSeasonalAction,setPendingSeasonalAction]=useState(null); // null | {event, expiresDay}
+  const [startPerk,setStartPerk]=useState(null); // null | "disasterGuard"|"rpBoost"|"premiumGate"
+  const [pendingStartParams,setPendingStartParams]=useState(null); // null | {mode, scenarioId, diff, wc}
+  const [weeklyChallengeMod,setWeeklyChallengeMod]=useState(null); // active weekly challenge modifier
   const [demolishConfirm,setDemolishConfirm]=useState(null); // null | {r,c,cell,refund}
   const [multiSelectedCells,setMultiSelectedCells]=useState(()=>new Set());
   const [overwriteConfirm,setOverwriteConfirm]=useState(null); // null | {r,c,existing,newType,refund}
@@ -247,7 +250,7 @@ export default function ParkTycoon(){
 
   const ref=useRef();
   const diffSettings=DIFFICULTY_SETTINGS[difficulty]||DIFFICULTY_SETTINGS.normal;
-  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,profitStreakDays,soundOn,ftueGoalDone,scenarioTimeLimit,rivalEventActive,lang,lastBuilt};
+  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,profitStreakDays,soundOn,ftueGoalDone,scenarioTimeLimit,rivalEventActive,lang,lastBuilt,startPerk,weeklyChallengeMod};
 
   const season=SEASONS[Math.floor(((day-1)%120)/SL)];
   const rb=getRB(researched);
@@ -257,9 +260,9 @@ export default function ParkTycoon(){
     grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,scenarioTimeLimit,
     staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,
     activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,
-    activeDailyChallenge,dailyChallengeHistory,profitStreakDays,
+    activeDailyChallenge,dailyChallengeHistory,profitStreakDays,startPerk,weeklyChallengeMod,
     meta:{day,money,stars:calcParkRating(grid,zoneGrid,calcStats(grid,zoneGrid,hired,rb),sat,clean).stars,mode:gameMode,scenario:currentScenario,savedAt:Date.now()},
-  }),[grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,scenarioTimeLimit,rb,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,activeDailyChallenge,dailyChallengeHistory,profitStreakDays]);
+  }),[grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,scenarioTimeLimit,rb,staffLevels,rivals,pressReviews,visitorRatings,buildingFranchises,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,activeDailyChallenge,dailyChallengeHistory,profitStreakDays,startPerk,weeklyChallengeMod]);
 
   const saveToSlot=useCallback((slotIdx)=>{
     const state=getFullState();
@@ -352,15 +355,20 @@ export default function ParkTycoon(){
     setActiveDailyChallenge(slotData.activeDailyChallenge||null);
     setDailyChallengeHistory(slotData.dailyChallengeHistory||[]);
     setProfitStreakDays(slotData.profitStreakDays||0);
+    setStartPerk(slotData.startPerk||null);
+    setWeeklyChallengeMod(slotData.weeklyChallengeMod||null);
     setScenarioResult(null);
     setSpeed(0);
     setScreen("game");
   },[]);
 
-  const startGame=useCallback((mode,scenarioId,diff)=>{
+  const startGame=useCallback((mode,scenarioId,diff,perk=null,wc=null)=>{
     const diffConf=DIFFICULTY_SETTINGS[diff||"normal"];
     if(mode!=="campaign") setScenarioTimeLimit(0);
     let startMoney=diffConf.startMoney;
+    if(wc?.moneyMult) startMoney=Math.floor(startMoney*(wc.moneyMult));
+    setStartPerk(perk||null);
+    setWeeklyChallengeMod(wc||null);
     let startRes=[];
     let startGrid=mkGrid();
     let startOwned=mkOwned();
@@ -384,7 +392,10 @@ export default function ParkTycoon(){
         }
       });
       if(sc.gridRestrict) startOwned=mkOwned(sc.gridRestrict);
+    } else if(mode==="challenge"&&wc?.gridRestrict){
+      startOwned=mkOwned(wc.gridRestrict);
     }
+    if(wc?.timeLimit&&mode!=="campaign") setScenarioTimeLimit(wc.timeLimit);
 
     setGrid(startGrid);setZoneGrid(Array(GR).fill(null).map(()=>Array(GC).fill(null)));
     setOwnedGrid(startOwned);setParcels([]);setMoney(startMoney);setDay(1);
@@ -405,7 +416,7 @@ export default function ParkTycoon(){
     setFirstVisitorCelebration(false);firstVisitorRef.current=false;
     const newMapType=mode==="sandbox"?"default":mode==="campaign"?({s2:"beach",s3:"default",s5:"forest"}[scenarioId]||"default"):MAP_TYPES[Math.floor(Math.random()*MAP_TYPES.length)].id;
     setMapType(newMapType);
-    setSelected(null);setClickedTile(null);setBuildMode("build");setZonePaint(null);setSaveConfirm(null);setStageUpFlash(false);prevStageRef.current=1;setBankruptcyDays(0);setProfitStreakDays(0);setPendingSeasonalAction(null);
+    setSelected(null);setClickedTile(null);setBuildMode("build");setZonePaint(null);setSaveConfirm(null);setStageUpFlash(false);prevStageRef.current=1;setBankruptcyDays(0);setProfitStreakDays(0);setPendingSeasonalAction(null);setPendingStartParams(null);
     setTab("build");
 
     setTutorialStep(0);
@@ -615,7 +626,9 @@ export default function ParkTycoon(){
         }
       }
       // 신규 재난/경고 생성
-      if(!newDisaster&&!dWarn&&gm!=="sandbox"&&day>=10&&Math.random()<0.015*diffConf.disasterMult*disasterPen+(newSat<40?0.01:0)){
+      const disasterGuardActive=ref.current.startPerk==="disasterGuard"&&day<10;
+      const wcDisasterMult=ref.current.weeklyChallengeMod?.disasterMult||1;
+      if(!newDisaster&&!dWarn&&gm!=="sandbox"&&!disasterGuardActive&&day>=10&&Math.random()<0.015*diffConf.disasterMult*disasterPen*wcDisasterMult+(newSat<40?0.01:0)){
         const d=DISASTERS[Math.floor(Math.random()*DISASTERS.length)];
         if(Math.random()<0.6){
           // 60%는 경고 먼저
@@ -857,8 +870,9 @@ export default function ParkTycoon(){
       setMoney(m=>m+net+mM);setVisitors(vis);setLoans(newLoans);setCampaigns(newCamps);
       setPassHolders(newPH);setActiveDisaster(newDisaster);
       setTotalRev(r=>r+Math.max(0,totalRevDay));setTotalVis(t=>t+vis);setDay(d=>d+1);
-      // RP: 기본 3/일 + 방문객 20명당 +1 (최대 +5) + 미션 보상
-      const rpGain=Math.min(8,3+Math.floor(vis/20))+mR;
+      // RP: 기본 3/일 + 방문객 20명당 +1 (최대 +5) + 미션 보상 + perk 보너스
+      const rpBase=Math.min(8,3+Math.floor(vis/20));
+      const rpGain=(ref.current.startPerk==="rpBoost"?rpBase*2:rpBase)+mR;
       setResearchPoints(p=>p+rpGain);setActiveMissions(newActive);setCompletedMissions(newCompleted);
       setDailyHistory(h=>[...h.slice(-59),{day:day+1,revenue:totalRevDay,admRev:Math.floor(admRev*revMult),rideRev:Math.floor(rideRev*revMult),shopRev:Math.floor(shopRev*revMult),passInc,expenses:Math.round(maint)+wages+loanPay,net,visitors:vis,sat:Math.round(newSat)}]);
       setRevBreak({adm:Math.floor(admRev*revMult),ride:Math.floor(rideRev*revMult),shop:Math.floor(shopRev*revMult),pass:passInc});
@@ -1205,7 +1219,7 @@ export default function ParkTycoon(){
       setMultiSelectedCells(prev=>{const n=new Set(prev);cells.forEach(k=>n.add(k));return n;});
     }
   };
-  const hire=k=>{if(ref.current.money<STAFF[k].hire){addLog(t("log.noMoney"));return;}setHired(h=>({...h,[k]:h[k]+1}));setMoney(m=>m-STAFF[k].hire);addLog(t("log.hire", {name: t(`st.${k}`)}));};
+  const hire=k=>{if(weeklyChallengeMod?.noStaff){addLog(lang==="ko"?"🚫 이번 챌린지: 직원 고용 불가":"🚫 This challenge: no staff allowed");return;}if(ref.current.money<STAFF[k].hire){addLog(t("log.noMoney"));return;}setHired(h=>({...h,[k]:h[k]+1}));setMoney(m=>m-STAFF[k].hire);addLog(t("log.hire", {name: t(`st.${k}`)}));};
   const fire=k=>{if(hired[k]<=0)return;setHired(h=>({...h,[k]:h[k]-1}));addLog(t("log.fire", {name: t(`st.${k}`)}));};
   const takeLoan=opt=>{
     if(loans.length>=2){addLog(lang==="ko"?"대출은 최대 2개까지만 가능합니다":"Maximum 2 loans at once");return;}
@@ -1349,7 +1363,35 @@ export default function ParkTycoon(){
     link.click();
     addLog(`📷 ${lang === "ko" ? "스냅샷 저장됨!" : "Snapshot saved!"}`);
   };
-  const doResearch=id=>{const r=RESEARCH.find(x=>x.id===id);if(!r) return;if(researchPoints<r.cost){addLog(t("log.rpLacking"));return;}if(r.req&&!researched.includes(r.req)){addLog(t("log.resReq"));return;}if(researched.includes(id)) return;setResearched(p=>[...p,id]);setResearchPoints(p=>p-r.cost);addLog(t("log.resComplete", {name: t(`res.${r.id}.name`)}));};
+  const doResearch=id=>{const r=RESEARCH.find(x=>x.id===id);if(!r) return;if(weeklyChallengeMod?.noResearch){addLog(lang==="ko"?"🚫 이번 챌린지: 연구 불가":"🚫 This challenge: no research allowed");return;}if(researchPoints<r.cost){addLog(t("log.rpLacking"));return;}if(r.req&&!researched.includes(r.req)){addLog(t("log.resReq"));return;}if(researched.includes(id)) return;setResearched(p=>[...p,id]);setResearchPoints(p=>p-r.cost);addLog(t("log.resComplete", {name: t(`res.${r.id}.name`)}));};
+  const resImpact=(id)=>{
+    const rbN=getRB([...researched,id]);
+    const fK=n=>n>=1000?`$${(n/1000).toFixed(1)}k`:`$${n}`;
+    const aw=(a,b)=>a!==b?`${a} → ${b}`:null;
+    const ak=(a,b)=>a!==b?`${fK(a)} → ${fK(b)}`:null;
+    const attr=Math.round(stats.attraction);
+    const mCur=Math.round(stats.maintenance*diffSettings.maintenanceMult);
+    const adm=Math.round(revBreak.adm),shop=Math.round(revBreak.shop),pas=Math.round(revBreak.pass);
+    const ko=lang==="ko";
+    switch(id){
+      case "r1":case "ex4":{const nA=Math.round(stats.attraction*rbN.attractionMult/rb.attractionMult);return attr>0?aw(attr,nA):null;}
+      case "r2":return ko?"고장률 -50%":"Breakdown -50%";
+      case "r3":{const c=stats.capacity,cN=Math.round(c*rbN.capacityBonus/rb.capacityBonus);return c>0?aw(c,cN):null;}
+      case "r4":return null;
+      case "c1":{const b=Math.round(adm*rbN.admissionMult/rb.admissionMult);return adm>0?ak(adm,b):null;}
+      case "c2":return ko?"패스 판매 ×1.5":"Pass sales ×1.5";
+      case "c3":{const b=Math.round(shop*rbN.rpvMult/rb.rpvMult);return shop>0?ak(shop,b):null;}
+      case "c4":{const b=Math.round(pas*rbN.passIncomeMult/rb.passIncomeMult);return pas>0?ak(pas,b):null;}
+      case "o1":case "o3":case "o4":case "ex3":{const mN=Math.round(mCur*rbN.maintenanceMult/rb.maintenanceMult);return mCur>0?ak(mCur,mN):null;}
+      case "o2":return ko?"청결 +5/일":"Clean +5/day";
+      case "p1":return ko?"명성 ×1.3":"Prestige ×1.3";
+      case "p2":return ko?"커플 방문객 +20%":"Couple vis +20%";
+      case "p3":return ko?"명성 ×1.56":"Prestige ×1.56";
+      case "p4":case "ex2":{const vN=Math.round(visitors*(1+rbN.globalVisBonus)/Math.max(0.01,1+rb.globalVisBonus));return visitors>0?aw(visitors,vN):null;}
+      case "ex1":return ko?"이벤트 부스트 ×1.3":"Event boost ×1.3";
+      default:return null;
+    }
+  };
   const upgradeStaff=k=>{const cur=staffLevels[k];if(cur>=3) return;const upg=STAFF_UPGRADES[k][cur];if(!upg) return;if(money<upg.upgCost){addLog(t("log.noMoney"));return;}setMoney(m=>m-upg.upgCost);setStaffLevels(p=>({...p,[k]:cur+1}));addLog(`⬆️ ${t(`st.${k}`)} Lv.${cur+1}!`);};
   const acceptInvestor=()=>{const offer=pendingInvestor.offer;setMoney(m=>m+offer.amount);setActiveInvestment({offerId:offer.id,amount:offer.amount,goal:offer.goal,deadline:day+offer.goal.days});setPendingInvestor(null);addLog(`💼 ${offer.name[lang]||offer.name.ko} ${lang==="ko"?"수락!":"accepted!"} +$${offer.amount.toLocaleString()}`);saveToSlot(0);};;
   const declineInvestor=()=>{setPendingInvestor(null);addLog(`💼 ${lang==="ko"?"투자 거절.":"Investment declined."}`);};;
@@ -1385,7 +1427,7 @@ export default function ParkTycoon(){
   const totalDebt=loans.reduce((t,l)=>t+l.remaining,0);
   const campBoost=campaigns.reduce((t,c)=>t+c.boost,0);
   const passIncome=passOn?Math.floor(passHolders*passPrice/365*rb.passIncomeMult):0;
-  const maxFee=gameMode==="sandbox"?999:MAX_FEE_BY_STARS[parkRating.stars];
+  const maxFee=gameMode==="sandbox"?999:(MAX_FEE_BY_STARS[parkRating.stars]+(startPerk==="premiumGate"?10:0));
   const shopMultiplier=avgShopMult(cc,shopMults);
   const rideTicketEst=calcRideTicketRev(cc,visitors,stats.attraction,ridePrices,pricingMode);
   const admRevEst=pricingMode!=="per_ride"?visitors*fee*rb.admissionMult:0;
@@ -1492,7 +1534,7 @@ export default function ParkTycoon(){
 
   if(screen==="menu"){
     const slots=saveSlots;
-    return(
+    return(<>
       <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%, #0D1535 0%, #020510 60%)",color:"var(--text-primary)",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
         {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} bgMusicOn={bgMusicOn} setBgMusicOn={setBgMusicOn} bgVolume={bgVolume} setBgVolume={setBgVolume} onClose={()=>setShowSettings(false)} lang={lang}/>}
         <button onClick={()=>setShowSettings(true)} style={{position:"fixed",top:12,right:12,background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.3)",color:"#8899CC",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:16,fontFamily:"inherit",transition:"all 0.15s",zIndex:1000}} title={lang==="ko"?"설정":"Settings"}>⚙️</button>
@@ -1525,9 +1567,9 @@ export default function ParkTycoon(){
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:24}}>
               {[
                 {mode:"campaign",emoji:"🎯",name:t("mode.campaign"),desc:t("mode.campaign.desc"),color:"#00E5A0",action:()=>setMenuSubScreen("scenario")},
-                {mode:"sandbox", emoji:"🏗️",name:t("mode.sandbox"), desc:t("mode.sandbox.desc"), color:"#FFD93D",action:()=>startGame("sandbox",null,"normal")},
+                {mode:"sandbox", emoji:"🏗️",name:t("mode.sandbox"), desc:t("mode.sandbox.desc"), color:"#FFD93D",action:()=>setPendingStartParams({mode:"sandbox",scenarioId:null,diff:"normal"})},
                 {mode:"challenge",emoji:"⚡",name:t("mode.challenge"),desc:t("mode.challenge.desc"),color:"#FF6B9D",action:()=>setMenuSubScreen("difficulty")},
-                {mode:"tutorial",emoji:"🎓",name:lang==="ko"?"튜토리얼":"Tutorial",desc:lang==="ko"?"처음 하시나요?\n단계별로 게임을 배워보세요":"New to the game?\nLearn step by step",color:"#9B7FFF",action:()=>{startGame("sandbox",null,"normal");setTutorialStep(1);}},
+                {mode:"tutorial",emoji:"🎓",name:lang==="ko"?"튜토리얼":"Tutorial",desc:lang==="ko"?"처음 하시나요?\n단계별로 게임을 배워보세요":"New to the game?\nLearn step by step",color:"#9B7FFF",action:()=>{startGame("sandbox",null,"normal",null,null);setTutorialStep(1);}},
               ].map(({mode,emoji,name,desc,color,action})=>(
                 <button key={mode} style={{background:"rgba(255,255,255,0.02)",border:`2px solid ${color}22`,borderRadius:14,padding:"20px 14px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",transition:"all 0.2s",backdropFilter:"blur(4px)"}}
                   onMouseEnter={e=>{e.currentTarget.style.border=`2px solid ${color}`;e.currentTarget.style.background=color+"0A";e.currentTarget.style.boxShadow=`0 8px 30px ${color}22, inset 0 0 20px ${color}06`;}}
@@ -1647,7 +1689,7 @@ export default function ParkTycoon(){
                       style={{background:"rgba(255,255,255,0.02)",border:`2px solid ${sd.color}33`,borderRadius:12,padding:"16px 10px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",transition:"all 0.2s"}}
                       onMouseEnter={e=>{e.currentTarget.style.border=`2px solid ${sd.color}`;e.currentTarget.style.background=sd.color+"0F";e.currentTarget.style.boxShadow=`0 8px 24px ${sd.color}22`;}}
                       onMouseLeave={e=>{e.currentTarget.style.border=`2px solid ${sd.color}33`;e.currentTarget.style.background="rgba(255,255,255,0.02)";e.currentTarget.style.boxShadow="none";}}
-                      onClick={()=>startGame("campaign",pendingScenarioId,sd.diffKey)}>
+                      onClick={()=>setPendingStartParams({mode:"campaign",scenarioId:pendingScenarioId,diff:sd.diffKey})}>
                       <div style={{fontSize:24,marginBottom:6}}>{sd.emoji}</div>
                       <div style={{fontSize:13,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,color:sd.color,marginBottom:4}}>{sd.label[lang]||sd.label.ko}</div>
                       <div style={{fontSize:10,color:"#7788BB",lineHeight:1.6,marginBottom:8}}>{sd.desc[lang]||sd.desc.ko}</div>
@@ -1672,7 +1714,7 @@ export default function ParkTycoon(){
                 <button key={key} style={{background:"rgba(255,255,255,0.02)",border:"2px solid rgba(255,107,157,0.15)",borderRadius:12,padding:"16px 12px",cursor:"pointer",textAlign:"left",fontFamily:"inherit",transition:"all 0.2s"}}
                   onMouseEnter={e=>{e.currentTarget.style.borderColor="#FF6B9D";e.currentTarget.style.background="rgba(255,107,157,0.06)";}}
                   onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,107,157,0.15)";e.currentTarget.style.background="rgba(255,255,255,0.02)";}}
-                  onClick={()=>startGame("challenge",null,key)}>
+                  onClick={()=>setPendingStartParams({mode:"challenge",scenarioId:null,diff:key})}>
                   <div style={{fontSize:24,marginBottom:6}}>{diff.emoji}</div>
                   <div style={{fontSize:12,fontWeight:800,fontFamily:"'Barlow Condensed',sans-serif",color:"#FF6B9D",marginBottom:3}}>{t(`diff.${key}`)}</div>
                   <div style={{fontSize:10,color:"#6B7CA1",marginBottom:6}}>{t(`diff.${key}.desc`)}</div>
@@ -1680,6 +1722,26 @@ export default function ParkTycoon(){
                 </button>
               ))}
             </div>
+            {/* 이번 주 챌린지 */}
+            {(()=>{
+              const wc=WEEKLY_CHALLENGES[Math.floor(Date.now()/(7*24*60*60*1000))%WEEKLY_CHALLENGES.length];
+              return(<div style={{marginTop:12,background:"linear-gradient(135deg,rgba(255,107,157,0.08),rgba(155,127,255,0.06))",border:"2px solid rgba(255,107,157,0.3)",borderRadius:12,padding:"12px 14px"}}>
+                <div style={{fontSize:9,color:"#FF6B9D",letterSpacing:3,textTransform:"uppercase",marginBottom:6}}>🗓️ {lang==="ko"?"이번 주 챌린지":"THIS WEEK'S CHALLENGE"}</div>
+                <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:8}}>
+                  <span style={{fontSize:24,lineHeight:1}}>{wc.emoji}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:800,color:"#FF6B9D",fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,marginBottom:2}}>{wc.title[lang]||wc.title.ko}</div>
+                    <div style={{fontSize:10,color:"#8899BB",lineHeight:1.5}}>{wc.desc[lang]||wc.desc.ko}</div>
+                  </div>
+                </div>
+                <button style={{width:"100%",background:"rgba(255,107,157,0.15)",border:"2px solid rgba(255,107,157,0.5)",color:"#FF6B9D",borderRadius:8,padding:"8px 0",cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:700,transition:"all 0.15s"}}
+                  onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,107,157,0.25)";e.currentTarget.style.boxShadow="0 4px 16px rgba(255,107,157,0.3)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,107,157,0.15)";e.currentTarget.style.boxShadow="none";}}
+                  onClick={()=>setPendingStartParams({mode:"challenge",scenarioId:null,diff:"normal",wc})}>
+                  {lang==="ko"?"이번 주 챌린지 시작":"Start This Week's Challenge"}
+                </button>
+              </div>);
+            })()}
           </>}
 
           {/* 하단 버전 정보 */}
@@ -1688,7 +1750,38 @@ export default function ParkTycoon(){
           </div>
         </div>
       </div>
-    );
+
+      {/* 시작 특성 선택 모달 */}
+      {pendingStartParams&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}} onClick={()=>setPendingStartParams(null)}>
+          <div style={{background:"linear-gradient(180deg,#0C1128 0%,#070919 100%)",border:"1px solid rgba(120,140,255,0.3)",borderRadius:18,padding:28,minWidth:320,maxWidth:460,boxShadow:"0 16px 60px rgba(0,0,0,0.9)",animation:"building-appear 0.25s cubic-bezier(0.34,1.56,0.64,1)"}} onClick={e=>e.stopPropagation()}>
+            <div style={{textAlign:"center",marginBottom:6}}>
+              <div style={{fontSize:9,color:"#7788BB",letterSpacing:3,textTransform:"uppercase",marginBottom:4}}>{lang==="ko"?"시작 전 특성 선택":"CHOOSE YOUR STARTING PERK"}</div>
+              <div style={{fontSize:13,fontWeight:800,color:"#DDE2FF",fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1}}>🎯 {lang==="ko"?"1개만 선택 가능 — 다음 게임에는 새로 선택":"Pick one — choose again each new game"}</div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:16}}>
+              {STARTING_PERKS.map(p=>(
+                <button key={p.id}
+                  style={{background:`${p.color}0A`,border:`2px solid ${p.color}44`,borderRadius:12,padding:"14px 16px",cursor:"pointer",textAlign:"left",fontFamily:"inherit",transition:"all 0.2s",display:"flex",alignItems:"flex-start",gap:12}}
+                  onMouseEnter={e=>{e.currentTarget.style.background=`${p.color}1A`;e.currentTarget.style.borderColor=p.color;e.currentTarget.style.boxShadow=`0 4px 20px ${p.color}33`;}}
+                  onMouseLeave={e=>{e.currentTarget.style.background=`${p.color}0A`;e.currentTarget.style.borderColor=`${p.color}44`;e.currentTarget.style.boxShadow="none";}}
+                  onClick={()=>{startGame(pendingStartParams.mode,pendingStartParams.scenarioId,pendingStartParams.diff,p.id,pendingStartParams.wc||null);setPendingStartParams(null);}}>
+                  <span style={{fontSize:26,lineHeight:1,filter:`drop-shadow(0 0 8px ${p.color}88)`}}>{p.emoji}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:800,color:p.color,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,marginBottom:2}}>{p.name[lang]||p.name.ko}</div>
+                    <div style={{fontSize:10,color:"#8899BB",lineHeight:1.5}}>{p.desc[lang]||p.desc.ko}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button style={{marginTop:14,width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#6677AA",borderRadius:8,padding:"8px 0",cursor:"pointer",fontFamily:"inherit",fontSize:10,transition:"all 0.15s"}}
+              onClick={()=>{startGame(pendingStartParams.mode,pendingStartParams.scenarioId,pendingStartParams.diff,null,pendingStartParams.wc||null);setPendingStartParams(null);}}>
+              {lang==="ko"?"특성 없이 시작":"Start without a perk"}
+            </button>
+          </div>
+        </div>
+      )}
+    </>);
   }
 
   // ════════════════════════════════════════════════════════
@@ -2147,6 +2240,11 @@ export default function ParkTycoon(){
                 />
                 {/* 카테고리 필터 바 */}
                 <div style={{display:"flex",gap:2,marginBottom:6,background:"rgba(0,0,0,0.3)",borderRadius:6,padding:3}}>
+                  <button onClick={()=>setBuildCatFilter(null)}
+                    style={{flex:1,background:!buildCatFilter?"rgba(255,217,61,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${!buildCatFilter?"rgba(255,217,61,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:4,padding:"3px 2px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:1,fontFamily:"inherit",transition:"all 0.15s",boxShadow:!buildCatFilter?"0 0 6px rgba(255,217,61,0.3)":"none"}}>
+                    <span style={{fontSize:12}}>🔍</span>
+                    <span style={{fontSize:7,color:!buildCatFilter?"#FFD93D":"#5566AA",letterSpacing:0.5,fontWeight:!buildCatFilter?700:400}}>{lang==="ko"?"전체":"All"}</span>
+                  </button>
                   {[["🎠","ride",t("cat.ride")],["🍔","shop",t("cat.shop")],["🌿","facility",t("cat.facility")],["🛤️","path",t("cat.path")],["🌸","deco",t("cat.deco")]].map(([ic,cat,lbl])=>{
                     const active=buildCatFilter===cat;
                     return(
@@ -2166,7 +2264,8 @@ export default function ParkTycoon(){
                   <div key={lbl} data-cat={cat}>
                     <div style={{fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:"#7788BB",margin:"8px 0 4px",paddingLeft:4,borderLeft:"2px solid rgba(255,255,255,0.15)"}}>{lbl}</div>
                     {filteredList.map(([id,bd])=>{
-                      const isLocked=bd.locked&&!researched.includes("r4")&&gameMode!=="sandbox";
+                      const isBanned=currentScenarioData?.bannedBuildings?.includes(id)||weeklyChallengeMod?.bannedBuildings?.includes(id);
+                      const isLocked=(bd.locked&&!researched.includes("r4")&&gameMode!=="sandbox")||isBanned;
                       const ok=money>=bd.baseCost&&!isLocked,sel=selected===id;
                       const isBldHov=hovered===id;
                       const isTutTarget=(tutorialStep===1&&id==="entrance")||
@@ -2181,7 +2280,7 @@ export default function ParkTycoon(){
                               : <span style={{fontSize:15}}>{bd.emoji}</span>}
                           </div>
                           <div style={{flex:1,minWidth:0}}>
-                            <div style={{fontSize:10,fontWeight:700,color:"var(--text-primary)",lineHeight:1.2}}>{t(`b.${id}`)}{isLocked?" 🔒":""}</div>
+                            <div style={{fontSize:10,fontWeight:700,color:"var(--text-primary)",lineHeight:1.2}}>{t(`b.${id}`)}{isBanned?" 🚫":isLocked?" 🔒":""}</div>
                             <div style={{fontSize:10,fontWeight:600,color:money>=bd.baseCost?"#FFD93D":"#FF5757",fontFamily:"'Barlow Condensed',monospace"}}>{bd.baseCost===0?t("bld.free"):`$${bd.baseCost.toLocaleString()}`}</div>
                           </div>
                           {bd.stats(0).attraction>0&&<span style={{fontSize:10,padding:"1px 5px",background:"rgba(255,217,61,0.12)",border:"1px solid rgba(255,217,61,0.3)",borderRadius:4,color:"#FFD93D",fontWeight:700,fontFamily:"'Barlow Condensed',monospace",flexShrink:0}}>⭐{bd.stats(0).attraction}</span>}
@@ -2653,6 +2752,7 @@ export default function ParkTycoon(){
                       <div style={{flex:1}}>
                         <div style={{fontSize:10,fontWeight:700,color:done?"#5EF6A0":locked?"#555577":branch.color}}>{t(`res.${r.id}.name`)}{done?" ✅":locked?" 🔒":""}</div>
                         <div style={{fontSize:10,color:"#666688"}}>{t(`res.${r.id}.effect`)}</div>
+                        {!done&&(()=>{const imp=resImpact(r.id);return imp?<div style={{fontSize:9,color:"#A29BFE",marginTop:1}}>↳ {imp}</div>:null;})()}
                       </div>
                       {!done&&<button style={{background:canDo?branch.color+"22":"transparent",border:`1px solid ${canDo?branch.color:"#2A2A4A"}`,color:canDo?branch.color:"#3A3A5A",borderRadius:3,padding:"2px 4px",cursor:canDo?"pointer":"default",fontSize:10,fontFamily:"inherit"}} onClick={()=>canDo&&doResearch(r.id)}>{r.cost}RP</button>}
                     </div>);
