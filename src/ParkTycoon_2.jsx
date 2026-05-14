@@ -150,7 +150,7 @@ export default function ParkTycoon(){
   const [showVisBreakdown,setShowVisBreakdown]=useState(false);
   const [showSatTooltip,setShowSatTooltip]=useState(false);
   const [satTooltipPos,setSatTooltipPos]=useState({x:0,y:0});
-  const [gridScale,setGridScale]=useState(()=>window.innerWidth<600?1.8:1.2);
+  const [gridScale,setGridScale]=useState(()=>window.innerWidth<600?1.8:1.0);
   const [gridScaleOrigin,setGridScaleOrigin]=useState({x:50,y:50});
   const [gridPan,setGridPan]=useState({x:0,y:0});
   const pinchRef=useRef({active:false, startDist:0, startScale:1});
@@ -234,10 +234,6 @@ export default function ParkTycoon(){
 
   const loadFromSlot=useCallback((slotData)=>{
     if(!slotData) return;
-    const requiredKeys=['grid','money','day','visitors'];
-    if(!requiredKeys.every(k=>k in slotData)){
-      console.warn('Save data missing required keys, using fallbacks');
-    }
     setGrid(slotData.grid||mkGrid());
     setZoneGrid(slotData.zoneGrid||Array(GR).fill(null).map(()=>Array(GC).fill(null)));
     setOwnedGrid(slotData.ownedGrid||mkOwned());
@@ -1575,9 +1571,9 @@ export default function ParkTycoon(){
           <div style={{fontSize:10,borderRadius:4,padding:"2px 6px",background:gameMode==="sandbox"?"rgba(255,217,61,0.10)":gameMode==="campaign"?"rgba(0,229,160,0.10)":"rgba(255,107,157,0.10)",border:`1px solid ${gameMode==="sandbox"?"rgba(255,217,61,0.3)":gameMode==="campaign"?"rgba(0,229,160,0.3)":"rgba(255,107,157,0.3)"}`,color:gameMode==="sandbox"?"#FFD93D":gameMode==="campaign"?"#00E5A0":"#FF6B9D",whiteSpace:"nowrap",fontWeight:600}}>
             {gameMode==="sandbox"?t("misc.sandbox"):gameMode==="campaign"?`🎯 ${t(`scn.${currentScenarioData?.id}`)||(lang==="ko"?"캠페인":"Campaign")}`:`⚡ ${t(`diff.${difficulty}`)}`}
           </div>
-          {gameMode==="campaign"&&currentScenarioData?.timeLimit&&(
-            <div style={{fontSize:10,padding:"2px 5px",background:day>currentScenarioData.timeLimit-5?"rgba(255,71,87,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${day>currentScenarioData.timeLimit-5?"rgba(255,71,87,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:4,color:day>currentScenarioData.timeLimit-5?"#FF5757":"#6B7CA1",whiteSpace:"nowrap"}}>
-              ⏱ {Math.max(0,currentScenarioData.timeLimit-day)}d
+          {gameMode==="campaign"&&scenarioTimeLimit>0&&(
+            <div style={{fontSize:10,padding:"2px 5px",background:day>scenarioTimeLimit-5?"rgba(255,71,87,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${day>scenarioTimeLimit-5?"rgba(255,71,87,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:4,color:day>scenarioTimeLimit-5?"#FF5757":"#6B7CA1",whiteSpace:"nowrap"}}>
+              ⏱ {Math.max(0,scenarioTimeLimit-day)}d
             </div>
           )}
           <div style={{flex:1}}/>
@@ -2530,7 +2526,7 @@ export default function ParkTycoon(){
                 <div style={{background:`${currentScenarioData.color}11`,border:`1px solid ${currentScenarioData.color}33`,borderRadius:7,padding:8,marginBottom:7}}>
                   <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
                     <span style={{fontSize:20}}>{currentScenarioData.emoji}</span>
-                    <div><div style={{fontSize:10,fontWeight:800,color:currentScenarioData.color}}>{t(`scn.${currentScenarioData.id}`)}</div><div style={{fontSize:10,color:"#666688"}}>⏱ {t("mis.timeLeft", { days: Math.max(0,currentScenarioData.timeLimit-day) })}</div></div>
+                    <div><div style={{fontSize:10,fontWeight:800,color:currentScenarioData.color}}>{t(`scn.${currentScenarioData.id}`)}</div><div style={{fontSize:10,color:"#666688"}}>⏱ {t("mis.timeLeft", { days: Math.max(0,scenarioTimeLimit-day) })}</div></div>
                   </div>
                   {currentScenarioData.goals.map(g=>{
                     const checkS={vis:visitors,sat,stars:parkRating.stars,net:estNet,brokenCount:stats.brokenCount,fee,coupleRatio:segs.couple||0,childRatio:segs.child||0,pres:parkRating.stars};
@@ -2830,7 +2826,7 @@ export default function ParkTycoon(){
               transform:`scale(${gridScale}) translate(${gridPan.x/gridScale}px,${gridPan.y/gridScale}px)`,
               transformOrigin:`${gridScaleOrigin.x}% ${gridScaleOrigin.y}%`,
               transition:'transform 0.05s linear'}}
-              onDoubleClick={()=>{setGridScale(s=>s>=1.8?1.0:s>=1.3?1.8:1.3);setGridPan({x:0,y:0});}}>
+              onDoubleClick={()=>{setGridScale(s=>s>=1.8?1.0:s>=1.3?1.8:1.3);setGridPan({x:0,y:0});setGridScaleOrigin({x:50,y:50});}}>
               {grid.map((row,r)=>row.map((cell,c)=>{
                 // ref 셀은 명시적 위치만 잡는 투명 스페이서
                 if(cell?.ref){
