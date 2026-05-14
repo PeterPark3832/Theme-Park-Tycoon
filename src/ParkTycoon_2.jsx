@@ -222,6 +222,7 @@ export default function ParkTycoon(){
   const [demolishConfirm,setDemolishConfirm]=useState(null); // null | {r,c,cell,refund}
   const [multiSelectedCells,setMultiSelectedCells]=useState(()=>new Set());
   const [overwriteConfirm,setOverwriteConfirm]=useState(null); // null | {r,c,existing,newType,refund}
+  const [showKeyboardHelp,setShowKeyboardHelp]=useState(false);
   const [soundOn,setSoundOn]=useState(true);
   const [bgMusicOn,setBgMusicOn]=useState(()=>{try{return localStorage.getItem('pt_bgmusic')==='1';}catch{return false;}});
   const [bgVolume,setBgVolume]=useState(()=>{try{return parseFloat(localStorage.getItem('pt_bgvol'))||0.4;}catch{return 0.4;}});
@@ -237,6 +238,7 @@ export default function ParkTycoon(){
   const [lastDemolishGrid,setLastDemolishGrid]=useState(null);
   const [lastBuilt,setLastBuilt]=useState(null);
   const [buildSearch,setBuildSearch]=useState("");
+  const [buildCatFilter,setBuildCatFilter]=useState(null);
   const undoTimerRef=useRef(null);
   const dragBuildRef=useRef({active:false,mode:null,selected:null,moved:false,startR:-1,startC:-1});
   const lastBonusEventRef=useRef(null);
@@ -849,8 +851,8 @@ export default function ParkTycoon(){
       setMoney(m=>m+net+mM);setVisitors(vis);setLoans(newLoans);setCampaigns(newCamps);
       setPassHolders(newPH);setActiveDisaster(newDisaster);
       setTotalRev(r=>r+Math.max(0,totalRevDay));setTotalVis(t=>t+vis);setDay(d=>d+1);
-      // RP: 기본 2/일 + 방문객 20명당 +1 (최대 +5) + 미션 보상
-      const rpGain=Math.min(7,2+Math.floor(vis/20))+mR;
+      // RP: 기본 3/일 + 방문객 20명당 +1 (최대 +5) + 미션 보상
+      const rpGain=Math.min(8,3+Math.floor(vis/20))+mR;
       setResearchPoints(p=>p+rpGain);setActiveMissions(newActive);setCompletedMissions(newCompleted);
       setDailyHistory(h=>[...h.slice(-59),{day:day+1,revenue:totalRevDay,admRev:Math.floor(admRev*revMult),rideRev:Math.floor(rideRev*revMult),shopRev:Math.floor(shopRev*revMult),passInc,expenses:Math.round(maint)+wages+loanPay,net,visitors:vis,sat:Math.round(newSat)}]);
       setRevBreak({adm:Math.floor(admRev*revMult),ride:Math.floor(rideRev*revMult),shop:Math.floor(shopRev*revMult),pass:passInc});
@@ -959,7 +961,7 @@ export default function ParkTycoon(){
         return{...dot,r:Math.max(0,Math.min(GR-1,base.r+Math.floor(Math.random()*3)-1)),c:Math.max(0,Math.min(GC-1,base.c+Math.floor(Math.random()*3)-1)),emoji:SEGS[sk].emoji};
       }));
       // 15% 확률로 랜덤 방문객 말풍선 (2-2: 실제 상태 기반 컨텍스트 메시지)
-      if(Math.random()<0.15&&ref.current.visitors>0){
+      if(Math.random()<0.25&&ref.current.visitors>0){
         const curSat=ref.current.sat;
         const curClean=ref.current.clean;
         const brokenNow=ref.current.grid.flat().filter(c=>c&&!c.ref&&c.broken).length;
@@ -1677,6 +1679,35 @@ export default function ParkTycoon(){
   return(
     <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"var(--bg-deep)",color:"var(--text-primary)",height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} onClose={()=>setShowSettings(false)} lang={lang}/>}
+      {/* 키보드 단축키 도움말 모달 */}
+      {showKeyboardHelp&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setShowKeyboardHelp(false)}>
+          <div style={{background:"#0C1128",border:"1px solid rgba(100,120,255,0.35)",borderRadius:14,padding:24,minWidth:300,maxWidth:400,boxShadow:"0 8px 40px rgba(0,0,0,0.8)",backdropFilter:"blur(12px)"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+              <div style={{fontSize:15,fontWeight:700,letterSpacing:2,color:"#DDE2FF"}}>⌨️ {lang==="ko"?"키보드 단축키":"Keyboard Shortcuts"}</div>
+              <button style={{background:"none",border:"none",color:"#8899BB",cursor:"pointer",fontSize:16,fontFamily:"inherit"}} onClick={()=>setShowKeyboardHelp(false)}>✕</button>
+            </div>
+            {[
+              {key:"Tab",    desc:{ko:"다음 탭으로 이동",     en:"Cycle to next tab"}},
+              {key:"B",      desc:{ko:"건설 모드",             en:"Build mode"}},
+              {key:"D",      desc:{ko:"철거 모드",             en:"Demolish mode"}},
+              {key:"Z",      desc:{ko:"구역 페인트 모드",      en:"Zone paint mode"}},
+              {key:"R",      desc:{ko:"마지막 건물 다시 배치", en:"Repeat last build"}},
+              {key:"1 / 2 / 3", desc:{ko:"게임 속도 변경",   en:"Change game speed"}},
+            ].map(({key,desc})=>(
+              <div key={key} style={{display:"flex",alignItems:"center",gap:12,padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{minWidth:80,display:"flex",gap:4,flexWrap:"wrap"}}>
+                  {key.split(" / ").map(k=>(
+                    <span key={k} style={{background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.35)",borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:700,color:"#9DB4FF",fontFamily:"monospace",letterSpacing:1}}>{k}</span>
+                  ))}
+                </div>
+                <span style={{fontSize:12,color:"#8899BB"}}>{desc[lang]||desc.en}</span>
+              </div>
+            ))}
+            <div style={{marginTop:14,fontSize:10,color:"#3A4A6A",textAlign:"center"}}>{lang==="ko"?"그리드 클릭으로 건설 / 드래그로 다중 배치":"Click grid to build / Drag to place multiple"}</div>
+          </div>
+        </div>
+      )}
       {/* Phase 3-5: 업적 달성 플래시 알림 */}
       {achievementFlash&&(
         <div style={{position:"fixed",bottom:24,right:20,zIndex:9998,background:`rgba(5,8,28,0.97)`,border:`2px solid ${achievementFlash.col}`,borderRadius:12,padding:"10px 16px",display:"flex",gap:10,alignItems:"center",boxShadow:`0 4px 24px rgba(0,0,0,0.8), 0 0 20px ${achievementFlash.col}44`,animation:"slide-in 0.3s ease",backdropFilter:"blur(10px)",maxWidth:280}}>
@@ -1829,6 +1860,14 @@ export default function ParkTycoon(){
             style={{background:"rgba(100,120,255,0.08)",border:"1px solid rgba(100,120,255,0.2)",color:"#8899CC",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:12,fontFamily:"inherit",transition:"all 0.15s"}}
           >
             ⚙️
+          </button>
+          {/* 키보드 단축키 도움말 */}
+          <button
+            onClick={()=>setShowKeyboardHelp(true)}
+            title={lang==="ko"?"키보드 단축키":"Keyboard Shortcuts"}
+            style={{background:"rgba(100,120,255,0.08)",border:"1px solid rgba(100,120,255,0.2)",color:"#8899CC",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:11,fontFamily:"inherit",transition:"all 0.15s"}}
+          >
+            ⌨️
           </button>
           {/* URL Export */}
           <button
@@ -2089,24 +2128,21 @@ export default function ParkTycoon(){
                   onChange={e=>setBuildSearch(e.target.value)}
                   style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:5,padding:"4px 8px",color:"#DDE2FF",fontSize:11,fontFamily:"inherit",outline:"none",marginBottom:6}}
                 />
-                {/* 카테고리 퀵점프 아이콘 바 */}
+                {/* 카테고리 필터 바 */}
                 <div style={{display:"flex",gap:2,marginBottom:6,background:"rgba(0,0,0,0.3)",borderRadius:6,padding:3}}>
                   {[["🎠","ride",t("cat.ride")],["🍔","shop",t("cat.shop")],["🌿","facility",t("cat.facility")],["🛤️","path",t("cat.path")],["🌸","deco",t("cat.deco")]].map(([ic,cat,lbl])=>{
-                    const hasItems=[...rideList,...shopList,...facilList,...pathList,...decoList].filter(([,b])=>b.cat===cat).length>0;
-                    if(!hasItems) return null;
+                    const active=buildCatFilter===cat;
                     return(
-                      <button key={cat} title={lbl} onClick={()=>{
-                        const el=document.querySelector(`[data-cat="${cat}"]`);
-                        el?.scrollIntoView({behavior:"smooth",block:"nearest"});
-                      }} style={{flex:1,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:4,padding:"3px 2px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:1,fontFamily:"inherit",transition:"all 0.15s"}}
-                        onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.1)";}}
-                        onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.04)";}}>
+                      <button key={cat} title={lbl} onClick={()=>setBuildCatFilter(buildCatFilter===cat?null:cat)}
+                        style={{flex:1,background:active?"rgba(255,217,61,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${active?"rgba(255,217,61,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:4,padding:"3px 2px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:1,fontFamily:"inherit",transition:"all 0.15s",boxShadow:active?"0 0 6px rgba(255,217,61,0.3)":"none"}}>
                         <span style={{fontSize:13}}>{ic}</span>
+                        <span style={{fontSize:7,color:active?"#FFD93D":"#5566AA",letterSpacing:0.5,fontWeight:active?700:400}}>{lbl.replace(/^[^\s]+ /,"").slice(0,4)}</span>
                       </button>
                     );
                   })}
                 </div>
                 {[[t("cat.ride"),"ride",rideList],[t("cat.shop"),"shop",shopList],[t("cat.facility"),"facility",facilList],[t("cat.path"),"path",pathList],[t("cat.deco"),"deco",decoList]].map(([lbl,cat,list])=>{
+                  if(buildCatFilter&&buildCatFilter!==cat) return null;
                   const filteredList=buildSearch.trim()?list.filter(([id])=>{const name=t(`b.${id}`)||id;return name.toLowerCase().includes(buildSearch.toLowerCase())||id.toLowerCase().includes(buildSearch.toLowerCase());}):list;
                   if(filteredList.length===0) return null;
                   return(
@@ -2754,6 +2790,32 @@ export default function ParkTycoon(){
                   })()}
                 </div>
               )}
+              {/* 첫 게임 시작 체크리스트 — day 8 이전 또는 미완료 단계 있을 때만 표시 */}
+              {day<=8&&(()=>{
+                const hasEntrance=stats.hasEntrance;
+                const hasRide=grid.flat().some(c=>c&&!c.ref&&B[c.type]?.cat==="ride"&&c.type!=="entrance");
+                const hasPath=grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy");
+                const hasStaff=hired.janitor>0||hired.mechanic>0;
+                const isRunning=speed>0;
+                const steps=[
+                  {done:hasEntrance, ko:"입구 게이트 배치", en:"Place Entrance Gate"},
+                  {done:hasRide,     ko:"어트랙션 1개 건설", en:"Build 1 Attraction"},
+                  {done:hasPath,     ko:"통로로 연결",       en:"Connect with Paths"},
+                  {done:hasStaff,    ko:"직원 1명 고용",     en:"Hire 1 Staff Member"},
+                  {done:isRunning,   ko:"▶ 눌러서 개장",    en:"Press ▶ to Open"},
+                ];
+                const allDone=steps.every(s=>s.done);
+                if(allDone) return null;
+                return(<div style={{background:"rgba(0,229,160,0.06)",border:"1px solid rgba(0,229,160,0.2)",borderRadius:8,padding:"7px 8px",marginBottom:8}}>
+                  <div style={{fontSize:9,fontWeight:700,color:"#5EF6A0",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>🚀 {lang==="ko"?"시작 가이드":"START GUIDE"}</div>
+                  {steps.map((s,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:5,padding:"2px 0",fontSize:9,color:s.done?"#5EF6A0":"#8899BB",textDecoration:s.done?"line-through":"none"}}>
+                      <span style={{fontSize:10}}>{s.done?"✅":"⬜"}</span>
+                      <span>{lang==="ko"?s.ko:s.en}</span>
+                    </div>
+                  ))}
+                </div>);
+              })()}
               <div style={{fontSize:10,color:"#FECA57",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>{t("mis.title")} ({completedMissions.length}/{MISSIONS.length})</div>
               {activeMissions.map(mId=>{
                 const m=MISSIONS.find(x=>x.id===mId);if(!m) return null;
@@ -2898,20 +2960,33 @@ export default function ParkTycoon(){
           )}
           {screen==="game"&&(()=>{
             const hints=[
+              {id:"h_entrance", show:day>=2&&!stats.hasEntrance,
+               emoji:"🎪", col:"#FF5757",
+               msg:lang==="ko"?"입구 게이트가 없습니다 — 건설 탭에서 입구를 먼저 배치하세요":"No entrance gate — place an Entrance Gate first in the Build tab"},
+              {id:"h_fee",  show:day>=3&&fee>MAX_FEE_BY_STARS[parkRating.stars]&&visitors>0,
+               emoji:"💸", col:"#FF5757",
+               msg:lang==="ko"?`입장료($${fee})가 현재 별점(${parkRating.stars}★) 한도 $${MAX_FEE_BY_STARS[parkRating.stars]}를 초과합니다 — 방문객이 급감합니다`:`Admission fee ($${fee}) exceeds ${parkRating.stars}★ limit ($${MAX_FEE_BY_STARS[parkRating.stars]}) — visitors are dropping`},
               {id:"h_staff", show:day>=4&&hired.janitor===0&&hired.mechanic===0&&!stats.brokenCount,
                emoji:"🧹", col:"#4D9FFF",
                msg:lang==="ko"?"청소부·정비공이 없으면 청결도↓ + 시설 고장↑ — 경영 탭에서 직원을 고용하세요":"No janitor/mechanic → cleanliness↓ + breakdowns↑ — hire staff in Manage tab"},
-              {id:"h_path",  show:day>=3&&stats.hasEntrance&&Object.values(grid).flat().filter(Boolean).some(c=>c&&!c.ref&&B[c.type]?.cat==="ride"&&c.type!=="entrance")&&
-                              grid.flat().filter(Boolean).some(c=>c&&!c.ref&&B[c.type]?.cat==="ride"&&c.type!=="entrance")&&
-                              !grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy"),
+              {id:"h_broken", show:day>=3&&stats.brokenCount>=3&&hired.mechanic===0,
+               emoji:"🔧", col:"#FF9F43",
+               msg:lang==="ko"?`고장난 시설 ${stats.brokenCount}개 — 정비공 고용 또는 경영 탭에서 직접 수리하세요`:`${stats.brokenCount} broken facilities — hire a Mechanic or repair manually in Manage tab`},
+              {id:"h_path",  show:day>=3&&stats.hasEntrance&&grid.flat().some(c=>c&&!c.ref&&B[c.type]?.cat==="ride"&&c.type!=="entrance")&&!grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy"),
                emoji:"🛤️", col:"#FF9F43",
                msg:lang==="ko"?"어트랙션에 통로가 연결되지 않으면 수익이 -40%입니다 — 건설 탭 → 통로를 연결하세요":"Rides without paths lose -40% income — go to Build → place paths"},
               {id:"h_sat",   show:day>=6&&sat<50&&sat>0&&visitors>0,
                emoji:"😟", col:"#FF6B9D",
                msg:lang==="ko"?"만족도가 낮으면 방문객이 줄어듭니다 — 😊 버튼에 마우스를 올려 원인을 확인하세요":"Low happiness drives away visitors — hover 😊 icon to see causes"},
+              {id:"h_congest", show:day>=5&&visitors>0&&congestedCells.size>0&&stats.brokenCount===0,
+               emoji:"🚶", col:"#FF9F43",
+               msg:lang==="ko"?"공원이 혼잡합니다! 어트랙션을 추가해 수용인원을 늘리거나 입장료를 올리세요":"Park is over capacity! Add more attractions or raise the admission fee"},
               {id:"h_research", show:day>=10&&researchPoints>=5&&researched.length===0,
                emoji:"🔬", col:"#A29BFE",
-               msg:lang==="ko"?"연구 포인트가 쌓였습니다! 건설 탭 → 연구에서 업그레이드하세요":"Research points available! Go to Build → Research to upgrade"},
+               msg:lang==="ko"?"연구 포인트가 쌓였습니다! 연구 탭에서 업그레이드하세요":"Research points available! Go to the Research tab to unlock upgrades"},
+              {id:"h_zone", show:day>=15&&visitors>20&&zoneGrid.flat().every(v=>!v),
+               emoji:"🎨", col:"#5EF6A0",
+               msg:lang==="ko"?"구역(Zone)을 지정하면 어트랙션 효율이 +25~30% 상승합니다 — 건설 탭 → 구역 페인트":"Designate Zones for +25-30% attraction efficiency — Build tab → Zone Paint"},
             ];
             const activeHint=hints.find(h=>h.show&&!dismissedHints.includes(h.id));
             if(!activeHint) return null;
@@ -3198,12 +3273,23 @@ export default function ParkTycoon(){
             {/* 스테이지 업 flash */}
             {stageUpFlash&&<div style={{position:"absolute",inset:0,pointerEvents:"none",borderRadius:10,
               border:`3px solid ${currentStage.color}`,
-              boxShadow:`0 0 40px ${currentStage.color}66, inset 0 0 20px ${currentStage.color}22`,
-              zIndex:20,display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <div style={{background:"rgba(0,0,0,0.85)",borderRadius:12,padding:"10px 20px",
-                fontSize:13,fontWeight:900,color:currentStage.color,
-                boxShadow:`0 4px 20px rgba(0,0,0,0.9)`,fontFamily:"'Barlow Condensed',monospace"}}>
-                {currentStage.emoji} {currentStage.name[lang]||currentStage.name.ko}
+              boxShadow:`0 0 60px ${currentStage.color}88, 0 0 120px ${currentStage.color}44, inset 0 0 40px ${currentStage.color}22`,
+              zIndex:20,display:"flex",alignItems:"center",justifyContent:"center",
+              background:`radial-gradient(ellipse at center, ${currentStage.color}08 0%, transparent 70%)`}}>
+              <div style={{textAlign:"center",animation:"building-appear 0.4s cubic-bezier(0.34,1.56,0.64,1)"}}>
+                <div style={{fontSize:36,marginBottom:4,filter:`drop-shadow(0 0 12px ${currentStage.color})`}}>{currentStage.emoji}</div>
+                <div style={{background:"rgba(0,0,0,0.88)",borderRadius:14,padding:"10px 24px",
+                  fontSize:9,letterSpacing:4,color:currentStage.color,fontWeight:800,
+                  textTransform:"uppercase",marginBottom:6,
+                  boxShadow:`0 0 30px ${currentStage.color}55, 0 4px 20px rgba(0,0,0,0.9)`}}>
+                  {lang==="ko"?"⬆ 단계 상승":"⬆ STAGE UP"}
+                </div>
+                <div style={{background:"rgba(0,0,0,0.92)",borderRadius:12,padding:"8px 20px",
+                  fontSize:18,fontWeight:900,color:currentStage.color,
+                  boxShadow:`0 4px 24px rgba(0,0,0,0.9)`,fontFamily:"'Barlow Condensed',monospace",
+                  letterSpacing:2,border:`1px solid ${currentStage.color}44`}}>
+                  {currentStage.name[lang]||currentStage.name.ko}
+                </div>
               </div>
             </div>}
             {/* 투자 실패 flash */}
