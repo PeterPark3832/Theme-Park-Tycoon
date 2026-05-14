@@ -202,18 +202,30 @@ export default function ParkTycoon(){
     setTimeout(()=>setLastSavedSlot(null),2000);
   },[getFullState, t]);
 
-  const exportSaveURL = useCallback(() => {
+  const exportSaveURL = useCallback(async () => {
     try {
       const state = getFullState();
       const json = JSON.stringify(state);
-      const encoded = btoa(encodeURIComponent(json));
+      let encoded;
+      try {
+        // gzip compression via CompressionStream (Chrome 80+, Firefox 113+, Safari 16.4+)
+        const buf = await new Response(
+          new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))
+        ).arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let b64 = '';
+        for (let i = 0; i < bytes.length; i++) b64 += String.fromCharCode(bytes[i]);
+        encoded = 'z:' + btoa(b64);
+      } catch {
+        // fallback: no compression
+        encoded = btoa(encodeURIComponent(json));
+      }
       const url = `${window.location.origin}${window.location.pathname}?save=${encoded}`;
       if (navigator.clipboard) {
-        navigator.clipboard.writeText(url).then(() => {
-          addLog(lang==="ko"?"📋 저장 URL이 클립보드에 복사됐습니다!":"📋 Save URL copied to clipboard!");
-        });
+        await navigator.clipboard.writeText(url);
+        addLog(lang==="ko"?"📋 저장 URL 복사됨!":"📋 Save URL copied!");
       } else {
-        window.prompt(lang==="ko"?"저장 URL (복사하세요):":"Save URL (copy this):", url);
+        window.prompt(lang==="ko"?"저장 URL (복사하세요):":"Save URL:", url);
       }
     } catch(e) {
       addLog(lang==="ko"?"❌ 내보내기 실패":"❌ Export failed");
@@ -907,16 +919,30 @@ export default function ParkTycoon(){
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const saveParam = params.get('save');
-    if (saveParam && screen === 'menu') {
+    if (!saveParam || screen !== 'menu') return;
+    (async () => {
       try {
-        const state = JSON.parse(decodeURIComponent(atob(saveParam)));
+        let state;
+        if (saveParam.startsWith('z:')) {
+          // gzip-compressed format
+          const b64 = saveParam.slice(2);
+          const bin = atob(b64);
+          const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+          const json = await new Response(
+            new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
+          ).text();
+          state = JSON.parse(json);
+        } else {
+          // legacy format
+          state = JSON.parse(decodeURIComponent(atob(saveParam)));
+        }
         loadFromSlot(state);
         window.history.replaceState({}, '', window.location.pathname);
         addLog(lang==="ko"?"📂 URL에서 세이브 불러옴!":"📂 Save loaded from URL!");
       } catch(e) {
-        // silently fail
+        // silently fail on corrupt saves
       }
-    }
+    })();
   }, []); // 마운트 시 1회만
 
   // obstacleMap must be declared BEFORE handleGridClick to avoid TDZ in minified bundle
@@ -1036,54 +1062,126 @@ export default function ParkTycoon(){
     if(soundOn) playSound("build");
   };
   const takeSnapshot = () => {
-    const CELL = 32;
+    const CELL = 28;
+    const PAD = 6;   // outer padding
+    const FOOT = 44; // footer height
     const W = GC * CELL;
     const H = GR * CELL;
     const canvas = document.createElement('canvas');
-    canvas.width = W + 8;
-    canvas.height = H + 40; // 하단 레이블 공간
+    canvas.width  = W + PAD * 2;
+    canvas.height = H + PAD * 2 + FOOT;
     const ctx = canvas.getContext('2d');
-    // 배경
+
+    // — outer background —
     ctx.fillStyle = '#020510';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // 그리드 셀
+
+    // — grid background —
+    ctx.fillStyle = '#07090F';
+    ctx.fillRect(PAD, PAD, W, H);
+
+    // — cells —
     for (let r = 0; r < GR; r++) {
       for (let c = 0; c < GC; c++) {
-        const x = c * CELL + 4;
-        const y = r * CELL;
-        const cell = grid[r][c];
+        const x = PAD + c * CELL;
+        const y = PAD + r * CELL;
+        const cell  = grid[r][c];
         const owned = ownedGrid[r][c];
-        const zone = zoneGrid[r][c];
-        // 셀 배경
-        ctx.fillStyle = owned
-          ? (zone ? ZONES[zone]?.bg?.replace('18', '40') || '#1A1A30' : '#0D1128')
-          : '#07090F';
+        const zone  = zoneGrid[r][c];
+        const isPath   = cell?.type === '_path';
+        const isFancy  = cell?.type === '_pathFancy';
+        const isEntrance = cell?.type === 'entrance';
+        const broken = cell?.broken;
+
+        // cell background
+        if (isPath) {
+          ctx.fillStyle = '#1A1208';
+        } else if (isFancy) {
+          ctx.fillStyle = '#241C08';
+        } else if (isEntrance) {
+          ctx.fillStyle = 'rgba(255,217,61,0.18)';
+        } else if (owned) {
+          if (zone) {
+            const zd = ZONES[zone];
+            ctx.fillStyle = zd ? zd.bg.replace('18','55') : '#1A1A30';
+          } else if (cell && !cell.ref) {
+            const bd = B[cell.type];
+            ctx.fillStyle = bd ? bd.color + '22' : '#0D1128';
+          } else {
+            ctx.fillStyle = '#0D1128';
+          }
+        } else {
+          ctx.fillStyle = '#05060E';
+        }
         ctx.fillRect(x, y, CELL - 1, CELL - 1);
-        // 소유 테두리
-        ctx.strokeStyle = owned ? 'rgba(100,120,255,0.15)' : 'rgba(100,120,255,0.04)';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(x + 0.5, y + 0.5, CELL - 2, CELL - 2);
-        // 이모지 (앵커 셀만)
+
+        // path tile — draw golden inset rectangle instead of emoji
+        if (isPath || isFancy) {
+          ctx.fillStyle = isFancy ? 'rgba(212,175,55,0.65)' : 'rgba(160,120,50,0.55)';
+          ctx.fillRect(x + 3, y + 3, CELL - 7, CELL - 7);
+          if (isFancy) {
+            ctx.strokeStyle = 'rgba(255,217,61,0.4)';
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(x + 4, y + 4, CELL - 9, CELL - 9);
+          }
+          continue;
+        }
+
+        // cell border
+        if (owned) {
+          ctx.strokeStyle = cell ? 'rgba(255,255,255,0.07)' : 'rgba(100,120,255,0.10)';
+          ctx.lineWidth = 0.5;
+          ctx.strokeRect(x + 0.5, y + 0.5, CELL - 2, CELL - 2);
+        }
+
+        // broken overlay
+        if (broken) {
+          ctx.fillStyle = 'rgba(255,87,87,0.18)';
+          ctx.fillRect(x, y, CELL - 1, CELL - 1);
+        }
+
+        // emoji (anchor cell only, skip ref cells and paths)
         if (cell && !cell.ref) {
           const bd = B[cell.type];
-          ctx.font = `${CELL * 0.55}px serif`;
+          ctx.font = `${CELL * 0.6}px serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          if (cell.broken) ctx.globalAlpha = 0.5;
-          ctx.fillText(bd?.emoji || '?', x + CELL / 2 - 1, y + CELL / 2);
+          ctx.globalAlpha = broken ? 0.45 : 1;
+          ctx.fillText(bd?.emoji || '', x + CELL / 2, y + CELL / 2 + 1);
           ctx.globalAlpha = 1;
         }
       }
     }
-    // 하단 정보 레이블
+
+    // — outer border —
+    ctx.strokeStyle = 'rgba(100,120,255,0.25)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(PAD + 0.5, PAD + 0.5, W - 1, H - 1);
+
+    // — footer bar —
+    const fy = PAD + H;
+    ctx.fillStyle = 'rgba(6,9,28,0.95)';
+    ctx.fillRect(0, fy, canvas.width, FOOT + PAD);
+    ctx.fillStyle = 'rgba(100,120,255,0.15)';
+    ctx.fillRect(0, fy, canvas.width, 1);
+
+    // footer text
     ctx.fillStyle = '#FFD93D';
-    ctx.font = 'bold 11px Rajdhani, monospace';
+    ctx.font = 'bold 13px "Barlow Condensed", monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`🎡 PARK TYCOON  Day ${day}  ⭐${parkRating.stars}  👥 ${visitors}${lang==="ko"?"명":" ppl"}  😊 ${Math.round(sat)}%`, 8, H + 20);
-    // 다운로드
+    ctx.fillText('🎡 PARCADIA', PAD + 4, fy + 14);
+    ctx.fillStyle = '#8899CC';
+    ctx.font = '11px monospace';
+    ctx.fillText(`Day ${day}`, PAD + 4, fy + 30);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText(`⭐${parkRating.stars}  👥${visitors}${lang==="ko"?"명":" ppl"}  😊${Math.round(sat)}%`, canvas.width - PAD - 4, fy + 22);
+
+    // download
     const link = document.createElement('a');
-    link.download = `parktycoon-day${day}.png`;
+    link.download = `parcadia-day${day}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
     addLog(`📷 ${lang === "ko" ? "스냅샷 저장됨!" : "Snapshot saved!"}`);
@@ -2492,7 +2590,8 @@ export default function ParkTycoon(){
                 return(<div key={mId} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 6px",marginBottom:3,background:ready?"#0A1A14":"#14142A",border:`2px solid ${ready?"#5EF6A0":"#2A2A4A"}`,borderRadius:6}}>
                   <span style={{fontSize:14}}>{m.emoji}</span>
                   <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700,color:ready?"#5EF6A0":"#E8E8F0"}}>{t(`mis.${m.id}`)}</div>
-                    <div style={{display:"flex",gap:3,marginTop:1}}><span style={{fontSize:10,color:"#5EF6A0",background:"#5EF6A013",borderRadius:2,padding:"1px 3px"}}>+${m.reward.$.toLocaleString()}</span><span style={{fontSize:10,color:"#A29BFE",background:"#A29BFE13",borderRadius:2,padding:"1px 3px"}}>+{m.reward.rp}RP</span></div>
+                    {m.desc&&<div style={{fontSize:9,color:"#6B7CA1",marginTop:1,lineHeight:1.3}}>{m.desc[lang]||m.desc.ko}</div>}
+                    <div style={{display:"flex",gap:3,marginTop:2}}><span style={{fontSize:10,color:"#5EF6A0",background:"#5EF6A013",borderRadius:2,padding:"1px 3px"}}>+${m.reward.$.toLocaleString()}</span><span style={{fontSize:10,color:"#A29BFE",background:"#A29BFE13",borderRadius:2,padding:"1px 3px"}}>+{m.reward.rp}RP</span></div>
                   </div>
                   {ready&&<span style={{fontSize:13}}>🏆</span>}
                 </div>);
@@ -2538,9 +2637,12 @@ export default function ParkTycoon(){
                   {ACHIEVEMENTS.map(a=>{
                     const earned=earnedAchievements.includes(a.id);
                     return(
-                      <div key={a.id} title={a.desc?.[lang]||a.desc?.ko||""} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 5px",background:earned?`${a.col}18`:"#0E0E1E",border:`1px solid ${earned?a.col+"44":"#1E1E2E"}`,borderRadius:5,opacity:earned?1:0.45,transition:"opacity 0.2s"}}>
-                        <span style={{fontSize:13,filter:earned?`drop-shadow(0 0 4px ${a.col})`:"grayscale(1) opacity(0.4)"}}>{a.emoji}</span>
-                        <div style={{fontSize:9,fontWeight:earned?700:400,color:earned?a.col:"#555577",lineHeight:1.3,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{a.name[lang]||a.name.ko}</div>
+                      <div key={a.id} style={{display:"flex",alignItems:"flex-start",gap:4,padding:"4px 5px",background:earned?`${a.col}18`:"#0E0E1E",border:`1px solid ${earned?a.col+"44":"#1E1E2E"}`,borderRadius:5,opacity:earned?1:0.45,transition:"opacity 0.2s"}}>
+                        <span style={{fontSize:13,flexShrink:0,filter:earned?`drop-shadow(0 0 4px ${a.col})`:"grayscale(1) opacity(0.4)"}}>{a.emoji}</span>
+                        <div style={{minWidth:0}}>
+                          <div style={{fontSize:9,fontWeight:earned?700:400,color:earned?a.col:"#555577",lineHeight:1.3,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{a.name[lang]||a.name.ko}</div>
+                          {earned&&a.desc&&<div style={{fontSize:8,color:"#4A5A7A",lineHeight:1.3,marginTop:1,whiteSpace:"normal"}}>{a.desc[lang]||a.desc.ko}</div>}
+                        </div>
                       </div>
                     );
                   })}
@@ -2757,7 +2859,7 @@ export default function ParkTycoon(){
                 const isMultiSelected=buildMode==="demolish"&&multiSelectedCells.has(`${r},${c}`);
                 const isCongested=congestedCells.has(`${r},${c}`);
                 const isRightBoundary=owned&&c+bw<GC&&!ownedGrid[r][c+bw];
-                const isNextBuyable=!owned&&c>0&&ownedGrid[r][c-1]&&gameMode!=="sandbox";
+                const isNextBuyable=!owned&&gameMode!=="sandbox"&&((c>0&&ownedGrid[r][c-1])||(c<GC-1&&ownedGrid[r][c+1]));
 
                 const OBS_STYLE={rock:{bg:"rgba(70,50,30,0.55)",bd:"rgba(120,90,55,0.6)",emoji:"🪨"},water:{bg:"rgba(10,70,180,0.40)",bd:"rgba(40,130,255,0.55)",emoji:"💧"},rubble:{bg:"rgba(90,80,60,0.50)",bd:"rgba(140,120,90,0.5)",emoji:"🧱"},deadtree:{bg:"rgba(25,55,15,0.50)",bd:"rgba(40,90,25,0.5)",emoji:"🌵"}};
                 let bg="#080B18";

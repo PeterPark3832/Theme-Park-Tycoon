@@ -44,12 +44,12 @@ export const LEAGUES = [
 export const BREAK_CHANCE = {entrance:0.004,ferrisWheel:0.04,rollerCoaster:0.07,carousel:0.03,thrillRide:0.055,waterRide:0.045,bumperCars:0.03,dropTower:0.06,miniTrain:0.025,hauntedHouse:0.02,cinema4D:0.015,balloonRide:0.035};
 export const ZONES = {thrill:{emoji:"🎢",color:"#FF4757",bg:"#FF475718"},family:{emoji:"👨‍👩‍👧",color:"#FF9F43",bg:"#FF9F4318"},food:{emoji:"🍔",color:"#FECA57",bg:"#FECA5718"},nature:{emoji:"🌳",color:"#1DD1A1",bg:"#1DD1A118"},vip:{emoji:"⭐",color:"#A29BFE",bg:"#A29BFE18"}};
 export const PARCELS = [
-  {id:"eastA",cost:10000,cols:[16,19],icon:"🏕️",req:null,   label:{ko:"동쪽 A구역",en:"East Wing A"}},
-  {id:"eastB",cost:18000,cols:[20,23],icon:"🏞️",req:"eastA",label:{ko:"동쪽 B구역",en:"East Wing B"}},
-  {id:"eastC",cost:28000,cols:[24,27],icon:"🌄",req:"eastB",label:{ko:"동쪽 C구역",en:"East Wing C"}},
-  {id:"eastD",cost:42000,cols:[28,31],icon:"🌅",req:"eastC",label:{ko:"동쪽 D구역",en:"East Wing D"}},
-  {id:"eastE",cost:60000,cols:[32,35],icon:"🗻",req:"eastD",label:{ko:"동쪽 E구역",en:"East Wing E"}},
-  {id:"eastF",cost:80000,cols:[36,39],icon:"🌐",req:"eastE",label:{ko:"동쪽 F구역",en:"East Wing F"}},
+  {id:"westA",cost:8000, cols:[8,11], icon:"🌿",req:null,   label:{ko:"서쪽 A구역",en:"West Wing A"}},
+  {id:"westB",cost:20000,cols:[4,7],  icon:"🌲",req:"westA",label:{ko:"서쪽 B구역",en:"West Wing B"}},
+  {id:"westC",cost:38000,cols:[0,3],  icon:"🏔️",req:"westB",label:{ko:"서쪽 C구역",en:"West Wing C"}},
+  {id:"eastA",cost:8000, cols:[28,31],icon:"🏕️",req:null,   label:{ko:"동쪽 A구역",en:"East Wing A"}},
+  {id:"eastB",cost:20000,cols:[32,35],icon:"🏞️",req:"eastA",label:{ko:"동쪽 B구역",en:"East Wing B"}},
+  {id:"eastC",cost:38000,cols:[36,39],icon:"🌄",req:"eastB",label:{ko:"동쪽 C구역",en:"East Wing C"}},
 ];
 export const SEGS = {family:{emoji:"👨‍👩‍👧",color:"#FF9F43",spendMult:1.2},couple:{emoji:"💑",color:"#FF6B9D",spendMult:1.5},thrill:{emoji:"🎢",color:"#FF6B6B",spendMult:0.8},child:{emoji:"👦",color:"#48DBFB",spendMult:0.5},general:{emoji:"🧑",color:"#C7B8EA",spendMult:1.0}};
 export const SEG_PULL = {ferrisWheel:{family:2,couple:4},rollerCoaster:{thrill:5},carousel:{family:3,child:4},thrillRide:{thrill:4},waterRide:{thrill:3,family:2},foodStall:{family:3,child:2},iceCream:{child:4,family:1},giftShop:{couple:2,family:1},restroom:{family:3},garden:{couple:4,family:1},fountain:{couple:5},bumperCars:{child:3,thrill:2},dropTower:{thrill:5},miniTrain:{child:4,family:3},hauntedHouse:{thrill:3,couple:2},cinema4D:{couple:3,general:2},balloonRide:{couple:4,family:2},miniGolf:{family:4,couple:2},arcade:{child:5,general:2},vipLounge:{couple:5,general:1}};
@@ -66,7 +66,23 @@ export const RESEARCH = [
   {id:"ex1",branch:"expansion",tier:1,emoji:"🎪",cost:8,req:null}, {id:"ex2",branch:"expansion",tier:2,emoji:"🌐",cost:12,req:"ex1"}, {id:"ex3",branch:"expansion",tier:2,emoji:"🤖",cost:12,req:"ex1"}, {id:"ex4",branch:"expansion",tier:3,emoji:"🔮",cost:18,req:"ex2"},
 ];
 
-export const MISSIONS = [{id:"m1",emoji:"👥",reward:{$:3000,rp:1},check:s=>s.vis>=50},{id:"m2",emoji:"👥",reward:{$:6000,rp:2},check:s=>s.vis>=100},{id:"m3",emoji:"👥",reward:{$:12000,rp:3},check:s=>s.vis>=200},{id:"m4",emoji:"😊",reward:{$:5000,rp:2},check:s=>s.sat>=70},{id:"m5",emoji:"😊",reward:{$:10000,rp:4},check:s=>s.sat>=85},{id:"m6",emoji:"🧹",reward:{$:4000,rp:2},check:s=>s.clean>=90},{id:"m7",emoji:"🎡",reward:{$:8000,rp:3},check:s=>s.rides>=5},{id:"m8",emoji:"🎡",reward:{$:18000,rp:5},check:s=>s.rides>=10},{id:"m9",emoji:"⭐",reward:{$:10000,rp:4},check:s=>s.pres>=3},{id:"m10",emoji:"⭐",reward:{$:30000,rp:8},check:s=>s.pres>=5},{id:"m11",emoji:"🎫",reward:{$:15000,rp:4},check:s=>s.pass>=100},{id:"m12",emoji:"🎒",reward:{$:20000,rp:5},check:s=>s.vips>=5},{id:"m13",emoji:"🎨",reward:{$:8000,rp:3},check:s=>s.zones>=10},{id:"m14",emoji:"💰",reward:{$:12000,rp:4},check:s=>s.net>=5000},{id:"m15",emoji:"🔬",reward:{$:10000,rp:3},check:s=>s.research>=5}];
+export const MISSIONS = [
+  {id:"m1", emoji:"👥",reward:{$:3000, rp:1},check:s=>s.vis>=50,   desc:{ko:"동시 방문객 50명 달성",           en:"Have 50 visitors at once"}},
+  {id:"m2", emoji:"👥",reward:{$:6000, rp:2},check:s=>s.vis>=100,  desc:{ko:"동시 방문객 100명 달성",          en:"Have 100 visitors at once"}},
+  {id:"m3", emoji:"👥",reward:{$:12000,rp:3},check:s=>s.vis>=200,  desc:{ko:"동시 방문객 200명 달성",          en:"Have 200 visitors at once"}},
+  {id:"m4", emoji:"😊",reward:{$:5000, rp:2},check:s=>s.sat>=70,   desc:{ko:"만족도 70% 이상 유지",            en:"Maintain 70%+ satisfaction"}},
+  {id:"m5", emoji:"😊",reward:{$:10000,rp:4},check:s=>s.sat>=85,   desc:{ko:"만족도 85% 이상 유지",            en:"Maintain 85%+ satisfaction"}},
+  {id:"m6", emoji:"🧹",reward:{$:4000, rp:2},check:s=>s.clean>=90, desc:{ko:"청결도 90% 이상 달성",            en:"Reach 90%+ cleanliness"}},
+  {id:"m7", emoji:"🎡",reward:{$:8000, rp:3},check:s=>s.rides>=5,  desc:{ko:"어트랙션 5개 이상 건설",          en:"Build 5+ attractions"}},
+  {id:"m8", emoji:"🎡",reward:{$:18000,rp:5},check:s=>s.rides>=10, desc:{ko:"어트랙션 10개 이상 건설",         en:"Build 10+ attractions"}},
+  {id:"m9", emoji:"⭐",reward:{$:10000,rp:4},check:s=>s.pres>=3,   desc:{ko:"공원 명성 ⭐×3 달성",             en:"Reach ⭐×3 park prestige"}},
+  {id:"m10",emoji:"⭐",reward:{$:30000,rp:8},check:s=>s.pres>=5,   desc:{ko:"공원 명성 ⭐×5 달성",             en:"Reach ⭐×5 park prestige"}},
+  {id:"m11",emoji:"🎫",reward:{$:15000,rp:4},check:s=>s.pass>=100, desc:{ko:"시즌권 누적 100개 이상 판매",      en:"Sell 100+ season passes total"}},
+  {id:"m12",emoji:"🎒",reward:{$:20000,rp:5},check:s=>s.vips>=5,   desc:{ko:"VIP 이벤트 5회 이상 유치",        en:"Host 5+ VIP events"}},
+  {id:"m13",emoji:"🎨",reward:{$:8000, rp:3},check:s=>s.zones>=10, desc:{ko:"구역(Zone) 타일 10개 이상 지정",  en:"Paint 10+ zone tiles"}},
+  {id:"m14",emoji:"💰",reward:{$:12000,rp:4},check:s=>s.net>=5000, desc:{ko:"일 순이익 $5,000 달성",           en:"Earn $5,000 net profit in a day"}},
+  {id:"m15",emoji:"🔬",reward:{$:10000,rp:3},check:s=>s.research>=5,desc:{ko:"연구 항목 5개 이상 완료",         en:"Complete 5+ research items"}},
+];
 export const DISASTERS = [{id:"fire",emoji:"🔥",dur:5,resolveCost:3000,visMult:0.5,revMult:0.7,satPen:15},{id:"power",emoji:"⚡",dur:4,resolveCost:1500,visMult:0.6,revMult:0,satPen:10},{id:"storm",emoji:"🌪️",dur:3,resolveCost:0,visMult:0.1,revMult:0.1,satPen:5},{id:"accident",emoji:"🚨",dur:7,resolveCost:5000,visMult:0.3,revMult:0.4,satPen:25},{id:"strike",emoji:"✊",dur:5,resolveCost:4000,visMult:0.8,revMult:0.8,satPen:8}];
 export const WEATHERS = [
   {id:"sunny",emoji:"☀️",name:{ko:"맑음",en:"Sunny"},visMult:1.12,satMod:3,maintMod:0.9,dur:[2,4]},

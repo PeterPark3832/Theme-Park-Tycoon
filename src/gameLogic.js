@@ -334,7 +334,7 @@ export function writeSaveSlots(slots) {
 export const mkGrid = () => Array(GR).fill(null).map(() => Array(GC).fill(null));
 export const mkOwned = (restrict) => Array(GR).fill(null).map((_, r) => Array(GC).fill(null).map((_, c) => {
   if (restrict) { return c >= restrict.cols[0] && c <= restrict.cols[1]; }
-  return c <= 15;
+  return c >= 12 && c <= 27; // center 16 columns — expands left+right
 }));
 
 export function timeAgoL(ts, t) {
