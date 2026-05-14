@@ -636,12 +636,15 @@ export default function ParkTycoon(){
         }
       }
 
-      // Mid-game bonus events (~4% chance per day, from day 20 onwards)
+      // Mid-game bonus events (~4% chance per day, from day 20 onwards; scale with stage)
       if(!newDisaster&&!dWarn&&gm!=="sandbox"&&day>=20&&Math.random()<0.04){
         const ev=BONUS_EVENTS[Math.floor(Math.random()*BONUS_EVENTS.length)];
-        if(ev.reward.$>0) setMoney(m=>m+ev.reward.$);
-        if(ev.reward.rp>0) setResearchPoints(rp=>rp+ev.reward.rp);
-        addLog(`${ev.emoji} ${lang==="ko"?ev.name.ko:ev.name.en}!${ev.reward.$>0?` +$${ev.reward.$.toLocaleString()}`:""}${ev.reward.rp>0?` +${ev.reward.rp}RP`:""}`);
+        const evStageScale=[1,1,1.5,2,3,4][curStage.id]||1;
+        const evMoney=Math.round((ev.reward.$||0)*evStageScale);
+        const evRp=Math.round((ev.reward.rp||0)*evStageScale);
+        if(evMoney>0) setMoney(m=>m+evMoney);
+        if(evRp>0) setResearchPoints(rp=>rp+evRp);
+        addLog(`${ev.emoji} ${lang==="ko"?ev.name.ko:ev.name.en}!${evMoney>0?` +$${evMoney.toLocaleString()}`:""}${evRp>0?` +${evRp}RP`:""}`);
         if(ref.current.soundOn) playSound("mission");
       }
 
@@ -1861,7 +1864,7 @@ export default function ParkTycoon(){
                     {label:lang==="ko"?"🔧 고장 시설":"🔧 Broken", val:-(stats.brokenCount*5), pos:stats.brokenCount===0},
                     {label:lang==="ko"?"💸 입장료":"💸 Admission", val:fee>maxFee?-5:0, pos:fee<=maxFee},
                     {label:lang==="ko"?"🚶 혼잡도":"🚶 Crowd", val:congestedCells.size>0?-8:0, pos:congestedCells.size===0},
-                    {label:lang==="ko"?"📉 자연 감소":"📉 Natural", val:-0.2, pos:false},
+                    {label:lang==="ko"?"📉 자연 감소":"📉 Natural", val:-0.18, pos:false},
                   ].map(({label,val,pos})=>(
                     <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"1.5px 0",gap:8}}>
                       <span style={{fontSize:9,color:"#9BA8CC"}}>{label}</span>
@@ -2242,7 +2245,7 @@ export default function ParkTycoon(){
                   {label:lang==="ko"?"🔧 고장 시설":"🔧 Broken Rides", val:-(stats.brokenCount*5), pos:stats.brokenCount===0},
                   {label:lang==="ko"?"💸 입장료":"💸 Admission Fee", val:fee>maxFee?-5:0, pos:fee<=maxFee},
                   {label:lang==="ko"?"🚶 혼잡도":"🚶 Congestion", val:congestedCells.size>0?-8:0, pos:congestedCells.size===0},
-                  {label:lang==="ko"?"📉 자연 감소":"📉 Natural Decay", val:-0.3, pos:false},
+                  {label:lang==="ko"?"📉 자연 감소":"📉 Natural Decay", val:-0.18, pos:false},
                 ].map(({label,val,pos})=>(
                   <div key={label} style={{display:"flex",justifyContent:"space-between",fontSize:10,padding:"2px 0",borderBottom:"1px solid #1A1A30"}}>
                     <span style={{color:"#8888AA"}}>{label}</span>
