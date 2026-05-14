@@ -220,7 +220,7 @@ export function bldCounts(grid) {
   return c;
 }
 
-export function calcParkRating(grid, zg, stats, sat, clean) {
+export function calcParkRating(grid, zg, stats, sat, clean, prestigeBonus = 0) {
   const cc = bldCounts(grid);
   const rideTypes = Object.keys(cc).filter(k => B[k]?.cat === "ride" && k !== "entrance");
   const decoCount = Object.entries(cc).filter(([k]) => B[k]?.cat === "deco").reduce((t, [, v]) => t + v, 0);
@@ -234,7 +234,8 @@ export function calcParkRating(grid, zg, stats, sat, clean) {
   const vals = Object.values(scores);
   const avg = vals.reduce((t, v) => t + v, 0) / 4;
   const min = Math.min(...vals);
-  const final = Math.round(avg * 0.65 + min * 0.35);
+  const presBonus = Math.min(8, prestigeBonus * 0.05);
+  const final = Math.round(avg * 0.65 + min * 0.35 + presBonus);
   const stars = final < 20 ? 1 : final < 40 ? 2 : final < 60 ? 3 : final < 78 ? 4 : 5;
   return { scores, final, stars };
 }

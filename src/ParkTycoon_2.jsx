@@ -485,7 +485,7 @@ export default function ParkTycoon(){
 
       const segs=calcSegs(newGrid);
       const spendMult=(segs.family||0)*1.2+(segs.couple||0)*1.5+(segs.thrill||0)*0.8+(segs.child||0)*0.5+(segs.general||0)*1.0;
-      const parkRat=calcParkRating(newGrid,zg,s,s0,cl0);
+      const parkRat=calcParkRating(newGrid,zg,s,s0,cl0,pb);
       const maxFee=gm==="sandbox"?999:MAX_FEE_BY_STARS[parkRat.stars];
       const feePenalty=fee>maxFee?0.5:1.0;
 
@@ -518,7 +518,7 @@ export default function ParkTycoon(){
       });
       newRivals.forEach((r,i)=>{newRivals[i]={...r,prestige:r.prestige+r.growRate};});
       const totalRivalPres=newRivals.reduce((s,r)=>s+r.prestige,0);
-      const rivalSteal=gm!=="sandbox"?Math.min(0.35,totalRivalPres/(parkRat.final*2+totalRivalPres+1)*0.4):0;
+      const rivalSteal=gm!=="sandbox"?Math.min(0.20,totalRivalPres/(parkRat.final*2+totalRivalPres+1)*0.4):0;
       // Phase 3-2: Rival events
       const curRivalEvent=ref.current.rivalEventActive;
       let newRivalEvent=curRivalEvent;
@@ -650,7 +650,7 @@ export default function ParkTycoon(){
         newPressReviews=[...newPressReviews.slice(-19),{day:day+1,grade,score,headline,emoji}];
         newPendingReview={grade,emoji,headline,score,visBoost};
         addLog(`📰 ${lang==="ko"?"언론 평가":"Press Review"}: ${grade}${lang==="ko"?"등급":"grade"} — ${headline}`);
-        if(prestigeMod!==0) setPrestigeBonus(pb=>pb+prestigeMod);
+        if(prestigeMod!==0) setPrestigeBonus(pb=>pb+Math.round(prestigeMod*rb.prestigeRateMult));
         if(ref.current.soundOn) playSound(grade==="S"||grade==="A"?"mission":"disaster");
       }
 
@@ -722,11 +722,14 @@ export default function ParkTycoon(){
       if(adc&&!adc.claimed){
         const dcMs={vis,sat:newSat,net,clean:newClean,pres:parkRat.stars};
         if(dcMs[adc.goal.type]>=adc.goal.value){
-          setMoney(m=>m+adc.reward.$);
-          setResearchPoints(rp=>rp+adc.reward.rp);
+          const stageScale=[1,1,1.5,2,3,4][curStage.id]||1;
+          const scaledMoney=Math.round(adc.reward.$*stageScale);
+          const scaledRp=Math.round(adc.reward.rp*stageScale);
+          setMoney(m=>m+scaledMoney);
+          setResearchPoints(rp=>rp+scaledRp);
           setActiveDailyChallenge(prev=>prev?{...prev,claimed:true}:null);
           setDailyChallengeHistory(h=>[...h,adc.id]);
-          addLog(`✅ ${lang==="ko"?`챌린지 완료: ${adc.name.ko}! +$${adc.reward.$.toLocaleString()} +${adc.reward.rp}RP`:`Challenge done: ${adc.name.en}! +$${adc.reward.$.toLocaleString()} +${adc.reward.rp}RP`}`);
+          addLog(`✅ ${lang==="ko"?`챌린지 완료: ${adc.name.ko}! +$${scaledMoney.toLocaleString()} +${scaledRp}RP`:`Challenge done: ${adc.name.en}! +$${scaledMoney.toLocaleString()} +${scaledRp}RP`}`);
           if(ref.current.soundOn) playSound("mission");
         }
       }
@@ -864,7 +867,7 @@ export default function ParkTycoon(){
   // === Pre-hook derivations (needed by useEffect dep arrays below) ===
   const stats=calcStats(grid,zoneGrid,hired,rb);
   const cc=bldCounts(grid);
-  const parkRating=calcParkRating(grid,zoneGrid,stats,sat,clean);
+  const parkRating=calcParkRating(grid,zoneGrid,stats,sat,clean,prestigeBonus);
   const totalBldCount=Object.values(cc).reduce((t,v)=>t+v,0);
   const currentStage=calcStage(totalBldCount,parkRating.stars,money);
   const stageProgress=currentStage.next?{
@@ -2098,6 +2101,7 @@ export default function ParkTycoon(){
                           {bd.stats(0).attraction>0&&<span style={{fontSize:10,padding:"1px 5px",background:"rgba(255,217,61,0.12)",border:"1px solid rgba(255,217,61,0.3)",borderRadius:4,color:"#FFD93D",fontWeight:700,fontFamily:"'Barlow Condensed',monospace",flexShrink:0}}>⭐{bd.stats(0).attraction}</span>}
                         </div>
                         {isBldHov&&<div style={{background:"#1A1A3A",borderRadius:"0 0 5px 5px",padding:"4px 6px",marginBottom:2,fontSize:10,color:"#C7B8EA",lineHeight:1.6,border:`1px solid ${bd.color}22`,borderTop:"none"}}>
+                          {isLocked&&<div style={{color:"#FF9F43",fontWeight:700,marginBottom:2}}>🔒 {lang==="ko"?"연구 탭 → VIP 언락 (r4) 필요":"Research tab → VIP Unlock (r4) required"}</div>}
                           {bd.stats(0).attraction>0&&<div>⭐ {lang==="ko"?"어트랙션":"Attraction"} +{bd.stats(0).attraction}</div>}
                           {bd.stats(0).maintenance>0&&<div>🔧 {lang==="ko"?"유지비":"Upkeep"} ${bd.stats(0).maintenance}/{lang==="ko"?"일":"day"}</div>}
                           {bd.stats(0).satBonus>0&&<div>😊 {lang==="ko"?"만족도":"Happiness"} +{bd.stats(0).satBonus}</div>}
@@ -2268,15 +2272,18 @@ export default function ParkTycoon(){
                   </button>}
                 </div>);
               })}
-              <div style={{fontSize:10,color:"#8888AA",textAlign:"right",marginBottom:6}}>{t("mgr.wages")} <span style={{color:"#FF8888"}}>${wages}/d</span></div>
+              {(()=>{const totalMaint=Math.round(stats.maintenance*diffSettings.maintenanceMult);const totalExpenses=totalMaint+wages;return(<div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:6,padding:"3px 5px",background:"rgba(255,87,87,0.06)",border:"1px solid rgba(255,87,87,0.15)",borderRadius:4}}>
+                <span style={{color:"#8888AA"}}>{lang==="ko"?"💸 일일 지출 합계":"💸 Total Daily Costs"}</span>
+                <span style={{color:"#FF8888",fontWeight:700}}>-${totalExpenses.toLocaleString()}/d <span style={{color:"#555577",fontWeight:400}}>({lang==="ko"?"유지비":"Maint."} ${totalMaint} + {lang==="ko"?"인건비":"Wages"} ${wages})</span></span>
+              </div>);})()}
               <div style={{fontSize:10,color:"#FECA57",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>{t("mgr.loan")}</div>
-              {LOAN_OPTS.map((opt,i)=>{const daily=Math.ceil(opt.amount*(1+opt.rate)/opt.days);return(<div key={i} style={{display:"flex",alignItems:"center",gap:4,padding:4,marginBottom:2,background:"#181828",border:"1px solid #222238",borderRadius:5}}>
+              {LOAN_OPTS.map((opt,i)=>{const daily=Math.ceil(opt.amount*(1+opt.rate)/opt.days);const totalInterest=Math.ceil(opt.amount*opt.rate);return(<div key={i} style={{display:"flex",alignItems:"center",gap:4,padding:4,marginBottom:2,background:"#181828",border:"1px solid #222238",borderRadius:5}}>
                 <div style={{fontSize:14}}>{opt.icon}</div>
-                <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700}}>{t(`loan.${opt.id}`)}</div><div style={{fontSize:10,color:"#FF8888"}}>${daily}/d</div></div>
+                <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700}}>{t(`loan.${opt.id}`)}</div><div style={{fontSize:10,color:"#FF8888"}}>${daily}/d · {lang==="ko"?"총 이자":"interest"} +${totalInterest.toLocaleString()}</div></div>
                 <button style={{background:"#FECA5711",border:"1px solid #FECA5744",color:"#FECA57",borderRadius:3,padding:"2px 5px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}} onClick={()=>takeLoan(opt)}>{t("mgr.take")}</button>
               </div>);})}
               {loans.map(l=>(<div key={l.id} style={{padding:4,marginBottom:2,background:"#181828",border:"1px solid #FF6B6B22",borderRadius:4}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{fontSize:10,color:"#FF8888"}}>${l.remaining.toLocaleString()}</span><span style={{fontSize:10,color:"#8888AA"}}>${l.dailyPayment}/d</span></div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{fontSize:10,color:"#FF8888"}}>{lang==="ko"?"남은 부채":"Remaining"} ${l.remaining.toLocaleString()}</span><span style={{fontSize:10,color:"#8888AA"}}>${l.dailyPayment}/d</span></div>
                 <div style={{height:3,background:"#1A1A2A",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",borderRadius:99,background:"#FF6B6B",width:`${Math.max(0,(1-l.remaining/(l.amount*(1+l.rate)))*100)}%`}}/></div>
               </div>))}
             </>}
@@ -3279,23 +3286,27 @@ export default function ParkTycoon(){
                         }}/>
                       ))}
                     </div>
-                    <span style={{fontSize:10,color:"#7788BB",marginLeft:"auto"}}>{tutorialStep}/6</span>
+                    <span style={{fontSize:10,color:"#7788BB",marginLeft:"auto"}}>{tutorialStep}/8</span>
                   </div>
                   {/* 단계별 내용 */}
                   {(()=>{
                     const allSteps=[
-                      {emoji:"🎪",title:lang==="ko"?"[1/6] 입구 게이트 배치":"[1/6] Place Entrance Gate",
+                      {emoji:"🎪",title:lang==="ko"?"[1/8] 입구 게이트 배치":"[1/8] Place Entrance Gate",
                        desc:lang==="ko"?"왼쪽 패널 '건설' 탭에서 🎪 입구 게이트를 선택하고\n그리드 아무 곳에나 클릭해서 배치하세요.\n입구가 없으면 방문객이 입장할 수 없어요!":"In the left Build tab, select 🎪 Entrance Gate\nand click the grid to place it.\nNo entrance = no visitors!"},
-                      {emoji:"🛤️",title:lang==="ko"?"[2/6] 통로 연결":"[2/6] Connect with Paths",
+                      {emoji:"🛤️",title:lang==="ko"?"[2/8] 통로 연결":"[2/8] Connect with Paths",
                        desc:lang==="ko"?"입구 옆에 🟫 통로를 배치하세요.\n통로가 없으면 방문객이 어트랙션까지\n이동할 수 없어요. 연속으로 여러 개 배치하세요!":"Place paths 🟫 next to the entrance.\nVisitors need paths to reach attractions.\nPlace several to extend coverage!"},
-                      {emoji:"🎡",title:lang==="ko"?"[3/6] 어트랙션 배치":"[3/6] Add Attractions",
+                      {emoji:"🎡",title:lang==="ko"?"[3/8] 어트랙션 배치":"[3/8] Add Attractions",
                        desc:lang==="ko"?"통로 옆에 어트랙션을 배치하세요.\n관람차·회전목마부터 시작하고,\n여러 종류를 배치할수록 방문객이 늘어요!":"Place attractions next to paths.\nStart with Ferris Wheel or Carousel.\nMore variety = more visitors!"},
-                      {emoji:"▶",title:lang==="ko"?"[4/6] 시간 시작":"[4/6] Start Time",
+                      {emoji:"▶",title:lang==="ko"?"[4/8] 시간 시작":"[4/8] Start Time",
                        desc:lang==="ko"?"상단의 ▶ 버튼으로 시간을 진행시키세요.\n⏩ 빨리 감기, ⚡ 매우 빨리 감기도 있어요.\n방문객이 들어오기 시작할 거예요!":"Press ▶ to start time.\nUse ⏩ Fast or ⚡ Very Fast to speed up.\nVisitors will start arriving!"},
-                      {emoji:"🧹",title:lang==="ko"?"[5/6] 직원 고용":"[5/6] Hire Staff",
+                      {emoji:"🧹",title:lang==="ko"?"[5/8] 직원 고용":"[5/8] Hire Staff",
                        desc:lang==="ko"?"'경영' 탭 → 직원 고용에서\n청소부(🧹)와 정비공(🔧)을 고용하세요.\n청결도·시설 고장률이 만족도를 크게 좌우해요!":"Go to 'Manage' tab → Hire Staff.\nHire a Janitor 🧹 or Mechanic 🔧.\nCleanliness and repairs are key to satisfaction!"},
-                      {emoji:"🎊",title:lang==="ko"?"[6/6] 완료! 이제 탐험하세요":"[6/6] Done! Explore Now",
-                       desc:lang==="ko"?"튜토리얼 완료! 이제 자유롭게 공원을 운영하세요.\n'재무' 탭으로 수익 확인, '연구' 탭으로 기술 개발,\n'마케팅' 탭으로 광고 캠페인을 진행할 수 있어요!":"Tutorial complete! Run your park freely.\nCheck Finance for revenue, Research for upgrades,\nand Marketing for ad campaigns. Good luck! 🎉"},
+                      {emoji:"🎨",title:lang==="ko"?"[6/8] 구역 지정으로 시너지":"[6/8] Zone Synergy",
+                       desc:lang==="ko"?"건설 탭 → '구역' 탭에서 어트랙션 구역을 지정하세요.\n🎠 놀이 / 🌿 자연 / 🍔 음식 등 테마 구역으로\n수익·만족도 보너스를 받을 수 있어요! (3칸+ 연결 시 활성화)":"In Build → Zone tab, paint zones on your park.\nTheme areas like 🎠 Fun, 🌿 Nature, 🍔 Food\ngive revenue & satisfaction bonuses! (3+ connected cells)"},
+                      {emoji:"🔬",title:lang==="ko"?"[7/8] 연구로 공원 강화":"[7/8] Research Upgrades",
+                       desc:lang==="ko"?"'연구' 탭에서 RP(연구 포인트)를 사용해\n어트랙션 강화·유지비 절감·VIP 언락 등을 연구하세요.\nRP는 방문객이 올수록 매일 자동으로 쌓여요!":"In the Research tab, spend RP to unlock upgrades:\n🎡 Ride Boost, 🔧 Cost Reduction, 🛋️ VIP Unlock and more.\nRP accumulates daily — more visitors = more RP!"},
+                      {emoji:"🎊",title:lang==="ko"?"[8/8] 완료! 이제 탐험하세요":"[8/8] Done! Explore Now",
+                       desc:lang==="ko"?"튜토리얼 완료! 이제 자유롭게 공원을 운영하세요.\n'재무' 탭으로 수익 확인, '마케팅' 탭으로 광고 캠페인,\n시나리오 모드에서 도전 과제를 클리어해보세요! 🏆":"Tutorial complete! Run your park freely.\nCheck Finance for revenue, Marketing for ad campaigns,\nand try Scenario mode for exciting challenges! 🏆"},
                     ];
                     const steps=allSteps[Math.min(tutorialStep-1, allSteps.length-1)];
                     const totalSteps=allSteps.length;
@@ -3320,7 +3331,7 @@ export default function ParkTycoon(){
                       {lang==="ko"?"건너뛰기":"Skip"}
                     </button>
                     <button onClick={()=>{
-                        if(tutorialStep>=6) setTutorialStep(0);
+                        if(tutorialStep>=8) setTutorialStep(0);
                         else setTutorialStep(s=>s+1);
                       }}
                       style={{background:"rgba(255,217,61,0.15)",border:"1px solid rgba(255,217,61,0.5)",
