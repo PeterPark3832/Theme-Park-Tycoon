@@ -142,7 +142,8 @@ export default function ParkTycoon(){
   const [segData,setSegData]=useState({family:0.2,couple:0.2,thrill:0.2,child:0.1,general:0.3});
   const [zonePaint,setZonePaint]=useState(null);
   const [buildMode,setBuildMode]=useState("build");
-  const [dots,setDots]=useState(()=>Array(12).fill(null).map((_,i)=>({id:i,r:Math.floor(Math.random()*GR),c:Math.floor(Math.random()*GC),emoji:DOTS[i%DOTS.length]})));
+  const [dots,setDots]=useState(()=>Array(24).fill(null).map((_,i)=>({id:i,r:Math.floor(Math.random()*GR),c:Math.floor(Math.random()*GC),emoji:DOTS[i%DOTS.length]})));
+  const [gridPopups,setGridPopups]=useState([]);
   const [campaigns,setCampaigns]=useState([]);
   const [pendingVIP,setPendingVIP]=useState(null);
   const [passOn,setPassOn]=useState(false);
@@ -238,6 +239,7 @@ export default function ParkTycoon(){
   const [buildSearch,setBuildSearch]=useState("");
   const undoTimerRef=useRef(null);
   const dragBuildRef=useRef({active:false,mode:null,selected:null,moved:false,startR:-1,startC:-1});
+  const lastBonusEventRef=useRef(null);
 
   const ref=useRef();
   const diffSettings=DIFFICULTY_SETTINGS[difficulty]||DIFFICULTY_SETTINGS.normal;
@@ -608,7 +610,7 @@ export default function ParkTycoon(){
         }
       }
       // 신규 재난/경고 생성
-      if(!newDisaster&&!dWarn&&gm!=="sandbox"&&Math.random()<0.015*diffConf.disasterMult*disasterPen+(newSat<40?0.01:0)){
+      if(!newDisaster&&!dWarn&&gm!=="sandbox"&&day>=10&&Math.random()<0.015*diffConf.disasterMult*disasterPen+(newSat<40?0.01:0)){
         const d=DISASTERS[Math.floor(Math.random()*DISASTERS.length)];
         if(Math.random()<0.6){
           // 60%는 경고 먼저
@@ -631,6 +633,8 @@ export default function ParkTycoon(){
           }
           newDisaster={...d,remaining:d.dur,damage:1};
           addLog(t("log.disasterStart", {name: t(`dis.${d.id}`), desc: t(`dis.${d.id}.desc`), dur: d.dur}));
+          const disTs=Date.now();
+          setGridPopups(prev=>[...prev.slice(-5),{id:disTs,text:`🚨 ${t("dis."+d.id)}`,color:"#FF5757",r:8,c:15,expires:disTs+3000}]);
           if(ref.current.soundOn) playSound("disaster");
           saveToSlot(0);
         }
@@ -638,13 +642,18 @@ export default function ParkTycoon(){
 
       // Mid-game bonus events (~4% chance per day, from day 20 onwards; scale with stage)
       if(!newDisaster&&!dWarn&&gm!=="sandbox"&&day>=20&&Math.random()<0.04){
-        const ev=BONUS_EVENTS[Math.floor(Math.random()*BONUS_EVENTS.length)];
+        const evPool=BONUS_EVENTS.filter(e=>e.id!==lastBonusEventRef.current);
+        const ev=(evPool.length?evPool:BONUS_EVENTS)[Math.floor(Math.random()*(evPool.length||BONUS_EVENTS.length))];
+        lastBonusEventRef.current=ev.id;
         const evStageScale=[1,1,1.5,2,3,4][curStage.id]||1;
         const evMoney=Math.round((ev.reward.$||0)*evStageScale);
         const evRp=Math.round((ev.reward.rp||0)*evStageScale);
         if(evMoney>0) setMoney(m=>m+evMoney);
         if(evRp>0) setResearchPoints(rp=>rp+evRp);
         addLog(`${ev.emoji} ${lang==="ko"?ev.name.ko:ev.name.en}!${evMoney>0?` +$${evMoney.toLocaleString()}`:""}${evRp>0?` +${evRp}RP`:""}`);
+        const evTs=Date.now();
+        const evLabel=`${ev.emoji} ${evMoney>0?`+$${evMoney.toLocaleString()}`:""}${evRp>0?` +${evRp}RP`:""}`;
+        setGridPopups(prev=>[...prev.slice(-5),{id:evTs,text:evLabel,color:"#5EF6A0",r:8,c:15,expires:evTs+2800}]);
         if(ref.current.soundOn) playSound("mission");
       }
 
@@ -932,8 +941,12 @@ export default function ParkTycoon(){
       const tiles=[];for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){if(grid[r][c]&&!grid[r][c].broken) tiles.push({r,c});}
       const pool=paths.length>2?paths:tiles;if(!pool.length) return;
       const pathSet=new Set(paths.map(p=>`${p.r},${p.c}`));
-      setDots(prev=>prev.map(dot=>{
-        const sk=Object.keys(SEGS).reduce((best,k)=>(segData[k]||0)>(segData[best]||0)?k:best,"general");
+      // Build weighted segment pool once per tick for proportional dot emoji distribution
+      const segKeys=Object.keys(SEGS);
+      const totalW=segKeys.reduce((s,k)=>s+(segData[k]||0),0)||1;
+      const segPool=[];segKeys.forEach(k=>{const cnt=Math.max(1,Math.round((segData[k]||0)/totalW*20));for(let j=0;j<cnt;j++) segPool.push(k);});
+      setDots(prev=>prev.map((dot,dotIdx)=>{
+        const sk=segPool[dotIdx%segPool.length]||"general";
         if(paths.length>2){
           // Step along adjacent path tiles for organic walking movement
           const adj=[];
@@ -1359,6 +1372,8 @@ export default function ParkTycoon(){
   const admRevEst=pricingMode!=="per_ride"?visitors*fee*rb.admissionMult:0;
   const shopRevEst=visitors*stats.rpv*spendMult*shopMultiplier;
   const estNet=Math.round(admRevEst+rideTicketEst+shopRevEst+passIncome-stats.maintenance*diffSettings.maintenanceMult-wages-loanPay);
+  const prevDayNet=dailyHistory.length>=1?dailyHistory[dailyHistory.length-1].net:null;
+  const netTrendArrow=prevDayNet===null?"":(estNet>prevDayNet?" ▲":estNet<prevDayNet?" ▼":"");
   const ownedCount=ownedGrid.reduce((t,row)=>t+row.filter(Boolean).length,0);
 
   // Phase 2-6: Zone Mastery calculation
@@ -1838,6 +1853,7 @@ export default function ParkTycoon(){
             {ic:"👥",v:visitors.toLocaleString(),   l:t("lbl.visitors"), col:"#4D9FFF",big:true,isVis:true},
             {ic:"😊",v:`${Math.round(sat)}%`,        l:t("lbl.satisfaction"),col:sat>70?"#00E5A0":sat>40?"#FFD93D":"#FF5757",big:false,isVis:false,isSat:true},
             {ic:"🧹",v:`${Math.round(clean)}%`,      l:t("lbl.cleanliness"), col:clean>70?"#00E5A0":clean>40?"#FFD93D":"#FF5757",big:false,isVis:false},
+            {ic:estNet>=0?"📈":"📉",v:`${estNet>=0?"+":""}$${Math.abs(estNet)>=1000?`${(Math.abs(estNet)/1000).toFixed(1)}k`:Math.abs(estNet)}${netTrendArrow}`,l:lang==="ko"?"일 순이익":"Net/Day",col:estNet>=0?"#5EF6A0":"#FF6B6B",big:false,isVis:false},
             {ic:"📅",v:`Day ${day}`,                 l:t("lbl.day"),    col:"#9B7FFF",big:false,isVis:false},
             ...(totalDebt>0?[{ic:"💳",v:`$${(totalDebt/1000).toFixed(0)}k`,l:t("lbl.loan"),col:"#FF5757",big:false,isVis:false}]:[]),
             ...(activeDisaster?[{ic:"🚨",v:`${activeDisaster.remaining}d`,l:t("lbl.disaster"),col:"#FF5757",big:false,isVis:false}]:[]),
@@ -3240,9 +3256,12 @@ export default function ParkTycoon(){
               </div>
             )}
             {visitors>0&&<div style={{position:"absolute",inset:3,pointerEvents:"none",overflow:"hidden",borderRadius:6}}>
-              {dots.map(dot=><div key={dot.id} style={{position:"absolute",left:`${(dot.c/GC)*100}%`,top:`${(dot.r/GR)*100}%`,width:`${(1/GC)*100}%`,height:`${(1/GR)*100}%`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,transition:"left 1.1s ease,top 1.1s ease",filter:"drop-shadow(0 2px 4px rgba(0,0,0,1))",zIndex:5}}>
+              {dots.slice(0,Math.min(24,Math.max(4,Math.round(visitors/4)))).map(dot=><div key={dot.id} style={{position:"absolute",left:`${(dot.c/GC)*100}%`,top:`${(dot.r/GR)*100}%`,width:`${(1/GC)*100}%`,height:`${(1/GR)*100}%`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,transition:"left 1.1s ease,top 1.1s ease",filter:"drop-shadow(0 2px 4px rgba(0,0,0,1))",zIndex:5}}>
                 {dot.emoji}
               </div>)}
+              {gridPopups.filter(p=>p.expires>Date.now()).map(p=>(
+                <div key={p.id} style={{position:"absolute",left:`${(p.c/GC)*100}%`,top:`${(p.r/GR)*100}%`,color:p.color,fontSize:10,fontWeight:900,animation:"float-up 2.8s ease-out forwards",pointerEvents:"none",zIndex:20,whiteSpace:"nowrap",textShadow:"0 1px 6px rgba(0,0,0,0.9)",fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{p.text}</div>
+              ))}
               {bubbles.filter(b=>b.expires>Date.now()).map(b=>(
                 <div key={b.id} style={{
                   position:"absolute",
