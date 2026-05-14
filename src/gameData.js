@@ -59,11 +59,11 @@ export const VIP_EVENTS = [{id:"school",emoji:"🎒",bonusVis:160,bonusRev:2200,
 export const RB_BRANCHES = {ride:{emoji:"🎡",color:"#FF6B9D"},commerce:{emoji:"💰",color:"#FECA57"},ops:{emoji:"⚙️",color:"#48DBFB"},prestige:{emoji:"⭐",color:"#A29BFE"},expansion:{emoji:"🚀",color:"#5EF6A0"}};
 
 export const RESEARCH = [
-  {id:"r1",branch:"ride",tier:1,emoji:"⚡",cost:5,req:null}, {id:"r2",branch:"ride",tier:1,emoji:"🛡️",cost:7,req:null}, {id:"r3",branch:"ride",tier:2,emoji:"🔋",cost:10,req:"r1"}, {id:"r4",branch:"ride",tier:3,emoji:"🛋️",cost:15,req:"r3"},
-  {id:"c1",branch:"commerce",tier:1,emoji:"📈",cost:5,req:null}, {id:"c2",branch:"commerce",tier:1,emoji:"🎫",cost:7,req:null}, {id:"c3",branch:"commerce",tier:2,emoji:"💎",cost:10,req:"c1"}, {id:"c4",branch:"commerce",tier:3,emoji:"🏆",cost:15,req:"c3"},
-  {id:"o1",branch:"ops",tier:1,emoji:"⚙️",cost:5,req:null}, {id:"o2",branch:"ops",tier:1,emoji:"🤖",cost:6,req:null}, {id:"o3",branch:"ops",tier:2,emoji:"🌱",cost:10,req:"o1"}, {id:"o4",branch:"ops",tier:3,emoji:"🧠",cost:15,req:"o3"},
-  {id:"p1",branch:"prestige",tier:1,emoji:"📺",cost:5,req:null}, {id:"p2",branch:"prestige",tier:1,emoji:"📱",cost:6,req:null}, {id:"p3",branch:"prestige",tier:2,emoji:"🥇",cost:10,req:"p1"}, {id:"p4",branch:"prestige",tier:3,emoji:"🌍",cost:15,req:"p3"},
-  {id:"ex1",branch:"expansion",tier:1,emoji:"🎪",cost:8,req:null}, {id:"ex2",branch:"expansion",tier:2,emoji:"🌐",cost:12,req:"ex1"}, {id:"ex3",branch:"expansion",tier:2,emoji:"🤖",cost:12,req:"ex1"}, {id:"ex4",branch:"expansion",tier:3,emoji:"🔮",cost:18,req:"ex2"},
+  {id:"r1",branch:"ride",tier:1,emoji:"⚡",cost:5,req:null}, {id:"r2",branch:"ride",tier:1,emoji:"🛡️",cost:7,req:null}, {id:"r3",branch:"ride",tier:2,emoji:"🔋",cost:10,req:"r1"}, {id:"r4",branch:"ride",tier:3,emoji:"🛋️",cost:11,req:"r3"},
+  {id:"c1",branch:"commerce",tier:1,emoji:"📈",cost:5,req:null}, {id:"c2",branch:"commerce",tier:1,emoji:"🎫",cost:7,req:null}, {id:"c3",branch:"commerce",tier:2,emoji:"💎",cost:10,req:"c1"}, {id:"c4",branch:"commerce",tier:3,emoji:"🏆",cost:11,req:"c3"},
+  {id:"o1",branch:"ops",tier:1,emoji:"⚙️",cost:5,req:null}, {id:"o2",branch:"ops",tier:1,emoji:"🤖",cost:6,req:null}, {id:"o3",branch:"ops",tier:2,emoji:"🌱",cost:10,req:"o1"}, {id:"o4",branch:"ops",tier:3,emoji:"🧠",cost:11,req:"o3"},
+  {id:"p1",branch:"prestige",tier:1,emoji:"📺",cost:5,req:null}, {id:"p2",branch:"prestige",tier:1,emoji:"📱",cost:6,req:null}, {id:"p3",branch:"prestige",tier:2,emoji:"🥇",cost:10,req:"p1"}, {id:"p4",branch:"prestige",tier:3,emoji:"🌍",cost:11,req:"p3"},
+  {id:"ex1",branch:"expansion",tier:1,emoji:"🎪",cost:8,req:null}, {id:"ex2",branch:"expansion",tier:2,emoji:"🌐",cost:12,req:"ex1"}, {id:"ex3",branch:"expansion",tier:2,emoji:"🤖",cost:12,req:"ex1"}, {id:"ex4",branch:"expansion",tier:3,emoji:"🔮",cost:13,req:"ex2"},
 ];
 
 export const MISSIONS = [
@@ -301,17 +301,17 @@ export const STAGES = [
 
 export const B = {
   entrance:    {emoji:"🎪",baseCost:0,    cat:"ride",   size:{w:2,h:1},color:"#FF6B6B",upgradeCost:[3000,8000],  stats:lv=>({attraction:5+lv*4,  rpv:0,      maintenance:0,         satBonus:0, cap:0})},
-  ferrisWheel: {emoji:"🎡",baseCost:6500, cat:"ride",   size:{w:2,h:3},color:"#4ECDC4",upgradeCost:[4000,10000], stats:lv=>({attraction:15+lv*8, rpv:0,      maintenance:180+lv*60, satBonus:0, cap:50+lv*25})},
-  rollerCoaster:{emoji:"🎢",baseCost:18000,cat:"ride",  size:{w:5,h:3},color:"#FF6B9D",upgradeCost:[10000,25000],stats:lv=>({attraction:40+lv*15,rpv:0,      maintenance:450+lv*150,satBonus:0, cap:70+lv*30})},
-  carousel:    {emoji:"🎠",baseCost:4500, cat:"ride",   size:{w:2,h:2},color:"#C7B8EA",upgradeCost:[2500,6000],  stats:lv=>({attraction:12+lv*5, rpv:0,      maintenance:130+lv*40, satBonus:lv,cap:35+lv*15})},
-  thrillRide:  {emoji:"🚀",baseCost:12000,cat:"ride",   size:{w:3,h:3},color:"#FF9F43",upgradeCost:[7000,18000], stats:lv=>({attraction:25+lv*12,rpv:0,      maintenance:300+lv*100,satBonus:0, cap:45+lv*20})},
-  waterRide:   {emoji:"💦",baseCost:10000,cat:"ride",   size:{w:3,h:3},color:"#54A0FF",upgradeCost:[6000,15000], stats:lv=>({attraction:20+lv*10,rpv:0,      maintenance:250+lv*90, satBonus:0, cap:60+lv*25})},
-  bumperCars:  {emoji:"🚗",baseCost:3200, cat:"ride",   size:{w:2,h:2},color:"#FF4757",upgradeCost:[2000,5000],  stats:lv=>({attraction:10+lv*5, rpv:0,      maintenance:100+lv*40, satBonus:2+lv,cap:40+lv*20})},
-  dropTower:   {emoji:"🗼",baseCost:15000,cat:"ride",   size:{w:2,h:4},color:"#2F3542",upgradeCost:[8000,20000], stats:lv=>({attraction:35+lv*14,rpv:0,      maintenance:400+lv*130,satBonus:0, cap:30+lv*15})},
-  miniTrain:   {emoji:"🚂",baseCost:2800, cat:"ride",   size:{w:3,h:2},color:"#8B7355",upgradeCost:[1500,4000],  stats:lv=>({attraction:8+lv*4,  rpv:0,      maintenance:80+lv*30,  satBonus:3+lv,cap:60+lv*30})},
-  hauntedHouse:{emoji:"👻",baseCost:8500, cat:"ride",   size:{w:3,h:2},color:"#5F27CD",upgradeCost:[5000,12000], stats:lv=>({attraction:22+lv*10,rpv:0,      maintenance:200+lv*80, satBonus:0, cap:25+lv*10})},
-  cinema4D:    {emoji:"🎥",baseCost:8000, cat:"ride",   size:{w:3,h:2},color:"#3742FA",upgradeCost:[4000,10000], stats:lv=>({attraction:18+lv*7, rpv:2+lv,   maintenance:160+lv*60, satBonus:2+lv,cap:80+lv*30})},
-  balloonRide: {emoji:"🎈",baseCost:6000, cat:"ride",   size:{w:2,h:3},color:"#FF9FF3",upgradeCost:[3000,7000],  stats:lv=>({attraction:14+lv*6, rpv:0,      maintenance:140+lv*50, satBonus:3+lv,cap:20+lv*10})},
+  ferrisWheel: {emoji:"🎡",baseCost:6500, cat:"ride",   size:{w:2,h:3},color:"#4ECDC4",upgradeCost:[4000,10000], flavor:{ko:"커플 명소 — 높은 수용인원",en:"Couple hotspot — high capacity"},stats:lv=>({attraction:15+lv*8, rpv:0,      maintenance:180+lv*60, satBonus:0, cap:50+lv*25})},
+  rollerCoaster:{emoji:"🎢",baseCost:18000,cat:"ride",  size:{w:5,h:3},color:"#FF6B9D",upgradeCost:[10000,25000],flavor:{ko:"최강 어트랙션 — 별점 상승에 최고",en:"Peak attraction — best for star rating"},stats:lv=>({attraction:40+lv*15,rpv:0,      maintenance:450+lv*150,satBonus:0, cap:70+lv*30})},
+  carousel:    {emoji:"🎠",baseCost:4500, cat:"ride",   size:{w:2,h:2},color:"#C7B8EA",upgradeCost:[2500,6000],  flavor:{ko:"가족·아이 전문 — 만족도 보너스",en:"Family & kid — satisfaction bonus"},stats:lv=>({attraction:12+lv*5, rpv:0,      maintenance:130+lv*40, satBonus:lv,cap:35+lv*15})},
+  thrillRide:  {emoji:"🚀",baseCost:12000,cat:"ride",   size:{w:3,h:3},color:"#FF9F43",upgradeCost:[7000,18000], flavor:{ko:"스릴 마니아 전용 — 가성비 중간",en:"Thrill seekers — solid mid-tier value"},stats:lv=>({attraction:25+lv*12,rpv:0,      maintenance:300+lv*100,satBonus:0, cap:45+lv*20})},
+  waterRide:   {emoji:"💦",baseCost:10000,cat:"ride",   size:{w:3,h:3},color:"#54A0FF",upgradeCost:[6000,15000], flavor:{ko:"여름 시즌 최강 — 높은 수용인원",en:"Summer season best — high capacity"},stats:lv=>({attraction:20+lv*10,rpv:0,      maintenance:250+lv*90, satBonus:0, cap:60+lv*25})},
+  bumperCars:  {emoji:"🚗",baseCost:3200, cat:"ride",   size:{w:2,h:2},color:"#FF4757",upgradeCost:[2000,5000],  flavor:{ko:"저비용 초반 필수 — 만족도+어트랙션",en:"Budget early pick — satisfaction + attraction"},stats:lv=>({attraction:10+lv*5, rpv:0,      maintenance:100+lv*40, satBonus:2+lv,cap:40+lv*20})},
+  dropTower:   {emoji:"🗼",baseCost:15000,cat:"ride",   size:{w:2,h:4},color:"#2F3542",upgradeCost:[8000,20000], flavor:{ko:"좁은 공간 고효율 — 수직형 배치 가능",en:"Small footprint, high draw — fits in tight spaces"},stats:lv=>({attraction:35+lv*14,rpv:0,      maintenance:400+lv*130,satBonus:0, cap:30+lv*15})},
+  miniTrain:   {emoji:"🚂",baseCost:2800, cat:"ride",   size:{w:3,h:2},color:"#8B7355",upgradeCost:[1500,4000],  flavor:{ko:"아이·가족 특화 — 수용인원 최대",en:"Kid & family specialist — highest capacity"},stats:lv=>({attraction:8+lv*4,  rpv:0,      maintenance:80+lv*30,  satBonus:3+lv,cap:60+lv*30})},
+  hauntedHouse:{emoji:"👻",baseCost:8500, cat:"ride",   size:{w:3,h:2},color:"#5F27CD",upgradeCost:[5000,12000], flavor:{ko:"커플·스릴 전용 — 야간 방문객 유인",en:"Couple & thrill draw — unique nighttime appeal"},stats:lv=>({attraction:22+lv*10,rpv:0,      maintenance:200+lv*80, satBonus:0, cap:25+lv*10})},
+  cinema4D:    {emoji:"🎥",baseCost:8000, cat:"ride",   size:{w:3,h:2},color:"#3742FA",upgradeCost:[4000,10000], flavor:{ko:"유일한 라이드+수익 겸용 — 날씨 무관",en:"Only ride with shop revenue — weather immune"},stats:lv=>({attraction:18+lv*7, rpv:2+lv,   maintenance:160+lv*60, satBonus:2+lv,cap:80+lv*30})},
+  balloonRide: {emoji:"🎈",baseCost:6000, cat:"ride",   size:{w:2,h:3},color:"#FF9FF3",upgradeCost:[3000,7000],  flavor:{ko:"커플·가족 분위기 — 높은 만족도 보너스",en:"Couple & family ambiance — strong sat bonus"},stats:lv=>({attraction:14+lv*6, rpv:0,      maintenance:140+lv*50, satBonus:3+lv,cap:20+lv*10})},
   foodStall:   {emoji:"🍔",baseCost:2500, cat:"shop",   size:{w:1,h:1},color:"#FECA57",upgradeCost:[2000,5000],  stats:lv=>({attraction:2+lv,    rpv:3+lv*2, maintenance:65+lv*25,  satBonus:lv,cap:0})},
   iceCream:    {emoji:"🍦",baseCost:1600, cat:"shop",   size:{w:1,h:1},color:"#48DBFB",upgradeCost:[1500,4000],  stats:lv=>({attraction:3+lv,    rpv:2+lv*2, maintenance:40+lv*16,  satBonus:0, cap:0})},
   giftShop:    {emoji:"🛍️",baseCost:4500, cat:"shop",   size:{w:2,h:2},color:"#FF9FF3",upgradeCost:[3000,8000],  stats:lv=>({attraction:1,       rpv:5+lv*4, maintenance:100+lv*40, satBonus:0, cap:0})},
@@ -336,6 +336,13 @@ export const STAFF_UPGRADES = {
   security:   [{lv:1,upgCost:0},{lv:2,upgCost:3500,desc:{ko:"전문 보안팀",en:"Pro Security"},sat:4,disasterPen:0.75},{lv:3,upgCost:7000,desc:{ko:"엘리트 경호대",en:"Elite Guard"},sat:7,disasterPen:0.55}],
   entertainer:[{lv:1,upgCost:0},{lv:2,upgCost:2500,desc:{ko:"인기 퍼포머",en:"Popular Performer"},visMult:0.10,sat:3},{lv:3,upgCost:5000,desc:{ko:"스타 퍼포머",en:"Star Performer"},visMult:0.18,sat:6}],
 };
+export const BONUS_EVENTS = [
+  {id:"news",     emoji:"📰", name:{ko:"지역 뉴스 특집",   en:"Local News Feature"},   reward:{$:2000, rp:2}},
+  {id:"donation", emoji:"🎁", name:{ko:"지역 사회 후원",   en:"Community Donation"},   reward:{$:3500, rp:0}},
+  {id:"blog",     emoji:"✈️", name:{ko:"여행 블로그 소개", en:"Travel Blog Feature"},  reward:{$:1000, rp:4}},
+  {id:"grant",    emoji:"🔬", name:{ko:"연구 지원금 수령", en:"Research Grant"},        reward:{$:500,  rp:6}},
+  {id:"festival", emoji:"🎪", name:{ko:"지역 축제 연계",   en:"Local Festival Tie-in"},reward:{$:2500, rp:1}},
+];
 export const RIVAL_PARKS = [
   {id:"rival1",emoji:"🏟️",name:{ko:"행복 놀이공원",en:"Happy Land"},growRate:0.9,startDay:20,initPres:6},
   {id:"rival2",emoji:"🌟",name:{ko:"스타월드",en:"StarWorld"},growRate:1.6,startDay:45,initPres:12},

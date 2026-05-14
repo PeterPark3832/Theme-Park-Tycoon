@@ -8,7 +8,7 @@ import {
   WEATHERS, WEATHER_WEIGHTS, DEFAULT_RIDE_PRICES, DEFAULT_SHOP_MULTS, MAX_FEE_BY_STARS,
   LANG_FLAGS, TR, SCENARIOS, DIFFICULTY_SETTINGS, STAGES, B,
   STAFF, STAFF_UPGRADES, RIVAL_PARKS, FRANCHISES, ZONE_MASTERY, LOAN_OPTS, DOTS, TUTORIAL_STEPS, DAILY_CHALLENGES, SCENARIO_CLEAR_REWARDS, SCENARIO_DIFFICULTY,
-  RIVAL_EVENTS, ACHIEVEMENTS,
+  RIVAL_EVENTS, ACHIEVEMENTS, BONUS_EVENTS,
 } from './gameData.js';
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
 import {
@@ -636,6 +636,15 @@ export default function ParkTycoon(){
         }
       }
 
+      // Mid-game bonus events (~4% chance per day, from day 20 onwards)
+      if(!newDisaster&&!dWarn&&gm!=="sandbox"&&day>=20&&Math.random()<0.04){
+        const ev=BONUS_EVENTS[Math.floor(Math.random()*BONUS_EVENTS.length)];
+        if(ev.reward.$>0) setMoney(m=>m+ev.reward.$);
+        if(ev.reward.rp>0) setResearchPoints(rp=>rp+ev.reward.rp);
+        addLog(`${ev.emoji} ${lang==="ko"?ev.name.ko:ev.name.en}!${ev.reward.$>0?` +$${ev.reward.$.toLocaleString()}`:""}${ev.reward.rp>0?` +${ev.reward.rp}RP`:""}`);
+        if(ref.current.soundOn) playSound("mission");
+      }
+
       // Phase 2-3: press review (every 15 days)
       let newPressReviews=[...prevReviews];
       let newPendingReview=null;
@@ -977,6 +986,10 @@ export default function ParkTycoon(){
       if((e.key==="r"||e.key==="R")&&!e.ctrlKey&&!e.metaKey&&ref.current.lastBuilt){
         setSelected(ref.current.lastBuilt);setBuildMode("build");
       }
+      if(e.code==="Tab"){e.preventDefault();const tabs=["build","manage","finance","marketing","research","mission"];setTab(t=>{const i=tabs.indexOf(t);return tabs[(i+1)%tabs.length];});}
+      if((e.key==="b"||e.key==="B")&&!e.ctrlKey&&!e.metaKey){setBuildMode("build");setZonePaint(null);setSelected(null);}
+      if((e.key==="d"||e.key==="D")&&!e.ctrlKey&&!e.metaKey){setBuildMode("demolish");setSelected(null);}
+      if((e.key==="z"||e.key==="Z")&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey){setBuildMode("zone");setSelected(null);}
     };
     window.addEventListener("keydown",handler);
     return()=>window.removeEventListener("keydown",handler);
@@ -1489,6 +1502,7 @@ export default function ParkTycoon(){
                 </button>
               ))}
             </div>
+            {isMobile&&<div style={{textAlign:"center",fontSize:10,color:"#FF9F43",marginBottom:10,padding:"5px 10px",background:"rgba(255,159,67,0.06)",border:"1px solid rgba(255,159,67,0.2)",borderRadius:6}}>📱 {lang==="ko"?"PC·태블릿에서 플레이하면 더 좋은 경험을 즐기실 수 있어요":"Best experienced on PC or tablet"}</div>}
             <div style={{fontSize:10,color:"#7788BB",textAlign:"center",letterSpacing:3,textTransform:"uppercase",marginBottom:10}}>{t("menu.loadGame")}</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
               {slots.map((slot,i)=>(
@@ -2102,6 +2116,7 @@ export default function ParkTycoon(){
                         </div>
                         {isBldHov&&<div style={{background:"#1A1A3A",borderRadius:"0 0 5px 5px",padding:"4px 6px",marginBottom:2,fontSize:10,color:"#C7B8EA",lineHeight:1.6,border:`1px solid ${bd.color}22`,borderTop:"none"}}>
                           {isLocked&&<div style={{color:"#FF9F43",fontWeight:700,marginBottom:2}}>🔒 {lang==="ko"?"연구 탭 → VIP 언락 (r4) 필요":"Research tab → VIP Unlock (r4) required"}</div>}
+                          {bd.flavor&&<div style={{color:"#A29BFE",fontStyle:"italic",marginBottom:3,fontSize:9}}>✨ {bd.flavor[lang]||bd.flavor.ko}</div>}
                           {bd.stats(0).attraction>0&&<div>⭐ {lang==="ko"?"어트랙션":"Attraction"} +{bd.stats(0).attraction}</div>}
                           {bd.stats(0).maintenance>0&&<div>🔧 {lang==="ko"?"유지비":"Upkeep"} ${bd.stats(0).maintenance}/{lang==="ko"?"일":"day"}</div>}
                           {bd.stats(0).satBonus>0&&<div>😊 {lang==="ko"?"만족도":"Happiness"} +{bd.stats(0).satBonus}</div>}
