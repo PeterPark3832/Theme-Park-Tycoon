@@ -283,6 +283,9 @@ export default function ParkTycoon(){
   const disasterDrumRef=useRef(null); // cleanup fn for disaster bass drum
   const [uiSettings,setUiSettings]=useState(()=>{try{return JSON.parse(localStorage.getItem('uiSettings'))||{fontSize:'medium'};}catch{return{fontSize:'medium'};}});
   const [showSettings,setShowSettings]=useState(false);
+  const [bottomSheetOpen,setBottomSheetOpen]=useState(false);
+  const [placementPreview,setPlacementPreview]=useState(null);
+  const [minimapOpen,setMinimapOpen]=useState(false);
   // Phase 3 new states
   const [weatherForecast,setWeatherForecast]=useState([]);
   const [rivalEventActive,setRivalEventActive]=useState(null); // {event,remaining,rivalName}
@@ -1482,9 +1485,10 @@ export default function ParkTycoon(){
     return Object.fromEntries(currentScenarioData.obstacles.map(o=>[`${o.r},${o.c}`,o]));
   },[currentScenario]);
 
-  const handleGridClick=(r,c)=>{
+  const handleGridClick=(r,c,skipPreview=false)=>{
     const{ownedGrid:og,grid:g,money:m}=ref.current;
     if(!og[r][c]){addLog(t("log.unownedLand"));return;}
+    if(isMobile&&!skipPreview&&buildMode==="build"&&selected){setPlacementPreview({r,c});return;}
     if(obstacleMap[`${r},${c}`]&&buildMode==="build"&&selected){addLog(lang==="ko"?"⛰️ 지형 장애물이 있어 건설 불가":"⛰️ Terrain obstacle — cannot build here");return;}
 
     // 존 페인트 모드 — 멀티셀 건물이면 전체 footprint에 존 적용
@@ -2285,8 +2289,8 @@ export default function ParkTycoon(){
         </div>
       )}
 
-      {/* TOP BAR — 2행 구조 */}
-      <div style={{background:"linear-gradient(180deg,#0A0D22 0%,#07091A 100%)",borderBottom:"1px solid rgba(100,120,255,0.15)",boxShadow:"0 2px 20px rgba(0,0,0,0.5)",flexShrink:0}}>
+      {/* TOP BAR — 2행 구조 (PC/tablet only) */}
+      {!isMobile&&<div style={{background:"linear-gradient(180deg,#0A0D22 0%,#07091A 100%)",borderBottom:"1px solid rgba(100,120,255,0.15)",boxShadow:"0 2px 20px rgba(0,0,0,0.5)",flexShrink:0}}>
         {/* 1행: 로고 / 모드 / 날씨·별점·단계 / 저장·속도 */}
         <div className="topbar-row1" style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
           <button style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.10)",color:"#6B7CA1",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:10,fontFamily:"inherit",whiteSpace:"nowrap",transition:"all 0.15s"}} onClick={()=>{setSpeed(0);setScreen("menu");}}>{t("btn.menu")}</button>
@@ -2572,14 +2576,14 @@ export default function ParkTycoon(){
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
-      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+      <div style={{display:"flex",flex:1,overflow:"hidden",paddingBottom:isMobile?56:0}}>
         {isMobile && !panelCollapsed && (
           <div onClick={() => setPanelCollapsed(true)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:49}} />
         )}
         <div className="side-panel" style={
-          isMobile?{position:"fixed",top:0,left:0,bottom:0,width:230,zIndex:50,transform:panelCollapsed?"translateX(-100%)":"translateX(0)",transition:"transform 0.25s ease",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",overflowY:"auto"}:
+          isMobile?{display:"none"}:
           isPC?{width:216,minWidth:216,overflow:"hidden",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",display:"flex",flexDirection:"column",flexShrink:0}:
           {width:panelCollapsed?0:190,minWidth:panelCollapsed?0:190,overflow:panelCollapsed?"hidden":"visible",transition:"width 0.2s",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",flexShrink:0}
         }>
@@ -3754,8 +3758,8 @@ export default function ParkTycoon(){
           </div>
         </div>
 
-        {/* ── Panel Collapse Toggle (tablet/mobile only) ── */}
-        {!isPC&&<button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:isMobile?36:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#7788BB",cursor:"pointer",fontSize:isMobile?16:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?(lang==="ko"?"패널 열기":"Open panel"):(lang==="ko"?"패널 닫기":"Close panel")}>{panelCollapsed?"▶":"◀"}</button>}
+        {/* ── Panel Collapse Toggle (tablet only, not mobile) ── */}
+        {!isPC&&!isMobile&&<button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#7788BB",cursor:"pointer",fontSize:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?(lang==="ko"?"패널 열기":"Open panel"):(lang==="ko"?"패널 닫기":"Close panel")}>{panelCollapsed?"▶":"◀"}</button>}
 
         {/* ── GRID + LOG ── */}
         <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:7,gap:5,overflow:"hidden",background:"var(--bg-deep)"}}
