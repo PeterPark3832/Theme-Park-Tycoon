@@ -143,6 +143,12 @@ function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,bgMusicOn,se
   );
 }
 
+const rideList=Object.entries(B).filter(([,b])=>b.cat==="ride");
+const shopList=Object.entries(B).filter(([,b])=>b.cat==="shop");
+const facilList=Object.entries(B).filter(([,b])=>b.cat==="facility");
+const pathList=Object.entries(B).filter(([,b])=>b.cat==="path");
+const decoList=Object.entries(B).filter(([,b])=>b.cat==="deco");
+
 export default function ParkTycoon(){
   const [screen,setScreen]=useState("menu");
   const [gameMode,setGameMode]=useState(null);
@@ -1890,11 +1896,6 @@ export default function ParkTycoon(){
     };
   })() : null;
 
-  const rideList=Object.entries(B).filter(([,b])=>b.cat==="ride");
-  const shopList=Object.entries(B).filter(([,b])=>b.cat==="shop");
-  const facilList=Object.entries(B).filter(([,b])=>b.cat==="facility");
-  const pathList=Object.entries(B).filter(([,b])=>b.cat==="path");
-  const decoList=Object.entries(B).filter(([,b])=>b.cat==="deco");
 
   if(!langChosen){
     return(
