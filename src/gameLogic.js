@@ -147,6 +147,13 @@ export function calcStats(grid, zg, hired, rb) {
   const anyPaths=grid.some(r=>r.some(c=>c?.type==="_path"||c?.type==="_pathFancy"));
   const reach=anyPaths?getReachablePaths(grid):new Set();
   const zoneInfo=calcZoneInfo(zg);
+  // pre-count ride types for stacking diminishing returns
+  const rideTypeCounts={};
+  for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
+    const cell=grid[r][c]; if(!cell||cell.ref||cell.broken) continue;
+    const bd=B[cell.type]; if(bd?.cat==="ride"&&cell.type!=="entrance") rideTypeCounts[cell.type]=(rideTypeCounts[cell.type]||0)+1;
+  }
+  const rideTypeIdx={};
   for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
     const cell=grid[r][c]; if(!cell||cell.ref) continue;
     if(cell.broken){brokenCount++;continue;}
@@ -160,7 +167,13 @@ export function calcStats(grid, zg, hired, rb) {
     const ok=passive||!anyPaths||hasBuildingPath(reach,r,c,w,h);
     if(!ok) isolatedCount++;
     const pm=ok?1:0.6;
-    attraction+=st.attraction*zm.am*pm*(bd.cat==="ride"?rb.attractionMult:1);
+    // stacking diminishing returns: same ride type 3rd+ instance → ×0.8
+    let stackMult=1;
+    if(bd.cat==="ride"&&cell.type!=="entrance"){
+      rideTypeIdx[cell.type]=(rideTypeIdx[cell.type]||0)+1;
+      if(rideTypeIdx[cell.type]>=3) stackMult=0.8;
+    }
+    attraction+=st.attraction*zm.am*pm*stackMult*(bd.cat==="ride"?rb.attractionMult:1);
     rpv+=st.rpv*zm.rm*pm*(bd.cat==="shop"?rb.rpvMult:1);
     maintenance+=st.maintenance;
     satBonus+=(st.satBonus||0)*zm.sm*pm;
@@ -290,20 +303,20 @@ export function getRB(r) {
   const h = id => r.includes(id);
   const baseMaint = h("o4") ? 0.70 : h("o3") ? 0.75 : h("o1") ? 0.85 : 1;
   return {
-    attractionMult: (h("r1") ? 1.15 : 1) * (h("ex4") ? 1.30 : 1),
-    breakMult: h("r2") ? 0.5 : 1,
-    capacityBonus: h("r3") ? 1.25 : 1,
+    attractionMult: (h("r1") ? 1.15 : 1) * (h("ex4") ? 1.30 : 1) * (h("r5") ? 1.20 : 1),
+    breakMult: h("r2") ? (h("o5") ? 0.25 : 0.5) : (h("o5") ? 0.60 : 1),
+    capacityBonus: (h("r3") ? 1.25 : 1) * (h("ex5") ? 1.50 : 1),
     vipUnlocked: h("r4"),
-    admissionMult: h("c1") ? 1.20 : 1,
+    admissionMult: (h("c1") ? 1.20 : 1) * (h("c5") ? 1.15 : 1),
     passRateMult: h("c2") ? 1.5 : 1,
-    rpvMult: h("c3") ? 1.20 : 1,
+    rpvMult: (h("c3") ? 1.20 : 1) * (h("c5") ? 1.25 : 1),
     passIncomeMult: h("c4") ? 1.5 : 1,
     maintenanceMult: h("ex3") ? baseMaint * 0.80 : baseMaint,
     autoRepairBonus: (h("o4") ? 0.2 : 0) + (h("ex3") ? 0.3 : 0),
     cleanBonus: h("o2") ? 5 : 0,
-    prestigeRateMult: h("p3") ? 1.56 : h("p1") ? 1.3 : 1,
+    prestigeRateMult: (h("p3") ? 1.56 : h("p1") ? 1.3 : 1) * (h("p5") ? 2.0 : 1),
     coupleBonus: h("p2") ? 0.20 : 0,
-    globalVisBonus: (h("p4") ? 0.25 : 0) + (h("ex2") ? 0.20 : 0),
+    globalVisBonus: (h("p4") ? 0.25 : 0) + (h("ex2") ? 0.20 : 0) + (h("p5") ? 0.35 : 0) + (h("ex5") ? 0.20 : 0),
     holidayEventMult: h("ex1") ? 1.30 : 1.0,
   };
 }

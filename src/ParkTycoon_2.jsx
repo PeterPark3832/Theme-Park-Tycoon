@@ -241,7 +241,9 @@ export default function ParkTycoon(){
   const [earnedAchievements,setEarnedAchievements]=useState([]);
   const [achievementFlash,setAchievementFlash]=useState(null);
   const [lastDemolishGrid,setLastDemolishGrid]=useState(null);
+  const [lastBuildGrid,setLastBuildGrid]=useState(null);
   const [lastBuilt,setLastBuilt]=useState(null);
+  const buildUndoTimerRef=useRef(null);
   const [buildSearch,setBuildSearch]=useState("");
   const [buildCatFilter,setBuildCatFilter]=useState(null);
   const undoTimerRef=useRef(null);
@@ -864,7 +866,7 @@ export default function ParkTycoon(){
       setPassHolders(newPH);setActiveDisaster(newDisaster);
       setTotalRev(r=>r+Math.max(0,totalRevDay));setTotalVis(t=>t+vis);setDay(d=>d+1);
       // RP: 기본 3/일 + 방문객 20명당 +1 (최대 +5) + 미션 보상 + perk 보너스
-      const rpBase=Math.min(8,3+Math.floor(vis/20));
+      const rpBase=Math.min(10,4+Math.floor(vis/20));
       const rpGain=(ref.current.startPerk==="rpBoost"?rpBase*2:rpBase)+mR;
       setResearchPoints(p=>p+rpGain);setActiveMissions(newActive);setCompletedMissions(newCompleted);
       setDailyHistory(h=>[...h.slice(-59),{day:day+1,revenue:totalRevDay,admRev:Math.floor(admRev*revMult),rideRev:Math.floor(rideRev*revMult),shopRev:Math.floor(shopRev*revMult),passInc,expenses:Math.round(maint)+wages+loanPay,net,visitors:vis,sat:Math.round(newSat)}]);
@@ -1167,6 +1169,10 @@ export default function ParkTycoon(){
       if(g[nr][nc]){addLog(t("log.alreadyBuilt"));return;}
     }
 
+    const savedGrid=grid.map(row=>[...row]);
+    setLastBuildGrid(savedGrid);
+    if(buildUndoTimerRef.current) clearTimeout(buildUndoTimerRef.current);
+    buildUndoTimerRef.current=setTimeout(()=>setLastBuildGrid(null),30000);
     setGrid(prev=>{
       const n=prev.map(row=>[...row]);
       n[r][c]={type:selected,level:0,broken:false};
@@ -1191,6 +1197,7 @@ export default function ParkTycoon(){
   const demolish=()=>{const{r,c,cell}=clickedTile;const refund=Math.floor(B[cell.type].baseCost*0.4);setDemolishConfirm({r,c,cell,refund});};
   const confirmDemolish=()=>{if(!demolishConfirm) return;const{r,c,cell,refund}=demolishConfirm;const bw=B[cell.type]?.size?.w||1;const bh=B[cell.type]?.size?.h||1;const savedGrid=grid.map(row=>[...row]);setLastDemolishGrid(savedGrid);if(undoTimerRef.current) clearTimeout(undoTimerRef.current);undoTimerRef.current=setTimeout(()=>setLastDemolishGrid(null),30000);setGrid(prev=>{const n=prev.map(row=>[...row]);for(let dr=0;dr<bh;dr++) for(let dc=0;dc<bw;dc++) n[r+dr][c+dc]=null;return n;});setMoney(m=>m+refund);addLog(t("log.demolish"));setClickedTile(null);if(soundOn) playSound("demolish");setDemolishConfirm(null);};
   const undoDemolish=()=>{if(!lastDemolishGrid) return;setGrid(lastDemolishGrid);setLastDemolishGrid(null);if(undoTimerRef.current) clearTimeout(undoTimerRef.current);addLog(lang==="ko"?"↩️ 철거 취소됨":"↩️ Demolish undone");};
+  const undoBuild=()=>{if(!lastBuildGrid) return;const cost=B[lastBuilt]?.baseCost||0;setGrid(lastBuildGrid);setMoney(m=>m+cost);setLastBuildGrid(null);if(buildUndoTimerRef.current) clearTimeout(buildUndoTimerRef.current);addLog(lang==="ko"?"↩️ 건설 취소됨":"↩️ Build undone");};
 
   const handleDragEnter=(r,c)=>{
     const drag=dragBuildRef.current;
@@ -1219,7 +1226,7 @@ export default function ParkTycoon(){
     if(opt.amount>money*2){addLog(lang==="ko"?"대출 한도 초과 (현재 자금의 2배)":"Loan limit exceeded (2× current funds)");return;}
     const total=Math.floor(opt.amount*(1+opt.rate));const daily=Math.ceil(total/opt.days);setLoans(l=>[...l,{id:Date.now(),amount:opt.amount,remaining:total,dailyPayment:daily,rate:opt.rate}]);setMoney(m=>m+opt.amount);addLog(t("log.loan"));
   };
-  const buyParcel=p=>{if(ref.current.money<p.cost){addLog(t("log.noMoney"));return;}if(p.req&&!parcels.includes(p.req)){addLog(t("log.needPrevParcel"));return;}setOwnedGrid(prev=>{const n=prev.map(r=>[...r]);for(let r=0;r<GR;r++) for(let co=p.cols[0];co<=p.cols[1];co++) n[r][co]=true;return n;});setParcels(prev=>[...prev,p.id]);setMoney(m=>m-p.cost);addLog(t("log.parcelBought",{name:p.label?.[lang]||p.label?.ko||p.label}));};
+  const buyParcel=p=>{if(currentScenarioData?.noParcels){addLog(lang==="ko"?"🚫 이 시나리오는 토지 매입 불가":"🚫 Land purchase not allowed in this scenario");return;}if(ref.current.money<p.cost){addLog(t("log.noMoney"));return;}if(p.req&&!parcels.includes(p.req)){addLog(t("log.needPrevParcel"));return;}setOwnedGrid(prev=>{const n=prev.map(r=>[...r]);for(let r=0;r<GR;r++) for(let co=p.cols[0];co<=p.cols[1];co++) n[r][co]=true;return n;});setParcels(prev=>[...prev,p.id]);setMoney(m=>m-p.cost);addLog(t("log.parcelBought",{name:p.label?.[lang]||p.label?.ko||p.label}));};
   const launchCampaign=key=>{const c=CAMPAIGNS_DATA[key];if(ref.current.money<c.cost){addLog(t("log.noMoney"));return;}setCampaigns(p=>[...p,{id:Date.now(),key,emoji:c.emoji,boost:c.boost,seg:c.seg,remaining:c.days,days:c.days}]);setMoney(m=>m-c.cost);addLog(t("log.campaignStart", {name: t(`camp.${key}`)}));};
   const acceptVIP=()=>{const evt=pendingVIP;const ok=checkVIPReq(ref.current.grid,evt.req);if(!ok){addLog(t("log.vipReqFail", {name: t(`vip.${evt.id}`)}));setPendingVIP(null);return;}setMoney(m=>m+evt.bonusRev);setPrestigeBonus(s=>s+evt.presBonus);setVipCount(v=>v+1);setPendingVIP(null);addLog(t("log.vipSuccess", {name: t(`vip.${evt.id}`)}));};
   const resolveDisaster=()=>{if(!activeDisaster?.resolveCost) return;if(ref.current.money<activeDisaster.resolveCost){addLog(t("log.resolveNoMoney"));return;}setMoney(m=>m-activeDisaster.resolveCost);setActiveDisaster(null);addLog(t("log.disasterSolved"));};
@@ -2178,6 +2185,7 @@ export default function ParkTycoon(){
                 </>}
               </div>}
               {buildMode==="build"&&<>
+                {lastBuildGrid&&<button style={{marginBottom:4,width:"100%",padding:"5px 0",background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.4)",color:"#9B9FFF",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}} onClick={undoBuild}>↩️ {lang==="ko"?"건설 취소 (30초)":"Undo Build (30s)"}</button>}
                 {selected?<div style={{display:"flex",gap:2,marginBottom:3}}>
                   <button style={{flex:1,background:"#FF6B6B0E",border:"1px solid #FF6B6B44",color:"#FF6B6B",borderRadius:4,padding:3,cursor:"pointer",fontSize:10,fontFamily:"inherit"}} onClick={()=>setSelected(null)}>{t("bld.cancel", { name: t(`b.${selected}`) })}</button>
                 </div>:<div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:3}}>
@@ -2399,6 +2407,7 @@ export default function ParkTycoon(){
 
               {buildMode==="map"&&<>
                 <div style={{fontSize:10,color:"#A29BFE",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>{t("map.land")} ({ownedCount})</div>
+                {currentScenarioData?.noParcels&&<div style={{background:"rgba(255,87,87,0.10)",border:"1px solid rgba(255,87,87,0.35)",borderRadius:5,padding:"5px 8px",marginBottom:6,fontSize:10,color:"#FF8888",fontWeight:700}}>🚫 {lang==="ko"?"이 시나리오: 토지 매입 불가":"This scenario: no land purchase"}</div>}
                 {PARCELS.map(p=>{const owned=parcels.includes(p.id),reqOk=!p.req||parcels.includes(p.req);return(<div key={p.id} style={{display:"flex",alignItems:"center",gap:4,padding:5,marginBottom:3,background:"#181828",border:`1px solid ${owned?"#A29BFE33":"#222238"}`,borderRadius:5,opacity:owned?0.5:1}}>
                   <div style={{fontSize:18}}>{owned?"✅":p.icon}</div>
                   <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700}}>{p.label?.[lang]||p.label?.ko||p.label}</div><div style={{fontSize:10,color:"#8888AA"}}>${p.cost.toLocaleString()}</div></div>
@@ -3201,16 +3210,29 @@ export default function ParkTycoon(){
             </div>
           )}
           {disasterWarning&&screen==="game"&&(
-            <div style={{background:"rgba(255,150,0,0.12)",border:"2px solid rgba(255,150,0,0.5)",borderRadius:6,padding:"6px 10px",color:"#FF9F43",fontSize:10,fontWeight:700,display:"flex",gap:8,alignItems:"center",marginBottom:4,animation:"pulse 1.5s infinite",flexShrink:0}}>
-              <span style={{fontSize:16}}>⚡</span>
-              <div style={{flex:1}}>
-                <div>{lang==="ko"?`${disasterWarning.dis.emoji} 위험 감지: ${t("dis."+disasterWarning.dis.id)}`:`${disasterWarning.dis.emoji} Risk: ${t("dis."+disasterWarning.dis.id)}`}</div>
-                <div style={{fontSize:10,opacity:0.8}}>{lang==="ko"?`${disasterWarning.countdown}일 후 발생 예정`:`${disasterWarning.countdown} days until event`}</div>
+            disasterWarning.countdown>=2?(
+              <div style={{background:"rgba(255,200,0,0.08)",border:"2px solid rgba(255,200,0,0.35)",borderRadius:6,padding:"6px 10px",color:"#FFD060",fontSize:10,fontWeight:700,display:"flex",gap:8,alignItems:"center",marginBottom:4,flexShrink:0}}>
+                <span style={{fontSize:16}}>🌡️</span>
+                <div style={{flex:1}}>
+                  <div>{lang==="ko"?`🌡️ 징후 감지: ${t("dis."+disasterWarning.dis.id)}`:`🌡️ Early Signs: ${t("dis."+disasterWarning.dis.id)}`}</div>
+                  <div style={{fontSize:10,opacity:0.8}}>{lang==="ko"?`${disasterWarning.countdown}일 후 발생 예정`:`${disasterWarning.countdown} days until event`}</div>
+                </div>
+                <button onClick={mitigateDisaster} style={{background:"#FFD06022",border:"1px solid #FFD06088",color:"#FFD060",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}>
+                  🛡️ {lang==="ko"?"대비 $800":"Mitigate $800"}
+                </button>
               </div>
-              <button onClick={mitigateDisaster} style={{background:"#FF9F4322",border:"1px solid #FF9F4388",color:"#FF9F43",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}>
-                🛡️ {lang==="ko"?"대비 $800":"Mitigate $800"}
-              </button>
-            </div>
+            ):(
+              <div style={{background:"rgba(255,80,0,0.15)",border:"2px solid rgba(255,80,0,0.6)",borderRadius:6,padding:"6px 10px",color:"#FF5722",fontSize:10,fontWeight:700,display:"flex",gap:8,alignItems:"center",marginBottom:4,animation:"pulse 1s infinite",flexShrink:0}}>
+                <span style={{fontSize:16}}>⚠️</span>
+                <div style={{flex:1}}>
+                  <div>{lang==="ko"?`⚠️ 위험! ${t("dis."+disasterWarning.dis.id)}`:`⚠️ DANGER! ${t("dis."+disasterWarning.dis.id)}`}</div>
+                  <div style={{fontSize:10,opacity:0.8}}>{lang==="ko"?"내일 발생 예정!":"Strikes tomorrow!"}</div>
+                </div>
+                <button onClick={mitigateDisaster} style={{background:"#FF572222",border:"1px solid #FF572288",color:"#FF5722",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}>
+                  🛡️ {lang==="ko"?"대비 $800":"Mitigate $800"}
+                </button>
+              </div>
+            )
           )}
           </>}
           {buildMode==="zone"&&zonePaint&&<div style={{display:"flex",alignItems:"center",gap:5,padding:"2px 8px",background:ZONES[zonePaint]?.bg||"#66668818",border:`1px solid ${ZONES[zonePaint]?.color||"#666688"}44`,borderRadius:4,flexShrink:0}}>
@@ -3558,7 +3580,7 @@ export default function ParkTycoon(){
               </div>
             )}
             {visitors>0&&<div style={{position:"absolute",inset:3,pointerEvents:"none",overflow:"hidden",borderRadius:6}}>
-              {dots.slice(0,Math.min(24,Math.max(4,Math.round(visitors/4)))).map(dot=><div key={dot.id} style={{position:"absolute",left:`${(dot.c/GC)*100}%`,top:`${(dot.r/GR)*100}%`,width:`${(1/GC)*100}%`,height:`${(1/GR)*100}%`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,transition:"left 1.1s ease,top 1.1s ease",filter:"drop-shadow(0 2px 4px rgba(0,0,0,1))",zIndex:5}}>
+              {dots.slice(0,Math.min(24,Math.max(4,Math.round(visitors/4)))).map(dot=><div key={dot.id} style={{position:"absolute",left:`${(dot.c/GC)*100}%`,top:`${(dot.r/GR)*100}%`,width:`${(1/GC)*100}%`,height:`${(1/GR)*100}%`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,transition:"left 1.1s ease,top 1.1s ease",filter:"drop-shadow(0 2px 4px rgba(0,0,0,1))",zIndex:5,animation:`visitor-wander ${3+dot.id%3}s ease-in-out infinite`,animationDelay:`${(dot.id*0.4)%3}s`}}>
                 {dot.emoji}
               </div>)}
               {gridPopups.filter(p=>p.expires>Date.now()).map(p=>(
@@ -3747,11 +3769,19 @@ export default function ParkTycoon(){
                 </div>
               )}
               {disasterWarning&&(
-                <div style={{background:"rgba(255,150,0,0.10)",border:"2px solid rgba(255,150,0,0.45)",borderRadius:6,padding:"6px 8px",color:"#FF9F43",fontSize:10,fontWeight:700,marginBottom:4,lineHeight:1.4,animation:"pulse 1.5s infinite"}}>
-                  <div>⚡ {lang==="ko"?`${disasterWarning.dis.emoji} 위험: ${t("dis."+disasterWarning.dis.id)}`:`${disasterWarning.dis.emoji} Risk: ${t("dis."+disasterWarning.dis.id)}`}</div>
-                  <div style={{opacity:0.75,fontSize:9,marginBottom:4}}>{lang==="ko"?`${disasterWarning.countdown}일 후 발생`:`${disasterWarning.countdown} days away`}</div>
-                  <button onClick={mitigateDisaster} style={{background:"#FF9F4320",border:"1px solid #FF9F4370",color:"#FF9F43",borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:9,fontWeight:700,fontFamily:"inherit"}}>🛡️ {lang==="ko"?"대비 $800":"Mitigate $800"}</button>
-                </div>
+                disasterWarning.countdown>=2?(
+                  <div style={{background:"rgba(255,200,0,0.08)",border:"2px solid rgba(255,200,0,0.35)",borderRadius:6,padding:"6px 8px",color:"#FFD060",fontSize:10,fontWeight:700,marginBottom:4,lineHeight:1.4}}>
+                    <div>🌡️ {lang==="ko"?`징후 감지: ${t("dis."+disasterWarning.dis.id)}`:`Early Signs: ${t("dis."+disasterWarning.dis.id)}`}</div>
+                    <div style={{opacity:0.75,fontSize:9,marginBottom:4}}>{lang==="ko"?`${disasterWarning.countdown}일 후 발생`:`${disasterWarning.countdown} days away`}</div>
+                    <button onClick={mitigateDisaster} style={{background:"#FFD06020",border:"1px solid #FFD06070",color:"#FFD060",borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:9,fontWeight:700,fontFamily:"inherit"}}>🛡️ {lang==="ko"?"대비 $800":"Mitigate $800"}</button>
+                  </div>
+                ):(
+                  <div style={{background:"rgba(255,80,0,0.15)",border:"2px solid rgba(255,80,0,0.6)",borderRadius:6,padding:"6px 8px",color:"#FF5722",fontSize:10,fontWeight:700,marginBottom:4,lineHeight:1.4,animation:"pulse 1s infinite"}}>
+                    <div>⚠️ {lang==="ko"?`위험! ${t("dis."+disasterWarning.dis.id)}`:`DANGER! ${t("dis."+disasterWarning.dis.id)}`}</div>
+                    <div style={{opacity:0.75,fontSize:9,marginBottom:4}}>{lang==="ko"?"내일 발생 예정!":"Strikes tomorrow!"}</div>
+                    <button onClick={mitigateDisaster} style={{background:"#FF572220",border:"1px solid #FF572270",color:"#FF5722",borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:9,fontWeight:700,fontFamily:"inherit"}}>🛡️ {lang==="ko"?"대비 $800":"Mitigate $800"}</button>
+                  </div>
+                )
               )}
 
               {/* Event popups */}
