@@ -240,6 +240,7 @@ export default function ParkTycoon(){
   const [stageUpFlash,setStageUpFlash]=useState(false);
   const [medalFlash,setMedalFlash]=useState(null);
   const prevStageRef=useRef(1);
+  const prevMasteryRef=useRef({});
   const [bubbles,setBubbles]=useState([]); // [{id,r,c,text,expires}]
   const [disasterWarning,setDisasterWarning]=useState(null); // null|{dis,countdown,mitigated}
   const [firstVisitorCelebration,setFirstVisitorCelebration]=useState(false);
@@ -585,11 +586,21 @@ export default function ParkTycoon(){
 
   // 탭 방문 추적: 스텝이 바뀌면 리셋
   useEffect(()=>{ setTutTabVisited(false); },[tutorialStep]);
-  // 스텝 6(재무)/7(마케팅) 탭 방문 감지
+  // 스텝별 액션 완료 감지: 6=입장료 변경, 7=캠페인 실행, 9=연구탭 방문
   useEffect(()=>{
-    if(tutorialStep===6&&tab==="finance") setTutTabVisited(true);
-    if(tutorialStep===7&&tab==="marketing") setTutTabVisited(true);
-  },[tab,tutorialStep]);
+    if(tutorialStep===6&&fee!==15) setTutTabVisited(true);
+    if(tutorialStep===7&&campaigns.length>0) setTutTabVisited(true);
+    if(tutorialStep===9&&tab==="research") setTutTabVisited(true);
+  },[fee,campaigns,tab,tutorialStep]);
+  // 튜토리얼 스텝 진행 시 해당 탭 자동 오픈 (Two Point Hospital 스타일)
+  useEffect(()=>{
+    if(!tutorialStep) return;
+    if(tutorialStep===5) setTab("manage");
+    else if(tutorialStep===6) setTab("finance");
+    else if(tutorialStep===7) setTab("marketing");
+    else if(tutorialStep===8){ setTab("build"); setBuildMode("zone"); }
+    else if(tutorialStep===9) setTab("research");
+  },[tutorialStep]);
 
   useEffect(()=>{
     if(tutorialStep===0||screen!=="game") return;
@@ -598,18 +609,18 @@ export default function ParkTycoon(){
     const hasRide=grid.some(r=>r.some(c=>c&&B[c.type]?.cat==="ride"&&c.type!=="entrance"));
     const hasZone=zoneGrid.flat().some(v=>v);
     const advance=(n)=>{setTutFlash(true);setTimeout(()=>setTutFlash(false),700);setTutorialStep(n);};
-    // 스텝 1-5: 액션 완료 시 자동 진행
+    // 스텝 1-3: 건설 액션 완료
     if(tutorialStep===1&&hasEntrance) advance(2);
     else if(tutorialStep===2&&hasPathTile) advance(3);
     else if(tutorialStep===3&&hasRide) advance(4);
-    else if(tutorialStep===4&&speed>0) advance(5);
+    // 스텝 4: 재생 + 첫 방문객 도착까지 대기 (경제 루프 체험)
+    else if(tutorialStep===4&&speed>0&&visitors>0) advance(5);
+    // 스텝 5: 직원 고용
     else if(tutorialStep===5&&(hired.janitor>0||hired.mechanic>0||hired.entertainer>0)) advance(6);
-    // 스텝 6,7: 탭 방문은 tutTabVisited로 별도 관리 (여기서는 자동 진행 없음)
-    // 스텝 8: 구역 페인트 완료 시 자동 진행
+    // 스텝 6,7,9: tutTabVisited로 별도 관리 (자동 진행 없음)
+    // 스텝 8: 구역 페인트 완료
     else if(tutorialStep===8&&hasZone) advance(9);
-    // 스텝 9: 실제 연구 구매 시 자동 진행 (RP 누적만으론 진행 안 됨)
-    else if(tutorialStep===9&&researched.length>0) advance(10);
-  },[grid,speed,hired,tutorialStep,screen,zoneGrid,researched]);
+  },[grid,speed,hired,tutorialStep,screen,zoneGrid,visitors]);
 
   useEffect(()=>{
     const handleResize=()=>{
@@ -623,6 +634,19 @@ export default function ParkTycoon(){
     handleResize(); // call once on mount
     return()=>window.removeEventListener('resize',handleResize);
   },[]);
+
+  // 구역 보너스 활성화 시 floating text 연출
+  useEffect(()=>{
+    if(screen!=="game") return;
+    Object.entries(zoneMastery).forEach(([k,v])=>{
+      if(v.mastered&&!prevMasteryRef.current[k]){
+        const ts=Date.now();
+        const col=ZONES[k]?.color||"#5EF6A0";
+        setGridPopups(p=>[...p.slice(-6),{id:ts,text:`✨ ${ZONES[k]?.emoji||""} +${Math.round(v.bonus*100)}% 구역 보너스 활성화!`,color:col,r:Math.floor(GR/2),c:Math.floor(GC/2),expires:ts+3500}]);
+      }
+      prevMasteryRef.current[k]=v.mastered;
+    });
+  },[zoneMastery,screen]);
 
   useEffect(()=>{
     if(speed===0||screen!=="game") return;
@@ -2845,7 +2869,13 @@ export default function ParkTycoon(){
                   </div>
                 ))}
               </div>
-              <div style={{background:"#1A1A2A",border:"1px solid #FECA5733",borderRadius:6,padding:8,marginBottom:7}}>
+              {tutorialStep===6&&!tutTabVisited&&(
+                <div style={{background:"rgba(255,217,61,0.10)",border:"2px solid rgba(255,217,61,0.5)",borderRadius:7,padding:"6px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"center",animation:"pulse 2s infinite"}}>
+                  <span style={{fontSize:16}}>👆</span>
+                  <div style={{fontSize:10,color:"#FFD93D",fontWeight:700,lineHeight:1.5}}>{lang==="ko"?"아래 ＋ 버튼을 눌러 입장료를 올려보세요!\n입장료 전략이 수익에 직결됩니다.":"Press ＋ to raise the admission fee!\nPricing strategy directly impacts profit."}</div>
+                </div>
+              )}
+              <div style={{background:"#1A1A2A",border:`${tutorialStep===6?"2px solid #FFD93D88":"1px solid #FECA5733"}`,borderRadius:6,padding:8,marginBottom:7,boxShadow:tutorialStep===6?"0 0 12px rgba(255,217,61,0.25)":"none",transition:"all 0.3s"}}>
                 <div style={{fontSize:10,color:"#FECA57",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>🎟️ {t("mgr.admission")} {fee>maxFee&&<span style={{color:"#FF4757"}}>⚠️ ${maxFee} {t("mgr.limit")}</span>}</div>
                 <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
                   <button style={{...pm,width:26,height:26,fontSize:13,borderColor:"#FECA5744",color:"#FECA57"}} onClick={()=>setFee(f=>Math.max(0,f-5))}>−</button>
@@ -3189,14 +3219,21 @@ export default function ParkTycoon(){
                   🚫 {lang==="ko"?`캠페인 제한: ${currentScenarioData.allowedCampaigns.join(', ')} 만 허용`:`Restricted: ${currentScenarioData.allowedCampaigns.join(', ')} only`}
                 </div>
               )}
-              {Object.entries(CAMPAIGNS_DATA).map(([key,camp])=>{
+              {tutorialStep===7&&campaigns.length===0&&(
+                <div style={{background:"rgba(255,107,157,0.10)",border:"2px solid rgba(255,107,157,0.5)",borderRadius:7,padding:"6px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"center",animation:"pulse 2s infinite"}}>
+                  <span style={{fontSize:16}}>👆</span>
+                  <div style={{fontSize:10,color:"#FF6B9D",fontWeight:700,lineHeight:1.5}}>{lang==="ko"?"아래 '실행' 버튼을 눌러 첫 캠페인을 시작해보세요!\n광고 효과로 방문객이 늘어납니다.":"Click '실행' below to launch your first campaign!\nAd campaigns bring in more visitors."}</div>
+                </div>
+              )}
+              {Object.entries(CAMPAIGNS_DATA).map(([key,camp],idx)=>{
                 const scnAllowed=currentScenarioData?.allowedCampaigns;
                 const banned=scnAllowed&&!scnAllowed.includes(key);
                 const ok=money>=camp.cost&&!banned;
-                return(<div key={key} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 5px",marginBottom:2,background:"#181828",border:"1px solid #222238",borderRadius:5,opacity:banned?0.3:ok?1:0.5}}>
+                const isTutCamp=tutorialStep===7&&campaigns.length===0&&idx===0&&ok;
+                return(<div key={key} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 5px",marginBottom:2,background:"#181828",border:`${isTutCamp?"2px solid rgba(255,107,157,0.6)":"1px solid #222238"}`,borderRadius:5,opacity:banned?0.3:ok?1:0.5,boxShadow:isTutCamp?"0 0 10px rgba(255,107,157,0.3)":"none",transition:"all 0.3s"}}>
                   <span style={{fontSize:14}}>{camp.emoji}</span>
                   <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700}}>{t(`camp.${key}`)}{banned?<span style={{color:"#FF5757",fontSize:9}}> 🚫</span>:""}</div><div style={{fontSize:10,color:"#8888AA"}}>+{Math.round(camp.boost*100)}% · {camp.days}d · ${camp.cost.toLocaleString()}</div></div>
-                  <button style={{background:ok?"#FF9FF311":"transparent",border:`1px solid ${ok?"#FF9FF3":"#2A2A4A"}`,color:ok?"#FF9FF3":"#3A3A5A",borderRadius:3,padding:"2px 5px",cursor:ok?"pointer":"default",fontSize:10,fontFamily:"inherit"}} onClick={()=>ok&&launchCampaign(key)}>{t("btn.start")}</button>
+                  <button style={{background:ok?(isTutCamp?"rgba(255,107,157,0.25)":"#FF9FF311"):"transparent",border:`1px solid ${ok?(isTutCamp?"#FF6B9D":"#FF9FF3"):"#2A2A4A"}`,color:ok?(isTutCamp?"#FF6B9D":"#FF9FF3"):"#3A3A5A",borderRadius:3,padding:"2px 5px",cursor:ok?"pointer":"default",fontSize:10,fontWeight:isTutCamp?700:400,fontFamily:"inherit",animation:isTutCamp?"pulse 1.5s infinite":"none"}} onClick={()=>ok&&launchCampaign(key)}>{t("btn.start")}</button>
                 </div>);
               })}
               <div style={{height:1,background:"#2A2A4A",margin:"5px 0"}}/>
@@ -4192,85 +4229,119 @@ export default function ParkTycoon(){
                     boxShadow:"0 8px 40px rgba(0,0,0,0.9),0 0 0 1px rgba(255,217,61,0.15)",
                     animation:"slide-in 0.3s ease",pointerEvents:"auto"}}>
 
-                    {/* 9개 progress dots */}
-                    <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:10}}>
-                      <div style={{display:"flex",gap:3,flex:1}}>
-                        {[1,2,3,4,5,6,7,8,9].map(i=>(
-                          <div key={i} style={{flex:i===tutorialStep?2:1,height:5,borderRadius:99,
-                            background:i<tutorialStep?"#00E5A0":i===tutorialStep?"#FFD93D":"#1A2040",
-                            transition:"all 0.3s",
-                            boxShadow:i===tutorialStep?"0 0 5px #FFD93D":i<tutorialStep?"0 0 3px #00E5A0":"none"}}/>
-                        ))}
+                    {/* 페이즈 라벨 + progress dots */}
+                    <div style={{marginBottom:10}}>
+                      {(()=>{
+                        const phases=[
+                          {label:lang==="ko"?"🏗️ 기초":"🏗️ Build",steps:[1,2,3],color:"#64B5F6"},
+                          {label:lang==="ko"?"🎪 개장":"🎪 Open",steps:[4],color:"#FFD93D"},
+                          {label:lang==="ko"?"⚙️ 운영":"⚙️ Ops",steps:[5,6,7],color:"#00E5A0"},
+                          {label:lang==="ko"?"📈 성장":"📈 Growth",steps:[8,9],color:"#FF9F43"},
+                        ];
+                        const curPhase=phases.find(p=>p.steps.includes(tutorialStep));
+                        return(
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,padding:"0 2px"}}>
+                            {phases.map(ph=>(
+                              <div key={ph.label} style={{fontSize:8,color:ph===curPhase?ph.color:"#2A3A5A",fontWeight:ph===curPhase?800:400,transition:"all 0.3s"}}>
+                                {ph.label}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        <div style={{display:"flex",gap:3,flex:1}}>
+                          {[1,2,3,4,5,6,7,8,9].map(i=>(
+                            <div key={i} style={{flex:i===tutorialStep?2:1,height:5,borderRadius:99,
+                              background:i<tutorialStep?"#00E5A0":i===tutorialStep?"#FFD93D":"#1A2040",
+                              transition:"all 0.3s",
+                              boxShadow:i===tutorialStep?"0 0 5px #FFD93D":i<tutorialStep?"0 0 3px #00E5A0":"none"}}/>
+                          ))}
+                        </div>
+                        <span style={{fontSize:9,color:"#7788BB",flexShrink:0}}>{tutorialStep}/9</span>
                       </div>
-                      <span style={{fontSize:9,color:"#7788BB",flexShrink:0}}>{tutorialStep}/9</span>
                     </div>
 
                     {/* 단계 내용 */}
                     {(()=>{
                       const needsTabVisit=tutorialStep===6||tutorialStep===7;
-                      const needsResearch=tutorialStep===9;
-                      const canNext=(!needsTabVisit&&!needsResearch)||tutTabVisited||(needsResearch&&researched.length>0);
+                      const canNext=!needsTabVisit||tutTabVisited;
+
+                      const step4Obj=(()=>{
+                        if(speed===0) return {emoji:"▶",
+                          title:lang==="ko"?"[4/9] 시간 시작":"[4/9] Start Time",
+                          target:lang==="ko"?"↗ 우상단 ▶ 버튼 클릭":"↗ Click ▶ button (top right)",
+                          desc:lang==="ko"?"우상단 ▶ 버튼을 눌러 시간을 시작하세요!\n⏩ 빨리감기, ⚡ 매우 빨리감기도 활용하세요.\n방문객이 들어오면 자동으로 다음 단계로 넘어가요!":"Click ▶ at the top right to start time!\nUse ⏩ Fast or ⚡ Very Fast to speed up.\nWhen visitors arrive, next step starts automatically!"};
+                        if(visitors===0) return {emoji:"⏩",
+                          title:lang==="ko"?"[4/9] 첫 방문객 기다리는 중":"[4/9] Waiting for Visitors",
+                          target:lang==="ko"?"↗ ⏩ 버튼으로 빨리감기":"↗ Use ⏩ to fast-forward",
+                          desc:lang==="ko"?"시간이 흐르고 있어요! ⏩ 빨리감기를 써보세요.\n방문객이 입장하는 순간 자동으로 다음 단계!\n수익이 발생하는 경제 사이클을 확인하세요 📈":"Time is running! Try ⏩ to speed things up.\nThe moment a visitor enters, next step starts!\nWatch the economic cycle begin 📈"};
+                        return {emoji:"🎉",
+                          title:lang==="ko"?"[4/9] 방문객 입장!":"[4/9] Visitors Arriving!",
+                          target:lang==="ko"?"자동 진행 중…":"Auto-advancing…",
+                          desc:lang==="ko"?"방문객이 들어왔어요! 수익이 발생 중입니다 💰\n잠시 후 자동으로 다음 단계로 넘어갑니다.":"Visitors are here! Revenue is flowing 💰\nNext step will begin in a moment."};
+                      })();
 
                       const allSteps=[
                         /* 1 */ {emoji:"🎪",
                           title:lang==="ko"?"[1/9] 입구 게이트 배치":"[1/9] Place Entrance Gate",
-                          target:lang==="ko"?"← 왼쪽 건설 탭 선택":"← Select in left Build tab",
+                          target:lang==="ko"?"← 건설 탭 선택 후 배치":"← Select in Build tab, then place",
                           desc:lang==="ko"?"🎪 입구 게이트를 선택해 노란 칸에 배치하세요.\n입구가 없으면 방문객이 들어올 수 없어요!":"Select 🎪 Entrance Gate and click a highlighted cell.\nNo entrance = no visitors!"},
                         /* 2 */ {emoji:"🛤️",
                           title:lang==="ko"?"[2/9] 통로 연결":"[2/9] Connect with Paths",
                           target:lang==="ko"?"← 건설 탭 → 통로 선택":"← Build tab → select Path",
-                          desc:lang==="ko"?"입구 옆 노란 칸에 통로를 놓으세요.\n통로 없이는 방문객이 놀이기구에 못 갑니다.\n여러 개 연속으로 배치하세요!":"Place paths next to the entrance on highlighted cells.\nVisitors need paths to reach rides.\nPlace several in a row!"},
+                          desc:lang==="ko"?"입구 옆 노란 칸에 통로를 놓으세요.\n통로 없이는 방문객이 놀이기구에 못 가요.\n여러 개 연속으로 배치하면 더 좋아요!":"Place paths next to the entrance on highlighted cells.\nVisitors need paths to reach rides.\nPlace several in a row!"},
                         /* 3 */ {emoji:"🎡",
                           title:lang==="ko"?"[3/9] 놀이기구 배치":"[3/9] Add Rides",
                           target:lang==="ko"?"← 건설 탭 → 관람차/회전목마":"← Build tab → Ferris Wheel / Carousel",
                           desc:lang==="ko"?"통로 옆에 놀이기구를 배치하세요.\n관람차·회전목마부터 시작하고,\n다양한 종류일수록 방문객이 많아져요!":"Place a ride next to a path.\nStart with the Ferris Wheel or Carousel.\nVariety attracts more visitor types!"},
-                        /* 4 */ {emoji:"▶",
-                          title:lang==="ko"?"[4/9] 시간 시작":"[4/9] Start Time",
-                          target:lang==="ko"?"↗ 우상단 ▶ 버튼 클릭":"↗ Click ▶ button (top right)",
-                          desc:lang==="ko"?"상단 우측 ▶ 버튼으로 시간을 시작하세요.\n⏩ 빨리감기, ⚡ 매우 빨리감기도 활용하세요.\n방문객이 들어오면 수익이 발생하기 시작해요!":"Click ▶ at the top right to start time.\nUse ⏩ Fast or ⚡ Very Fast to speed up.\nVisitors bring in revenue — watch it grow!"},
+                        /* 4 */ step4Obj,
                         /* 5 */ {emoji:"🧹",
                           title:lang==="ko"?"[5/9] 직원 고용":"[5/9] Hire Staff",
                           target:lang==="ko"?"← ⚙️ 경영 탭 클릭":"← Click ⚙️ Manage tab",
-                          desc:lang==="ko"?"왼쪽 ⚙️ 경영 탭에서 직원을 고용하세요.\n청소부: 청결도 유지 / 정비공: 놀이기구 수리\n직원 없이는 만족도가 급격히 떨어져요!":"Click ⚙️ Manage tab → Hire Staff.\nJanitor: keeps cleanliness up\nMechanic: fixes broken rides\nWithout staff, satisfaction drops fast!"},
+                          desc:lang==="ko"?"왼쪽 ⚙️ 경영 탭에서 직원을 고용하세요.\n청소부: 청결도 유지 / 정비공: 놀이기구 수리\n직원 없이는 만족도가 급격히 떨어져요!":"Click ⚙️ Manage tab → Hire Staff.\nJanitor: keeps park clean.\nMechanic: fixes broken rides.\nWithout staff, satisfaction drops fast!"},
                         /* 6 */ {emoji:"💰",
-                          title:lang==="ko"?"[6/9] 재무 탭 확인":"[6/9] Check Finance Tab",
-                          target:lang==="ko"?"← 💰 재무 탭 클릭":"← Click 💰 Finance tab",
-                          desc:lang==="ko"?"왼쪽 💰 재무 탭을 열어 수익 구조를 확인하세요.\n입장료·놀이기구 요금 조정으로 수익을 높이고,\n직원 비용·유지비를 줄여 순이익을 키우세요!":"Open 💰 Finance tab to see your revenue.\nAdjust admission & ride prices to boost income.\nReduce staff & maintenance costs for higher profit!"},
+                          title:lang==="ko"?"[6/9] 입장료 조정":"[6/9] Adjust Admission Fee",
+                          target:lang==="ko"?"← 💰 재무 탭 → ＋/－ 클릭":"← Finance tab → press ＋ or －",
+                          desc:lang==="ko"?"💰 재무 탭에서 입장료 ＋/－ 버튼을 눌러보세요!\n너무 높으면 방문객이 줄고, 적절하면 수익이 올라요.\n현재 입장료: $"+fee+" — 올리거나 내려보세요.":"In 💰 Finance tab, press ＋ or － on admission fee!\nToo high → fewer visitors. Just right → more profit.\nCurrent fee: $"+fee+" — try adjusting it."},
                         /* 7 */ {emoji:"📣",
-                          title:lang==="ko"?"[7/9] 마케팅 탭 확인":"[7/9] Check Marketing Tab",
-                          target:lang==="ko"?"← 📣 마케팅 탭 클릭":"← Click 📣 Marketing tab",
-                          desc:lang==="ko"?"왼쪽 📣 마케팅 탭을 열어보세요.\n광고 캠페인으로 방문객 수를 늘릴 수 있어요.\n가족·어드벤처·VIP 등 타겟 광고가 가능해요!":"Open 📣 Marketing tab to explore campaigns.\nAd campaigns bring in more visitors!\nTarget families, thrill-seekers, or VIP guests."},
+                          title:lang==="ko"?"[7/9] 광고 캠페인 실행":"[7/9] Launch Ad Campaign",
+                          target:lang==="ko"?"← 📣 마케팅 탭 → 실행 클릭":"← Marketing tab → click 실행",
+                          desc:lang==="ko"?"📣 마케팅 탭에서 광고 캠페인을 실행하세요!\n가족·어드벤처·VIP 등 타겟 광고로 방문객을 늘려요.\n'실행' 버튼을 클릭하면 즉시 효과가 나타납니다!":"In 📣 Marketing tab, launch an ad campaign!\nTarget families, thrill-seekers, or VIPs.\nClick '실행' and watch visitor numbers rise!"},
                         /* 8 */ {emoji:"🎨",
                           title:lang==="ko"?"[8/9] 구역(Zone) 지정":"[8/9] Paint Zones",
                           target:lang==="ko"?"← 건설 탭 → 🎨 구역 클릭":"← Build tab → click 🎨 Zone",
-                          desc:lang==="ko"?"건설 탭 → 🎨 구역을 선택 후 노란 칸에 칠하세요.\n🎠 놀이 / 🍔 음식 / 🌿 자연 등 테마 구역을\n3칸 이상 연결하면 보너스 효과가 발동해요!":"Build tab → 🎨 Zone, then paint highlighted cells.\nCreate theme areas: 🎠 Fun, 🍔 Food, 🌿 Nature.\n3+ connected cells activate the zone bonus!"},
+                          desc:lang==="ko"?"건설 탭 → 🎨 구역을 선택 후 노란 칸에 칠하세요.\n🎠 놀이 / 🍔 음식 / 🌿 자연 등 테마 구역을\n3칸 이상 연결하면 보너스 효과가 발동해요!":"Build tab → 🎨 Zone, then paint highlighted cells.\nTheme areas: 🎠 Fun, 🍔 Food, 🌿 Nature.\n3+ connected cells activate a bonus!"},
                         /* 9 */ {emoji:"🔬",
-                          title:lang==="ko"?"[9/9] 연구 업그레이드":"[9/9] Research Upgrades",
+                          title:lang==="ko"?"[9/9] 연구 탭 탐색":"[9/9] Explore Research",
                           target:lang==="ko"?"← 🔬 연구 탭 클릭":"← Click 🔬 Research tab",
-                          desc:lang==="ko"?`🔬 연구 탭에서 RP로 업그레이드를 구매하세요.\n현재 RP: ${researchPoints} — 클릭해서 항목을 선택하세요.\n놀이기구 강화, 비용 절감, VIP 언락 등이 가능해요!`:`In 🔬 Research tab, spend RP on upgrades.\nCurrent RP: ${researchPoints} — click an item to purchase.\nBoost rides, cut costs, or unlock VIP guests!`},
+                          desc:lang==="ko"?"🔬 연구 탭에서 업그레이드 항목들을 살펴보세요!\n놀이기구 강화, 비용 절감, VIP 언락 등 다양해요.\n샌드박스에서는 모두 미리 해금되어 있어요 🎉":"Check out upgrades in the 🔬 Research tab!\nBoost rides, cut costs, unlock VIPs, and more.\nIn sandbox mode, everything is pre-unlocked 🎉"},
                       ];
 
                       const steps=allSteps[Math.min(tutorialStep-1, allSteps.length-1)];
                       return(
                         <>
-                          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-                            <div style={{fontSize:24,filter:"drop-shadow(0 0 8px rgba(255,217,61,0.6))",flexShrink:0}}>{steps.emoji}</div>
-                            <div>
-                              <div style={{fontSize:11,fontWeight:900,color:"#FFD93D",lineHeight:1.2}}>{steps.title}</div>
-                              <div style={{fontSize:9,color:"#FFD93D88",marginTop:2,fontWeight:700}}>{steps.target}</div>
+                          <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:8}}>
+                            <div style={{fontSize:24,filter:"drop-shadow(0 0 8px rgba(255,217,61,0.6))",flexShrink:0,marginTop:2}}>{steps.emoji}</div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:11,fontWeight:900,color:"#FFD93D",lineHeight:1.2,marginBottom:4}}>{steps.title}</div>
+                              {/* 시각적 목표 인디케이터 — 펄싱 pill */}
+                              <div style={{display:"inline-flex",alignItems:"center",gap:4,
+                                background:"rgba(255,217,61,0.10)",border:"1px solid rgba(255,217,61,0.35)",
+                                borderRadius:20,padding:"2px 9px",
+                                fontSize:9,color:"#FFD93D",fontWeight:700,
+                                animation:"pulse 2s infinite"}}>
+                                📍 {steps.target}
+                              </div>
                             </div>
                           </div>
                           <div style={{fontSize:10,color:"#8899CC",lineHeight:1.7,whiteSpace:"pre-line",marginBottom:12}}>{steps.desc}</div>
-                          {/* 탭 방문 미완료 시 안내 배너 */}
+                          {/* 행동 미완료 시 안내 배너 */}
                           {needsTabVisit&&!tutTabVisited&&(
-                            <div style={{background:"rgba(255,217,61,0.08)",border:"1px solid rgba(255,217,61,0.3)",borderRadius:6,padding:"5px 10px",marginBottom:8,fontSize:9,color:"#FFD93D88",textAlign:"center",animation:"pulse 2s infinite"}}>
-                              {lang==="ko"?"← 왼쪽 탭을 클릭하면 다음으로 진행됩니다":"← Click the highlighted tab to continue"}
-                            </div>
-                          )}
-                          {/* 연구 RP 부족 시 안내 */}
-                          {needsResearch&&researched.length===0&&researchPoints<5&&(
-                            <div style={{background:"rgba(162,155,254,0.08)",border:"1px solid rgba(162,155,254,0.3)",borderRadius:6,padding:"5px 10px",marginBottom:8,fontSize:9,color:"#A29BFE",textAlign:"center"}}>
-                              {lang==="ko"?`RP가 더 쌓일 때까지 기다리거나 빨리감기 하세요 (현재 ${researchPoints}RP)`:`Wait for more RP or speed up time (current: ${researchPoints} RP)`}
+                            <div style={{background:"rgba(255,217,61,0.08)",border:"1px solid rgba(255,217,61,0.3)",borderRadius:6,padding:"5px 10px",marginBottom:8,fontSize:9,color:"#FFD93DAA",textAlign:"center",animation:"pulse 2s infinite"}}>
+                              {tutorialStep===6
+                                ?(lang==="ko"?"💰 입장료를 ＋/－ 버튼으로 조정해야 다음으로 진행됩니다":"Adjust the fee with ＋/－ in Finance tab to continue")
+                                :(lang==="ko"?"📣 캠페인 '실행' 버튼을 눌러야 다음으로 진행됩니다":"Click '실행' in Marketing tab to continue")}
                             </div>
                           )}
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
@@ -4289,10 +4360,10 @@ export default function ParkTycoon(){
                               onMouseEnter={e=>canNext&&(e.currentTarget.style.background="rgba(255,217,61,0.25)")}
                               onMouseLeave={e=>canNext&&(e.currentTarget.style.background="rgba(255,217,61,0.15)")}>
                               {(needsTabVisit&&!tutTabVisited)
-                                ? (lang==="ko"?"탭을 먼저 클릭하세요":"Open the tab first")
-                                : (needsResearch&&researched.length===0)
-                                  ? (lang==="ko"?"연구를 먼저 구매하세요":"Purchase research first")
-                                  : (lang==="ko"?"다음 →":"Next →")}
+                                ? tutorialStep===6
+                                  ?(lang==="ko"?"입장료를 먼저 조정하세요":"Adjust fee first")
+                                  :(lang==="ko"?"캠페인을 먼저 실행하세요":"Launch campaign first")
+                                : (lang==="ko"?"다음 →":"Next →")}
                             </button>
                           </div>
                         </>
