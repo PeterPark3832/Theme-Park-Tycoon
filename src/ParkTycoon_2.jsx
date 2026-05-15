@@ -2579,14 +2579,21 @@ export default function ParkTycoon(){
       </div>}
 
       <div style={{display:"flex",flex:1,overflow:"hidden",paddingBottom:isMobile?56:0}}>
-        {isMobile && !panelCollapsed && (
-          <div onClick={() => setPanelCollapsed(true)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:49}} />
+        {isMobile && bottomSheetOpen && (
+          <div onClick={() => setBottomSheetOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:190}} />
         )}
         <div className="side-panel" style={
-          isMobile?{display:"none"}:
+          isMobile?(bottomSheetOpen?{position:"fixed",left:0,right:0,bottom:56,height:"62vh",background:"linear-gradient(180deg,#0C1030 0%,#08091E 100%)",borderTop:"2px solid rgba(120,140,255,0.25)",borderRadius:"16px 16px 0 0",zIndex:200,display:"flex",flexDirection:"column",animation:"sheet-up 0.28s cubic-bezier(0.32,0.72,0,1)",boxShadow:"0 -8px 40px rgba(0,0,0,0.7)",overflow:"hidden"}:{display:"none"}):
           isPC?{width:216,minWidth:216,overflow:"hidden",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",display:"flex",flexDirection:"column",flexShrink:0}:
           {width:panelCollapsed?0:190,minWidth:panelCollapsed?0:190,overflow:panelCollapsed?"hidden":"visible",transition:"width 0.2s",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",flexShrink:0}
         }>
+          {/* Mobile: drag handle + close button */}
+          {isMobile&&(
+            <div onClick={()=>setBottomSheetOpen(false)} style={{display:"flex",justifyContent:"center",alignItems:"center",padding:"8px 0 4px",flexShrink:0,cursor:"pointer",position:"relative"}}>
+              <div style={{width:36,height:4,background:"rgba(255,255,255,0.15)",borderRadius:99}}/>
+              <button onClick={(e)=>{e.stopPropagation();setBottomSheetOpen(false);}} style={{position:"absolute",right:12,background:"none",border:"none",color:"#445580",cursor:"pointer",fontSize:18,padding:"4px 8px",lineHeight:1}}>✕</button>
+            </div>
+          )}
           <div style={{display:"flex",background:"rgba(0,0,0,0.3)",borderBottom:"1px solid rgba(255,255,255,0.06)",flexShrink:0,flexWrap:"wrap"}}>
             {[
               {k:"build",    ic:"🏗️", label:{ko:"건설",en:"Build"}},
@@ -3992,6 +3999,68 @@ export default function ParkTycoon(){
           </>}
 
           <div style={{position:"relative",flex:1,minHeight:0,overflow:"hidden"}}>
+            {/* Mobile HUD corners */}
+            {isMobile&&screen==="game"&&(
+              <div className="mobile-hud">
+                {/* Top-left: money + visitors */}
+                <div className="mobile-hud-tl hud-chip-row">
+                  <div className="hud-chip">
+                    <span style={{fontSize:13}}>💰</span>
+                    <span style={{fontSize:13,fontWeight:700,color:"#FFD93D"}}>${money>=1000?`${(money/1000).toFixed(1)}k`:money.toLocaleString()}</span>
+                  </div>
+                  <div className="hud-chip">
+                    <span style={{fontSize:13}}>👥</span>
+                    <span style={{fontSize:13,fontWeight:700,color:"#4D9FFF"}}>{visitors}</span>
+                  </div>
+                </div>
+                {/* Top-right: speed controls */}
+                <div className="mobile-hud-tr">
+                  <div className="hud-chip" style={{gap:6}}>
+                    {[["⏸",0],["▶",1],["⏩",2],["⚡",3]].map(([ic,sp])=>(
+                      <button key={sp} onClick={()=>setSpeed(sp)} style={{background:speed===sp?"rgba(0,229,160,0.2)":"none",border:"none",color:speed===sp?"#00E5A0":"#445580",borderRadius:6,padding:"3px 5px",cursor:"pointer",fontSize:14,minWidth:28,minHeight:28}}>{ic}</button>
+                    ))}
+                  </div>
+                </div>
+                {/* Bottom-left: sat + stars + day */}
+                <div className="mobile-hud-bl hud-chip-row">
+                  <div className="hud-chip">
+                    <span style={{fontSize:13}}>😊</span>
+                    <span style={{fontSize:13,fontWeight:700,color:sat>=70?"#00E5A0":sat>=40?"#FFD93D":"#FF5757"}}>{sat}</span>
+                    <span style={{fontSize:10,color:"#445580"}}>%</span>
+                  </div>
+                  <div className="hud-chip">
+                    <span style={{fontSize:10,color:"#FFD93D"}}>{"⭐".repeat(parkRating?.stars||0)}{"☆".repeat(5-(parkRating?.stars||0))}</span>
+                    <span style={{fontSize:10,color:"#6B7CA1",marginLeft:2}}>D{day}</span>
+                  </div>
+                </div>
+                {/* Bottom-right: minimap toggle + settings */}
+                <div className="mobile-hud-br hud-chip-row" style={{alignItems:"flex-end"}}>
+                  <button onClick={()=>setMinimapOpen(v=>!v)} className="hud-chip" style={{border:`1px solid ${minimapOpen?"rgba(0,229,160,0.4)":"rgba(120,140,255,0.18)"}`,color:minimapOpen?"#00E5A0":"#6B7CA1",cursor:"pointer",fontSize:12,background:"rgba(6,8,22,0.82)"}}>🗺️</button>
+                  <button onClick={()=>setShowSettings(true)} className="hud-chip" style={{cursor:"pointer",fontSize:12,color:"#6B7CA1",background:"rgba(6,8,22,0.82)"}}>⚙️</button>
+                </div>
+              </div>
+            )}
+            {/* Minimap canvas (mobile) */}
+            {isMobile&&minimapOpen&&(
+              <div className="minimap-overlay" onClick={()=>setMinimapOpen(false)} title={lang==="ko"?"미니맵 닫기":"Close minimap"}>
+                <canvas ref={el=>{
+                  if(!el) return;
+                  const ctx=el.getContext('2d');
+                  const cw=160,ch=80;
+                  el.width=cw;el.height=ch;
+                  ctx.fillStyle='#070A1A';
+                  ctx.fillRect(0,0,cw,ch);
+                  const cSize=cw/GC;const rSize=ch/GR;
+                  grid.forEach((row,r2)=>row.forEach((cell2,c2)=>{
+                    if(!cell2||cell2.ref) return;
+                    const bd2=B[cell2.type];
+                    const col2=bd2?.cat==="ride"?"#FF6B9D":bd2?.cat==="shop"?"#FFD93D":bd2?.cat==="facility"?"#4D9FFF":bd2?.cat==="path"?"#445580":bd2?.cat==="deco"?"#00E5A0":"#8899BB";
+                    ctx.fillStyle=cell2.broken?"#FF3333":col2;
+                    ctx.fillRect(c2*cSize+0.5,r2*rSize+0.5,cSize-1,rSize-1);
+                  }));
+                }} style={{display:"block",width:160,height:80}}/>
+              </div>
+            )}
             <div style={{display:"grid",
               gridTemplateColumns:`repeat(${GC},1fr)`,
               gridTemplateRows:`repeat(${GR},1fr)`,
@@ -4103,6 +4172,8 @@ export default function ParkTycoon(){
                   {isInFootprint&&selected&&hovered?.r===r&&hovered?.c===c&&!cell&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",opacity:0.6,pointerEvents:"none",zIndex:4}}>
                     {hasBuildingIcon(selected)?getBuildingIcon(selected,hovFootprintValid?"#00E5A0":"#FF5757",Math.min(32,Math.max(14,Math.floor(gridScale*(selBd?.size?.w||1)*14)))):B[selected]?.emoji||"🏗️"}
                   </div>}
+                  {/* Mobile placement preview ghost */}
+                  {placementPreview&&placementPreview.r===r&&placementPreview.c===c&&<div style={{position:"absolute",inset:0,borderRadius:4,border:"2px solid rgba(0,229,160,0.8)",boxShadow:"0 0 12px rgba(0,229,160,0.5)",animation:"pulse-glow 1s ease-in-out infinite",zIndex:5,pointerEvents:"none",background:"rgba(0,229,160,0.08)"}}/>}
                   {!owned&&isNextBuyable&&<span style={{fontSize:10,opacity:0.6,color:"#4D9FFF"}}>🔓</span>}
                   {!owned&&!isNextBuyable&&<span style={{fontSize:10,opacity:0.5,color:"#333355"}}>▪</span>}
 
@@ -4770,20 +4841,46 @@ export default function ParkTycoon(){
           </div>
         )}
 
-      {/* 2-6: 모바일 플로팅 퀵액션 버튼 */}
-      {isMobile&&screen==="game"&&panelCollapsed&&(
-        <div style={{position:"fixed",bottom:12,right:12,zIndex:60,display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
+      {/* Mobile placement confirmation bar */}
+      {isMobile&&placementPreview&&(
+        <div className="placement-bar">
+          <span style={{fontSize:12,color:"#8899BB",fontFamily:"'Rajdhani',sans-serif",whiteSpace:"nowrap"}}>
+            {selected?t(`b.${selected}`):""} ({placementPreview.r},{placementPreview.c})
+          </span>
+          <button onClick={()=>{handleGridClick(placementPreview.r,placementPreview.c,true);setPlacementPreview(null);}}
+            style={{background:"rgba(0,229,160,0.18)",border:"1px solid rgba(0,229,160,0.5)",color:"#00E5A0",borderRadius:20,padding:"6px 14px",cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"inherit",minHeight:36}}>
+            ✅ {lang==="ko"?"배치":"Place"}
+          </button>
+          <button onClick={()=>setPlacementPreview(null)}
+            style={{background:"rgba(255,87,87,0.12)",border:"1px solid rgba(255,87,87,0.4)",color:"#FF5757",borderRadius:20,padding:"6px 14px",cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"inherit",minHeight:36}}>
+            ❌
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      {isMobile&&screen==="game"&&(
+        <nav className="mobile-bottom-nav">
           {[
-            {ic:"⚙️",label:lang==="ko"?"경영":"Mgmt",  tab:"manage",  col:"#4ECDC4"},
-            {ic:"🏗️",label:lang==="ko"?"건설":"Build", tab:"build",   col:"#FFD93D"},
-            {ic:"🎯",label:lang==="ko"?"미션":"Quest",  tab:"mission", col:"#A29BFE"},
-          ].map(({ic,label,tab:t2,col})=>(
-            <button key={t2} onClick={()=>{setTab(t2);setPanelCollapsed(false);}}
-              style={{display:"flex",alignItems:"center",gap:6,background:`rgba(5,8,28,0.95)`,border:`1px solid ${col}55`,borderRadius:20,padding:"7px 12px",cursor:"pointer",fontSize:11,fontWeight:700,color:col,fontFamily:"inherit",boxShadow:`0 4px 16px rgba(0,0,0,0.6), 0 0 8px ${col}22`,backdropFilter:"blur(8px)"}}>
-              <span style={{fontSize:14}}>{ic}</span>{label}
+            {k:"build",    ic:"🏗️", label:{ko:"건설",en:"Build"}},
+            {k:"manage",   ic:"⚙️", label:{ko:"경영",en:"Manage"}},
+            {k:"finance",  ic:"💰", label:{ko:"재무",en:"Finance"}},
+            {k:"research", ic:"🔬", label:{ko:"연구",en:"R&D"}},
+            {k:"mission",  ic:"🎯", label:{ko:"미션",en:"Quest"}},
+          ].map(({k,ic,label})=>(
+            <button key={k}
+              className={tab===k&&bottomSheetOpen?"active":""}
+              onClick={()=>{
+                if(tab===k&&bottomSheetOpen){setBottomSheetOpen(false);}
+                else{setTab(k);setBottomSheetOpen(true);}
+              }}
+              style={{fontSize:10,color:tab===k&&bottomSheetOpen?"#00E5A0":"#445580"}}>
+              <span style={{fontSize:20}}>{ic}</span>
+              <span>{label[lang]||label.ko}</span>
+              {k==="research"&&hasResearchAvailable&&<div style={{position:"absolute",top:6,right:"28%",width:7,height:7,borderRadius:"50%",background:"#00E5A0"}}/>}
             </button>
           ))}
-        </div>
+        </nav>
       )}
 
       {scenarioResult&&(()=>{
