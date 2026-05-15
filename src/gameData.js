@@ -222,7 +222,7 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"방문객 50명",en:"50 visitors"},check:s=>s.vis>=50},
     {id:"silver",medal:"🥈",desc:{ko:"방문객 100명 + 만족도 65%",en:"100 visitors + 65% happiness"},check:s=>s.vis>=100&&s.sat>=65},
     {id:"gold",medal:"🥇",desc:{ko:"방문객 200명 + 만족도 75%",en:"200 visitors + 75% happiness"},check:s=>s.vis>=200&&s.sat>=75}]},
-  {id:"s2",emoji:"💑",difficulty:2,color:"#FF6B9D",startMoney:38000,timeLimit:50,preBuilt:[],gridRestrict:null,
+  {id:"s2",emoji:"💑",difficulty:2,color:"#FF6B9D",startMoney:38000,timeLimit:50,allowedCampaigns:["sns","billboard"],preBuilt:[],gridRestrict:null,
    obstacles:[{r:7,c:21,type:"water"},{r:7,c:22,type:"water"},{r:8,c:21,type:"water"},{r:8,c:22,type:"water"}],
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"커플 비율 40%",en:"40% couple ratio"},check:s=>s.coupleRatio>=0.4},
@@ -244,7 +244,7 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"어린이 비율 40%",en:"40% child ratio"},check:s=>s.childRatio>=0.4},
     {id:"silver",medal:"🥈",desc:{ko:"어린이 55% + 만족도 70%",en:"55% children + 70% happiness"},check:s=>s.childRatio>=0.55&&s.sat>=70},
     {id:"gold",medal:"🥇",desc:{ko:"어린이 65% + 방문객 150명",en:"65% children + 150 visitors"},check:s=>s.childRatio>=0.65&&s.vis>=150}]},
-  {id:"s6",emoji:"🏖️",difficulty:2,color:"#54A0FF",startMoney:42000,timeLimit:65,preBuilt:[
+  {id:"s6",emoji:"🏖️",difficulty:2,color:"#54A0FF",startMoney:42000,timeLimit:65,allowedCampaigns:["tv","celebrity","event"],preBuilt:[
     {type:"entrance",r:9,c:15,level:0,broken:false},
     {type:"_path",   r:9,c:17,level:0,broken:false},
     {type:"_path",   r:9,c:18,level:0,broken:false},
@@ -253,7 +253,7 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"커플 35% + 방문객 80명",en:"35% couples + 80 visitors"},check:s=>s.coupleRatio>=0.35&&s.vis>=80},
     {id:"silver",medal:"🥈",desc:{ko:"커플 50% + 만족도 70%",en:"50% couples + 70% happiness"},check:s=>s.coupleRatio>=0.50&&s.sat>=70&&s.vis>=130},
     {id:"gold",medal:"🥇",desc:{ko:"커플 60% + 방문객 220명 + 순이익 $2k",en:"60% couples + 220 visitors + $2k profit"},check:s=>s.coupleRatio>=0.60&&s.vis>=220&&s.net>=2000}]},
-  {id:"s7",emoji:"👻",difficulty:4,color:"#5F27CD",startMoney:38000,timeLimit:55,bannedBuildings:["carousel","miniTrain","iceCream","balloonRide"],preBuilt:[
+  {id:"s7",emoji:"👻",difficulty:4,color:"#5F27CD",startMoney:38000,timeLimit:55,nightCycle:true,bannedBuildings:["carousel","miniTrain","iceCream","balloonRide"],preBuilt:[
     {type:"entrance",    r:9,c:15,level:0,broken:false},
     {type:"_path",       r:9,c:17,level:0,broken:false},
     {type:"_path",       r:9,c:18,level:0,broken:false},
@@ -271,6 +271,17 @@ export const SCENARIOS = [
     {id:"silver",medal:"🥈",desc:{ko:"4성 + 순이익 $3,000 + 만족도 75%",en:"4 stars + $3,000 profit + 75% happiness"},check:s=>s.pres>=4&&s.net>=3000&&s.sat>=75},
     {id:"gold",medal:"🥇",desc:{ko:"5성 + 순이익 $5,000 + 만족도 80%",en:"5 stars + $5,000 profit + 80% happiness"},check:s=>s.pres>=5&&s.net>=5000&&s.sat>=80}]},
 ];
+
+export const SCENARIO_CLEAR_FLAVOR = {
+  s1:{ko:"빈 땅에 세운 공원이 사람들의 마음을 사로잡았습니다. 꿈이 현실이 됐습니다.",en:"The park you built from nothing captured every heart. Dreams became reality."},
+  s2:{ko:"로맨틱한 분위기가 커플들을 사로잡았습니다. 이곳은 사랑의 명소가 됩니다.",en:"Your romantic vibe won every couple's heart. This place becomes a landmark of love."},
+  s3:{ko:"폐허가 다시 살아났습니다. 방문객들의 웃음이 오래된 공원을 가득 채웁니다.",en:"The ruins breathe again. Laughter of visitors fills every corner of the old park."},
+  s4:{ko:"도심 속 작은 공원이 최고의 수익을 냈습니다. 도시의 보석이 됩니다.",en:"The tiny urban park yields maximum profit. It becomes a gem in the city skyline."},
+  s5:{ko:"아이들의 웃음이 공원에 가득합니다. 당신은 아이들의 영웅입니다.",en:"Children's laughter fills the park. You are a hero to every kid who visits."},
+  s6:{ko:"해변 공원이 커플들의 낙원이 됐습니다. 사랑이 파도처럼 넘쳐흐릅니다.",en:"The beach park became a couple's paradise. Love overflows like the tides."},
+  s7:{ko:"공포의 밤을 정복했습니다. 스릴을 찾는 방문객들이 전국에서 몰려옵니다.",en:"The Night of Fear is conquered. Thrill-seekers flood in from across the country."},
+  s8:{ko:"왕실 공원이 다시 빛을 되찾았습니다. 방문객들이 전국에서 몰려오기 시작합니다.",en:"The royal park reclaims its former glory. Visitors pour in from across the land."},
+};
 
 export const SCENARIO_DIFFICULTY = {
   easy:   { moneyMult:1.5,  timeMult:1.3,  emoji:"🟢", color:"#00E5A0", diffKey:"easy",   label:{ko:"쉬움",   en:"Easy"},   desc:{ko:"자금 +50%, 시간 +30%, 재난 희귀",     en:"+50% funds, +30% time, rare disasters"} },
