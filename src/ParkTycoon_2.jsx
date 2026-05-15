@@ -153,6 +153,7 @@ export default function ParkTycoon(){
   const [tutorialStep,setTutorialStep]=useState(0);
   const [tutDone,setTutDone]=useState(()=>!!localStorage.getItem('pt_tut_done'));
   const [tutFlash,setTutFlash]=useState(false);
+  const [tutTabVisited,setTutTabVisited]=useState(false);
   const [saveSlots,setSaveSlots]=useState(loadSaveSlots);
   const [scenarioResult,setScenarioResult]=useState(null);
   const [menuSubScreen,setMenuSubScreen]=useState(null);
@@ -582,22 +583,33 @@ export default function ParkTycoon(){
     try{localStorage.setItem('uiSettings',JSON.stringify(uiSettings));}catch{}
   },[uiSettings]);
 
+  // 탭 방문 추적: 스텝이 바뀌면 리셋
+  useEffect(()=>{ setTutTabVisited(false); },[tutorialStep]);
+  // 스텝 6(재무)/7(마케팅) 탭 방문 감지
+  useEffect(()=>{
+    if(tutorialStep===6&&tab==="finance") setTutTabVisited(true);
+    if(tutorialStep===7&&tab==="marketing") setTutTabVisited(true);
+  },[tab,tutorialStep]);
+
   useEffect(()=>{
     if(tutorialStep===0||screen!=="game") return;
     const hasEntrance=grid.some(r=>r.some(c=>c?.type==="entrance"));
     const hasPathTile=grid.some(r=>r.some(c=>c?.type==="_path"||c?.type==="_pathFancy"));
     const hasRide=grid.some(r=>r.some(c=>c&&B[c.type]?.cat==="ride"&&c.type!=="entrance"));
     const hasZone=zoneGrid.flat().some(v=>v);
-    const hasResearch=researched.length>0||researchPoints>=5;
     const advance=(n)=>{setTutFlash(true);setTimeout(()=>setTutFlash(false),700);setTutorialStep(n);};
+    // 스텝 1-5: 액션 완료 시 자동 진행
     if(tutorialStep===1&&hasEntrance) advance(2);
     else if(tutorialStep===2&&hasPathTile) advance(3);
     else if(tutorialStep===3&&hasRide) advance(4);
     else if(tutorialStep===4&&speed>0) advance(5);
     else if(tutorialStep===5&&(hired.janitor>0||hired.mechanic>0||hired.entertainer>0)) advance(6);
-    else if(tutorialStep===6&&hasZone) advance(7);
-    else if(tutorialStep===7&&hasResearch) advance(8);
-  },[grid,speed,hired,tutorialStep,screen,zoneGrid,researched,researchPoints]);
+    // 스텝 6,7: 탭 방문은 tutTabVisited로 별도 관리 (여기서는 자동 진행 없음)
+    // 스텝 8: 구역 페인트 완료 시 자동 진행
+    else if(tutorialStep===8&&hasZone) advance(9);
+    // 스텝 9: 실제 연구 구매 시 자동 진행 (RP 누적만으론 진행 안 됨)
+    else if(tutorialStep===9&&researched.length>0) advance(10);
+  },[grid,speed,hired,tutorialStep,screen,zoneGrid,researched]);
 
   useEffect(()=>{
     const handleResize=()=>{
@@ -2508,7 +2520,7 @@ export default function ParkTycoon(){
               {k:"research", ic:"🔬", label:{ko:"연구",en:"R&D"}},
               {k:"mission",  ic:"🎯", label:{ko:"미션",en:"Quest"}},
             ].map(({k,ic,label})=>{
-                const isTutTab=(tutorialStep===5&&k==="manage")||(tutorialStep===6&&k==="build")||(tutorialStep===7&&k==="research");
+                const isTutTab=(tutorialStep===5&&k==="manage")||(tutorialStep===6&&k==="finance")||(tutorialStep===7&&k==="marketing")||(tutorialStep===8&&k==="build")||(tutorialStep===9&&k==="research");
                 return(
                 <button key={k} style={{flex:"1 1 30%",minWidth:0,padding:"5px 2px",background:tab===k?"rgba(255,255,255,0.08)":isTutTab?"rgba(255,217,61,0.08)":"transparent",border:"none",borderBottom:`2px solid ${tab===k?sc:isTutTab?"#FFD93D":"transparent"}`,color:tab===k?sc:isTutTab?"#FFD93D":"#3A4A70",cursor:"pointer",fontFamily:"inherit",fontWeight:tab===k||isTutTab?700:400,transition:"all 0.15s",position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:1,animation:isTutTab?"pulse 1.5s infinite":"none",boxShadow:isTutTab?"0 0 10px rgba(255,217,61,0.3)":"none"}} onClick={()=>setTab(k)}>
                   <span style={{fontSize:13}}>{ic}</span>
@@ -2527,7 +2539,7 @@ export default function ParkTycoon(){
                   const label=lk==="tab.build"?t("tab.build"):lk==="zone"?(lang==="ko"?"구역":"Zone"):lk==="demolish"?(lang==="ko"?"철거":"Demo"):t("map.land");
                   const active=buildMode===m;
                   const col=m==="demolish"?"#FF6B6B":sc;
-                  const isZoneTut=tutorialStep===6&&m==="zone";
+                  const isZoneTut=tutorialStep===8&&m==="zone";
                   return(<button key={m} style={{flex:1,padding:"3px 0",background:active?(m==="demolish"?"#FF6B6B18":"#1E1E40"):isZoneTut?"rgba(255,217,61,0.10)":"#181830",border:`1px solid ${active?col:isZoneTut?"#FFD93D":"#2A2A4A"}`,color:active?col:isZoneTut?"#FFD93D":"#6666AA",borderRadius:4,cursor:"pointer",fontSize:10,fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:1,animation:isZoneTut?"pulse 1.5s infinite":"none",boxShadow:isZoneTut?"0 0 8px rgba(255,217,61,0.4)":"none"}} onClick={()=>{setBuildMode(m);setSelected(null);if(m!=="zone")setZonePaint(null);setMultiSelectedCells(new Set());if(m==="zone"&&!zoneFtueShown){setZoneFtueShown(true);setShowZoneFtue(true);}}}>
                     <span style={{fontSize:11}}>{ic}</span>
                     <span>{label}</span>
@@ -3825,7 +3837,7 @@ export default function ParkTycoon(){
                 const tutHighlight=(tutorialStep===1&&!cell&&owned)||
                                    (tutorialStep===2&&!cell&&owned&&stats.hasEntrance)||
                                    (tutorialStep===3&&!cell&&owned)||
-                                   (tutorialStep===6&&!cell&&owned&&!zone);
+                                   (tutorialStep===8&&!cell&&owned&&!zone);
                 const isDemolishHov=buildMode==="demolish"&&hovered?.r===r&&hovered?.c===c&&cell&&owned;
                 const isMultiSelected=buildMode==="demolish"&&multiSelectedCells.has(`${r},${c}`);
                 const isCongested=congestedCells.has(`${r},${c}`);
@@ -4129,137 +4141,163 @@ export default function ParkTycoon(){
               ))}
             </div>}
 
-            {tutorialStep>0&&tutorialStep<=8&&screen==="game"&&(
+            {tutorialStep>0&&tutorialStep<=10&&screen==="game"&&(
               <>
-                {/* 반투명 전체 오버레이 (완료 화면에선 더 강하게) */}
-                <div style={{
-                  position:"absolute",inset:0,zIndex:25,pointerEvents:"none",
-                  background:tutorialStep===8?"rgba(0,0,0,0.72)":"rgba(0,0,0,0.42)",borderRadius:6,
-                  transition:"background 0.4s",
-                }}/>
+                {/* 배경 오버레이 */}
+                <div style={{position:"absolute",inset:0,zIndex:25,pointerEvents:"none",
+                  background:tutorialStep===10?"rgba(0,0,0,0.75)":"rgba(0,0,0,0.38)",borderRadius:6,transition:"background 0.5s"}}/>
                 {/* 단계 완료 flash */}
-                {tutFlash&&<div style={{position:"absolute",inset:0,zIndex:26,pointerEvents:"none",borderRadius:6,background:"rgba(0,229,160,0.18)",animation:"build-flash 0.5s ease-out forwards"}}/>}
+                {tutFlash&&<div style={{position:"absolute",inset:0,zIndex:26,pointerEvents:"none",borderRadius:6,
+                  background:"rgba(0,229,160,0.20)",animation:"build-flash 0.5s ease-out forwards"}}/>}
 
-                {/* 완료 화면 (step 8) */}
-                {tutorialStep===8?(
-                  <div style={{
-                    position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
-                    background:"linear-gradient(135deg,#0D1535,#080B20)",
-                    border:"2px solid #00E5A088",borderRadius:18,padding:"28px 28px 22px",
-                    zIndex:30,minWidth:280,maxWidth:360,textAlign:"center",
-                    boxShadow:"0 12px 60px rgba(0,0,0,0.95), 0 0 0 1px rgba(0,229,160,0.2)",
-                    animation:"slide-in 0.4s ease",pointerEvents:"auto",
-                  }}>
-                    <div style={{fontSize:52,marginBottom:8,filter:"drop-shadow(0 0 16px rgba(0,229,160,0.6))"}}>🎊</div>
-                    <div style={{fontSize:18,fontWeight:900,color:"#00E5A0",marginBottom:6,letterSpacing:0.5}}>
+                {/* ── 완료 화면 (step 10) ── */}
+                {tutorialStep===10?(
+                  <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
+                    background:"linear-gradient(135deg,#0D1535,#080B20)",border:"2px solid #00E5A088",
+                    borderRadius:18,padding:"28px 28px 22px",zIndex:30,minWidth:280,maxWidth:360,textAlign:"center",
+                    boxShadow:"0 12px 60px rgba(0,0,0,0.95),0 0 0 1px rgba(0,229,160,0.2)",
+                    animation:"slide-in 0.4s ease",pointerEvents:"auto"}}>
+                    <div style={{fontSize:50,marginBottom:8,filter:"drop-shadow(0 0 14px rgba(0,229,160,0.6))"}}>🎊</div>
+                    <div style={{fontSize:17,fontWeight:900,color:"#00E5A0",marginBottom:6}}>
                       {lang==="ko"?"튜토리얼 완료!":"Tutorial Complete!"}
                     </div>
-                    <div style={{fontSize:10,color:"#7788BB",lineHeight:1.7,marginBottom:16,whiteSpace:"pre-line"}}>
-                      {lang==="ko"?"8단계를 모두 마쳤습니다 🎉\n이제 진짜 도전이 시작됩니다.\n시나리오 모드에서 목표를 달성해보세요!":"All 8 steps complete 🎉\nNow the real challenge begins.\nTry Scenario mode to take on goals!"}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 8px",marginBottom:14,textAlign:"left"}}>
+                      {["🎪 입구","🛤️ 통로","🎡 놀이기구","▶ 재생","🧹 직원","💰 재무","📣 마케팅","🎨 구역","🔬 연구"].map(s=>(
+                        <div key={s} style={{fontSize:9,color:"#00E5A0",display:"flex",alignItems:"center",gap:4}}>
+                          <span style={{color:"#00E5A0",fontSize:8}}>✓</span>{s}
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{fontSize:10,color:"#7788BB",lineHeight:1.6,marginBottom:16}}>
+                      {lang==="ko"?"시나리오 모드에서 실제 목표에 도전해보세요! 🏆\n미션 탭에서 달성 과제도 확인하세요.":"Try Scenario mode for real challenges! 🏆\nCheck the Mission tab for objectives."}
                     </div>
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                      <button onClick={()=>{
-                          try{localStorage.setItem('pt_tut_done','1');}catch{}
-                          setTutDone(true);
-                          setMoney(m=>m+1000);
-                          addLog(lang==="ko"?"🎓 튜토리얼 완료 보너스 +$1,000!":"🎓 Tutorial bonus +$1,000!");
-                          setTutorialStep(0);
-                        }}
+                      <button onClick={()=>{try{localStorage.setItem('pt_tut_done','1');}catch{}setTutDone(true);setMoney(m=>m+1000);addLog(lang==="ko"?"🎓 튜토리얼 완료 보너스 +$1,000!":"🎓 Tutorial bonus +$1,000!");setTutorialStep(0);}}
                         style={{background:"rgba(0,229,160,0.18)",border:"2px solid rgba(0,229,160,0.6)",
-                          color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",
-                          fontSize:12,fontWeight:700,fontFamily:"inherit"}}>
-                        {lang==="ko"?"✓ 완료 & +$1,000 보너스 받기":"✓ Claim +$1,000 Bonus & Continue"}
+                          color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}}>
+                        {lang==="ko"?"✓ +$1,000 보너스 받고 계속하기":"✓ Claim +$1,000 Bonus & Continue"}
                       </button>
-                      <button onClick={()=>{
-                          try{localStorage.setItem('pt_tut_done','1');}catch{}
-                          setTutDone(true);
-                          setMoney(m=>m+1000);
-                          addLog(lang==="ko"?"🎓 튜토리얼 완료 보너스 +$1,000!":"🎓 Tutorial bonus +$1,000!");
-                          setTutorialStep(0);
-                          setScreen("menu");
-                        }}
+                      <button onClick={()=>{try{localStorage.setItem('pt_tut_done','1');}catch{}setTutDone(true);setMoney(m=>m+1000);addLog(lang==="ko"?"🎓 튜토리얼 완료 보너스 +$1,000!":"🎓 Tutorial bonus +$1,000!");setTutorialStep(0);setScreen("menu");}}
                         style={{background:"rgba(155,127,255,0.12)",border:"1px solid rgba(155,127,255,0.4)",
-                          color:"#9B7FFF",borderRadius:10,padding:"8px 20px",cursor:"pointer",
-                          fontSize:10,fontWeight:700,fontFamily:"inherit"}}>
-                        {lang==="ko"?"🏆 시나리오 모드 도전하러 가기":"🏆 Go Try Scenario Mode"}
+                          color:"#9B7FFF",borderRadius:10,padding:"8px 20px",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}>
+                        {lang==="ko"?"🏆 시나리오 모드 도전하기":"🏆 Go to Scenario Mode"}
                       </button>
                     </div>
                   </div>
                 ):(
-                  /* 일반 단계 카드 */
-                  <div style={{
-                    position:"absolute",bottom:16,left:"50%",transform:"translateX(-50%)",
-                    background:"linear-gradient(135deg,#0D1535,#080B20)",
-                    border:"2px solid #FFD93D88",
-                    borderRadius:14,padding:"14px 20px",
-                    zIndex:30,minWidth:260,maxWidth:340,
-                    boxShadow:"0 8px 40px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,217,61,0.15)",
-                    animation:"slide-in 0.3s ease",
-                    pointerEvents:"auto",
-                  }}>
-                    {/* 단계 표시 — 8개 dots */}
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
-                      <div style={{display:"flex",gap:3}}>
-                        {[1,2,3,4,5,6,7,8].map(i=>(
-                          <div key={i} style={{
-                            width:i===tutorialStep?18:6,height:6,
-                            borderRadius:99,
+                  /* ── 일반 단계 카드 (steps 1-9) ── */
+                  <div style={{position:"absolute",bottom:16,left:"50%",transform:"translateX(-50%)",
+                    background:"linear-gradient(135deg,#0D1535,#080B20)",border:"2px solid #FFD93D88",
+                    borderRadius:14,padding:"14px 20px",zIndex:30,minWidth:270,maxWidth:350,
+                    boxShadow:"0 8px 40px rgba(0,0,0,0.9),0 0 0 1px rgba(255,217,61,0.15)",
+                    animation:"slide-in 0.3s ease",pointerEvents:"auto"}}>
+
+                    {/* 9개 progress dots */}
+                    <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:10}}>
+                      <div style={{display:"flex",gap:3,flex:1}}>
+                        {[1,2,3,4,5,6,7,8,9].map(i=>(
+                          <div key={i} style={{flex:i===tutorialStep?2:1,height:5,borderRadius:99,
                             background:i<tutorialStep?"#00E5A0":i===tutorialStep?"#FFD93D":"#1A2040",
                             transition:"all 0.3s",
-                            boxShadow:i===tutorialStep?"0 0 6px #FFD93D":i<tutorialStep?"0 0 3px #00E5A0":"none"
-                          }}/>
+                            boxShadow:i===tutorialStep?"0 0 5px #FFD93D":i<tutorialStep?"0 0 3px #00E5A0":"none"}}/>
                         ))}
                       </div>
-                      <span style={{fontSize:9,color:"#7788BB",marginLeft:"auto"}}>{tutorialStep}/8</span>
+                      <span style={{fontSize:9,color:"#7788BB",flexShrink:0}}>{tutorialStep}/9</span>
                     </div>
-                    {/* 단계별 내용 */}
+
+                    {/* 단계 내용 */}
                     {(()=>{
+                      const needsTabVisit=tutorialStep===6||tutorialStep===7;
+                      const needsResearch=tutorialStep===9;
+                      const canNext=(!needsTabVisit&&!needsResearch)||tutTabVisited||(needsResearch&&researched.length>0);
+
                       const allSteps=[
-                        {emoji:"🎪",title:lang==="ko"?"[1/8] 입구 게이트 배치":"[1/8] Place Entrance Gate",
-                         desc:lang==="ko"?"왼쪽 패널 '건설' 탭에서 🎪 입구 게이트를 선택하고\n그리드의 노란색 칸에 클릭해서 배치하세요.\n입구가 없으면 방문객이 입장할 수 없어요!":"In the left Build tab, select 🎪 Entrance Gate\nand click any highlighted grid cell to place it.\nNo entrance = no visitors!"},
-                        {emoji:"🛤️",title:lang==="ko"?"[2/8] 통로 연결":"[2/8] Connect with Paths",
-                         desc:lang==="ko"?"입구 옆 노란색 칸에 🟫 통로를 배치하세요.\n통로가 없으면 방문객이 놀이기구까지\n이동할 수 없어요. 여러 개 연속 배치하세요!":"Place paths 🟫 on highlighted cells next to entrance.\nVisitors need paths to reach attractions.\nPlace several to extend coverage!"},
-                        {emoji:"🎡",title:lang==="ko"?"[3/8] 놀이기구 배치":"[3/8] Add Attractions",
-                         desc:lang==="ko"?"통로 옆에 놀이기구를 배치하세요.\n관람차·회전목마부터 시작하고,\n여러 종류를 배치할수록 방문객이 늘어요!":"Place attractions next to paths.\nStart with Ferris Wheel or Carousel.\nMore variety = more visitors!"},
-                        {emoji:"▶",title:lang==="ko"?"[4/8] 시간 시작":"[4/8] Start Time",
-                         desc:lang==="ko"?"상단 우측의 ▶ 버튼으로 시간을 진행시키세요.\n⏩ 빨리 감기, ⚡ 매우 빨리 감기도 있어요.\n방문객이 들어오기 시작할 거예요!":"Press the ▶ button (top right) to start time.\nUse ⏩ Fast or ⚡ Very Fast to speed up.\nVisitors will start arriving!"},
-                        {emoji:"🧹",title:lang==="ko"?"[5/8] 직원 고용":"[5/8] Hire Staff",
-                         desc:lang==="ko"?"왼쪽 ⚙️ 경영 탭 → 직원 고용에서\n청소부(🧹) 또는 정비공(🔧)을 고용하세요.\n청결도·시설 고장률이 만족도를 크게 좌우해요!":"Go to ⚙️ Manage tab (left panel) → Hire Staff.\nHire a Janitor 🧹 or Mechanic 🔧.\nCleanliness & repairs are key to satisfaction!"},
-                        {emoji:"🎨",title:lang==="ko"?"[6/8] 구역 페인트":"[6/8] Zone Painting",
-                         desc:lang==="ko"?"왼쪽 건설 탭 → 🎨 구역 버튼 클릭 후\n노란색 칸에 구역을 칠해보세요.\n🎠 놀이 / 🍔 음식 등 3칸 이상 연결 시 보너스!":"In Build tab, click 🎨 Zone, then paint cells.\nTheme areas give revenue & satisfaction bonuses!\n3+ connected cells activate the zone bonus."},
-                        {emoji:"🔬",title:lang==="ko"?"[7/8] 연구 업그레이드":"[7/8] Research Upgrades",
-                         desc:lang==="ko"?"왼쪽 🔬 연구 탭에서 RP(연구 포인트)를 사용해\n업그레이드를 연구하거나 5RP 이상 모아두세요.\nRP는 방문객이 올수록 매일 자동으로 쌓여요!":"Go to 🔬 Research tab (left panel).\nSpend RP to unlock upgrades, or accumulate 5+ RP.\nRP grows daily — more visitors = more RP!"},
+                        /* 1 */ {emoji:"🎪",
+                          title:lang==="ko"?"[1/9] 입구 게이트 배치":"[1/9] Place Entrance Gate",
+                          target:lang==="ko"?"← 왼쪽 건설 탭 선택":"← Select in left Build tab",
+                          desc:lang==="ko"?"🎪 입구 게이트를 선택해 노란 칸에 배치하세요.\n입구가 없으면 방문객이 들어올 수 없어요!":"Select 🎪 Entrance Gate and click a highlighted cell.\nNo entrance = no visitors!"},
+                        /* 2 */ {emoji:"🛤️",
+                          title:lang==="ko"?"[2/9] 통로 연결":"[2/9] Connect with Paths",
+                          target:lang==="ko"?"← 건설 탭 → 통로 선택":"← Build tab → select Path",
+                          desc:lang==="ko"?"입구 옆 노란 칸에 통로를 놓으세요.\n통로 없이는 방문객이 놀이기구에 못 갑니다.\n여러 개 연속으로 배치하세요!":"Place paths next to the entrance on highlighted cells.\nVisitors need paths to reach rides.\nPlace several in a row!"},
+                        /* 3 */ {emoji:"🎡",
+                          title:lang==="ko"?"[3/9] 놀이기구 배치":"[3/9] Add Rides",
+                          target:lang==="ko"?"← 건설 탭 → 관람차/회전목마":"← Build tab → Ferris Wheel / Carousel",
+                          desc:lang==="ko"?"통로 옆에 놀이기구를 배치하세요.\n관람차·회전목마부터 시작하고,\n다양한 종류일수록 방문객이 많아져요!":"Place a ride next to a path.\nStart with the Ferris Wheel or Carousel.\nVariety attracts more visitor types!"},
+                        /* 4 */ {emoji:"▶",
+                          title:lang==="ko"?"[4/9] 시간 시작":"[4/9] Start Time",
+                          target:lang==="ko"?"↗ 우상단 ▶ 버튼 클릭":"↗ Click ▶ button (top right)",
+                          desc:lang==="ko"?"상단 우측 ▶ 버튼으로 시간을 시작하세요.\n⏩ 빨리감기, ⚡ 매우 빨리감기도 활용하세요.\n방문객이 들어오면 수익이 발생하기 시작해요!":"Click ▶ at the top right to start time.\nUse ⏩ Fast or ⚡ Very Fast to speed up.\nVisitors bring in revenue — watch it grow!"},
+                        /* 5 */ {emoji:"🧹",
+                          title:lang==="ko"?"[5/9] 직원 고용":"[5/9] Hire Staff",
+                          target:lang==="ko"?"← ⚙️ 경영 탭 클릭":"← Click ⚙️ Manage tab",
+                          desc:lang==="ko"?"왼쪽 ⚙️ 경영 탭에서 직원을 고용하세요.\n청소부: 청결도 유지 / 정비공: 놀이기구 수리\n직원 없이는 만족도가 급격히 떨어져요!":"Click ⚙️ Manage tab → Hire Staff.\nJanitor: keeps cleanliness up\nMechanic: fixes broken rides\nWithout staff, satisfaction drops fast!"},
+                        /* 6 */ {emoji:"💰",
+                          title:lang==="ko"?"[6/9] 재무 탭 확인":"[6/9] Check Finance Tab",
+                          target:lang==="ko"?"← 💰 재무 탭 클릭":"← Click 💰 Finance tab",
+                          desc:lang==="ko"?"왼쪽 💰 재무 탭을 열어 수익 구조를 확인하세요.\n입장료·놀이기구 요금 조정으로 수익을 높이고,\n직원 비용·유지비를 줄여 순이익을 키우세요!":"Open 💰 Finance tab to see your revenue.\nAdjust admission & ride prices to boost income.\nReduce staff & maintenance costs for higher profit!"},
+                        /* 7 */ {emoji:"📣",
+                          title:lang==="ko"?"[7/9] 마케팅 탭 확인":"[7/9] Check Marketing Tab",
+                          target:lang==="ko"?"← 📣 마케팅 탭 클릭":"← Click 📣 Marketing tab",
+                          desc:lang==="ko"?"왼쪽 📣 마케팅 탭을 열어보세요.\n광고 캠페인으로 방문객 수를 늘릴 수 있어요.\n가족·어드벤처·VIP 등 타겟 광고가 가능해요!":"Open 📣 Marketing tab to explore campaigns.\nAd campaigns bring in more visitors!\nTarget families, thrill-seekers, or VIP guests."},
+                        /* 8 */ {emoji:"🎨",
+                          title:lang==="ko"?"[8/9] 구역(Zone) 지정":"[8/9] Paint Zones",
+                          target:lang==="ko"?"← 건설 탭 → 🎨 구역 클릭":"← Build tab → click 🎨 Zone",
+                          desc:lang==="ko"?"건설 탭 → 🎨 구역을 선택 후 노란 칸에 칠하세요.\n🎠 놀이 / 🍔 음식 / 🌿 자연 등 테마 구역을\n3칸 이상 연결하면 보너스 효과가 발동해요!":"Build tab → 🎨 Zone, then paint highlighted cells.\nCreate theme areas: 🎠 Fun, 🍔 Food, 🌿 Nature.\n3+ connected cells activate the zone bonus!"},
+                        /* 9 */ {emoji:"🔬",
+                          title:lang==="ko"?"[9/9] 연구 업그레이드":"[9/9] Research Upgrades",
+                          target:lang==="ko"?"← 🔬 연구 탭 클릭":"← Click 🔬 Research tab",
+                          desc:lang==="ko"?`🔬 연구 탭에서 RP로 업그레이드를 구매하세요.\n현재 RP: ${researchPoints} — 클릭해서 항목을 선택하세요.\n놀이기구 강화, 비용 절감, VIP 언락 등이 가능해요!`:`In 🔬 Research tab, spend RP on upgrades.\nCurrent RP: ${researchPoints} — click an item to purchase.\nBoost rides, cut costs, or unlock VIP guests!`},
                       ];
+
                       const steps=allSteps[Math.min(tutorialStep-1, allSteps.length-1)];
                       return(
                         <>
-                          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                            <div style={{fontSize:26,filter:"drop-shadow(0 0 8px rgba(255,217,61,0.6))"}}>{steps.emoji}</div>
-                            <div style={{fontSize:12,fontWeight:900,color:"#FFD93D",lineHeight:1.2}}>{steps.title}</div>
+                          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                            <div style={{fontSize:24,filter:"drop-shadow(0 0 8px rgba(255,217,61,0.6))",flexShrink:0}}>{steps.emoji}</div>
+                            <div>
+                              <div style={{fontSize:11,fontWeight:900,color:"#FFD93D",lineHeight:1.2}}>{steps.title}</div>
+                              <div style={{fontSize:9,color:"#FFD93D88",marginTop:2,fontWeight:700}}>{steps.target}</div>
+                            </div>
                           </div>
-                          <div style={{fontSize:10,color:"#8899CC",lineHeight:1.75,whiteSpace:"pre-line",marginBottom:12}}>{steps.desc}</div>
+                          <div style={{fontSize:10,color:"#8899CC",lineHeight:1.7,whiteSpace:"pre-line",marginBottom:12}}>{steps.desc}</div>
+                          {/* 탭 방문 미완료 시 안내 배너 */}
+                          {needsTabVisit&&!tutTabVisited&&(
+                            <div style={{background:"rgba(255,217,61,0.08)",border:"1px solid rgba(255,217,61,0.3)",borderRadius:6,padding:"5px 10px",marginBottom:8,fontSize:9,color:"#FFD93D88",textAlign:"center",animation:"pulse 2s infinite"}}>
+                              {lang==="ko"?"← 왼쪽 탭을 클릭하면 다음으로 진행됩니다":"← Click the highlighted tab to continue"}
+                            </div>
+                          )}
+                          {/* 연구 RP 부족 시 안내 */}
+                          {needsResearch&&researched.length===0&&researchPoints<5&&(
+                            <div style={{background:"rgba(162,155,254,0.08)",border:"1px solid rgba(162,155,254,0.3)",borderRadius:6,padding:"5px 10px",marginBottom:8,fontSize:9,color:"#A29BFE",textAlign:"center"}}>
+                              {lang==="ko"?`RP가 더 쌓일 때까지 기다리거나 빨리감기 하세요 (현재 ${researchPoints}RP)`:`Wait for more RP or speed up time (current: ${researchPoints} RP)`}
+                            </div>
+                          )}
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                            <button onClick={()=>{try{localStorage.setItem('pt_tut_done','1');}catch{}setTutDone(true);setTutorialStep(0);}}
+                              style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",
+                                color:"#6B7CA1",borderRadius:8,padding:"5px 12px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>
+                              {lang==="ko"?"건너뛰기":"Skip"}
+                            </button>
+                            <button
+                              disabled={!canNext}
+                              onClick={()=>{if(canNext) setTutorialStep(s=>Math.min(s+1,10));}}
+                              style={{background:canNext?"rgba(255,217,61,0.15)":"rgba(255,255,255,0.04)",
+                                border:`1px solid ${canNext?"rgba(255,217,61,0.5)":"rgba(255,255,255,0.12)"}`,
+                                color:canNext?"#FFD93D":"#3A4A6A",borderRadius:8,padding:"5px 16px",
+                                cursor:canNext?"pointer":"not-allowed",fontSize:10,fontWeight:700,fontFamily:"inherit",transition:"all 0.2s"}}
+                              onMouseEnter={e=>canNext&&(e.currentTarget.style.background="rgba(255,217,61,0.25)")}
+                              onMouseLeave={e=>canNext&&(e.currentTarget.style.background="rgba(255,217,61,0.15)")}>
+                              {(needsTabVisit&&!tutTabVisited)
+                                ? (lang==="ko"?"탭을 먼저 클릭하세요":"Open the tab first")
+                                : (needsResearch&&researched.length===0)
+                                  ? (lang==="ko"?"연구를 먼저 구매하세요":"Purchase research first")
+                                  : (lang==="ko"?"다음 →":"Next →")}
+                            </button>
+                          </div>
                         </>
                       );
                     })()}
-                    {/* 버튼 */}
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-                      <button onClick={()=>{try{localStorage.setItem('pt_tut_done','1');}catch{}setTutDone(true);setTutorialStep(0);}}
-                        style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",
-                          color:"#6B7CA1",borderRadius:8,padding:"5px 14px",cursor:"pointer",
-                          fontSize:10,fontFamily:"inherit",transition:"all 0.15s"}}
-                        onMouseEnter={e=>e.currentTarget.style.color="#DDE2FF"}
-                        onMouseLeave={e=>e.currentTarget.style.color="#6B7CA1"}>
-                        {lang==="ko"?"건너뛰기":"Skip"}
-                      </button>
-                      <button onClick={()=>setTutorialStep(s=>Math.min(s+1,8))}
-                        style={{background:"rgba(255,217,61,0.15)",border:"1px solid rgba(255,217,61,0.5)",
-                          color:"#FFD93D",borderRadius:8,padding:"5px 16px",cursor:"pointer",
-                          fontSize:10,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}}
-                        onMouseEnter={e=>e.currentTarget.style.background="rgba(255,217,61,0.25)"}
-                        onMouseLeave={e=>e.currentTarget.style.background="rgba(255,217,61,0.15)"}>
-                        {lang==="ko"?"다음 →":"Next →"}
-                      </button>
-                    </div>
                   </div>
                 )}
               </>
