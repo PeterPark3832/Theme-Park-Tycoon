@@ -1807,6 +1807,34 @@ export default function ParkTycoon(){
 
   const hasResearchAvailable=RESEARCH.some(r=>!researched.includes(r.id)&&researchPoints>=r.cost&&(!r.req||researched.includes(r.req)));
 
+  // Pre-computed: satisfaction breakdown (avoids IIFE TDZ in minified build)
+  const satFactors=[
+    {label:lang==="ko"?"🏗️ 시설 보너스":"🏗️ Attraction",  val:+stats.satBonus.toFixed(1),     tip:lang==="ko"?"놀이기구·편의시설이 높을수록 증가":"Higher-rated rides boost satisfaction"},
+    {label:lang==="ko"?"🧹 청소부":"🧹 Janitors",          val:hired.janitor>0?+(hired.janitor*4).toFixed(0):0, tip:lang==="ko"?"청소부 1명당 약 +4":"~+4 per janitor"},
+    {label:lang==="ko"?"☀️ 날씨":"☀️ Weather",             val:weather.satMod,                 tip:weather.name?.[lang]||weather.name?.ko||""},
+    {label:lang==="ko"?"🔧 고장":"🔧 Broken Rides",        val:-(stats.brokenCount*2),         tip:lang==="ko"?`고장 ${stats.brokenCount}개 — 정비공 고용 권장`:`${stats.brokenCount} broken — hire mechanic`},
+    {label:lang==="ko"?"💸 입장료":"💸 Admission",          val:fee>maxFee?-6:0,                tip:lang==="ko"?fee>maxFee?`$${maxFee} 한도 초과!`:"적정 수준":"Fee within limit"},
+    {label:lang==="ko"?"🚶 혼잡":"🚶 Congestion",          val:congestedCells.size>0?-5:0,     tip:lang==="ko"?congestedCells.size>0?"놀이기구 추가 필요":"쾌적함":"Comfortable"},
+    {label:lang==="ko"?"🧹 청결도":"🧹 Cleanliness",        val:clean<40?-4:clean<60?-2:0,     tip:lang==="ko"?`청결도 ${Math.round(clean)}%`:`Cleanliness ${Math.round(clean)}%`},
+    {label:lang==="ko"?"📉 자연 감소":"📉 Natural Decay",   val:-0.2,                           tip:lang==="ko"?"시간이 지나면 자연 감소":"Slowly decays over time"},
+  ];
+  const satPrev=dailyHistory.length>=3?dailyHistory[dailyHistory.length-3]?.sat:null;
+  const satTrend=satPrev!=null?(sat>satPrev?"▲":sat<satPrev?"▼":"→"):"→";
+  const satTrendColor=satTrend==="▲"?"#00E5A0":satTrend==="▼"?"#FF5757":"#FFD93D";
+
+  // Pre-computed: visitor profile panel
+  const segEntries=Object.entries(SEGS);
+  const totalSegW=segEntries.reduce((s,[k])=>s+(segs[k]||0),0)||1;
+  const lastDayRev=dailyHistory.length>=1?dailyHistory[dailyHistory.length-1].revenue:null;
+  const revPerVis=lastDayRev!=null&&visitors>0?(lastDayRev/Math.max(1,visitors)).toFixed(1):null;
+  const ridePersonalityMap=grid.flat().filter(c=>c&&!c.ref&&B[c.type]?.personality).reduce((acc,c)=>{
+    const w=B[c.type].personality.who?.ko||"";
+    acc[w]=(acc[w]||0)+1;
+    return acc;
+  },{});
+  const dominantPersonality=Object.entries(ridePersonalityMap).sort((a,b)=>b[1]-a[1]);
+  const varietyWarn=dominantPersonality.length>0&&dominantPersonality[0][1]>=3&&(dominantPersonality[1]?.[1]||0)<2;
+
   const hasNoPath = stats.hasEntrance && !grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy");
   const visitorZeroReason = screen === "game" && visitors === 0 && speed > 0 ? (
     !stats.hasEntrance    ? { emoji: "🎪", msg: lang === "ko" ? "입구 게이트를 먼저 배치하세요 (건설 탭)" : "Place an Entrance Gate first (Build tab)" } :
@@ -2623,8 +2651,10 @@ export default function ParkTycoon(){
                 </div>}
                 {/* 클릭된 건물 패널을 목록 상단에 표시 */}
                 {!selected&&clickedTile?.cell&&(()=>{
-                  const{r,c,cell}=clickedTile,bd=B[cell.type];
-                  const st=bd.stats(cell.level),upCost=cell.level<2?bd.upgradeCost[cell.level]:null;
+                  const{r,c,cell}=clickedTile;
+                  const bd=B[cell.type];
+                  const st=bd.stats(cell.level);
+                  const upCost=cell.level<2?bd.upgradeCost[cell.level]:null;
                   const nextSt=cell.level<2?bd.stats(cell.level+1):null;
                   const attrDelta=nextSt?Math.round(nextSt.attraction-st.attraction):0;
                   const maintDelta=nextSt?Math.round(nextSt.maintenance-st.maintenance):0;
@@ -2763,8 +2793,10 @@ export default function ParkTycoon(){
                   </div>
                 );})}
                 {clickedTile?.cell&&(()=>{
-                  const{r,c,cell}=clickedTile,bd=B[cell.type];
-                  const st=bd.stats(cell.level),upCost=cell.level<2?bd.upgradeCost[cell.level]:null;
+                  const{r,c,cell}=clickedTile;
+                  const bd=B[cell.type];
+                  const st=bd.stats(cell.level);
+                  const upCost=cell.level<2?bd.upgradeCost[cell.level]:null;
                   const nextSt=cell.level<2?bd.stats(cell.level+1):null;
                   const attrDelta=nextSt?Math.round(nextSt.attraction-st.attraction):0;
                   const maintDelta=nextSt?Math.round(nextSt.maintenance-st.maintenance):0;
@@ -2858,74 +2890,44 @@ export default function ParkTycoon(){
                 <div style={{flex:1,fontSize:10,color:"#00E5A0",lineHeight:1.6}}>{lang==="ko"?"직원 고용으로 청결도·만족도를 올리세요. 청소부→청결도, 정비공→고장예방, 퍼포머→방문객 보너스":"Hire staff to boost cleanliness & satisfaction. Janitor→cleanliness, Mechanic→prevent breakdowns, Entertainer→visitor bonus"}</div>
                 <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,"tab_manage"];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
               </div>}
-              {(()=>{
-                const satFactors=[
-                  {label:lang==="ko"?"🏗️ 시설 보너스":"🏗️ Attraction",  val:+stats.satBonus.toFixed(1),     tip:lang==="ko"?"놀이기구·편의시설이 높을수록 증가":"Higher-rated rides boost satisfaction"},
-                  {label:lang==="ko"?"🧹 청소부":"🧹 Janitors",          val:hired.janitor>0?+(hired.janitor*4).toFixed(0):0, tip:lang==="ko"?"청소부 1명당 약 +4":"~+4 per janitor"},
-                  {label:lang==="ko"?"☀️ 날씨":"☀️ Weather",             val:weather.satMod,                 tip:weather.name?.[lang]||weather.name?.ko||""},
-                  {label:lang==="ko"?"🔧 고장":"🔧 Broken Rides",        val:-(stats.brokenCount*2),         tip:lang==="ko"?`고장 ${stats.brokenCount}개 — 정비공 고용 권장`:`${stats.brokenCount} broken — hire mechanic`},
-                  {label:lang==="ko"?"💸 입장료":"💸 Admission",          val:fee>maxFee?-6:0,                tip:lang==="ko"?fee>maxFee?`$${maxFee} 한도 초과!`:"적정 수준":"Fee within limit"},
-                  {label:lang==="ko"?"🚶 혼잡":"🚶 Congestion",          val:congestedCells.size>0?-5:0,     tip:lang==="ko"?congestedCells.size>0?"놀이기구 추가 필요":"쾌적함":"Comfortable"},
-                  {label:lang==="ko"?"🧹 청결도":"🧹 Cleanliness",        val:clean<40?-4:clean<60?-2:0,     tip:lang==="ko"?`청결도 ${Math.round(clean)}%`:`Cleanliness ${Math.round(clean)}%`},
-                  {label:lang==="ko"?"📉 자연 감소":"📉 Natural Decay",   val:-0.2,                           tip:lang==="ko"?"시간이 지나면 자연 감소":"Slowly decays over time"},
-                ];
-                const prevSat=dailyHistory.length>=3?dailyHistory[dailyHistory.length-3]?.sat:null;
-                const satTrend=prevSat!=null?(sat>prevSat?"▲":sat<prevSat?"▼":"→"):"→";
-                const trendColor=satTrend==="▲"?"#00E5A0":satTrend==="▼"?"#FF5757":"#FFD93D";
-                return(
-                <div style={{background:"#0C1128",border:"1px solid #FFD93D33",borderRadius:8,padding:8,marginBottom:8}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                    <div style={{fontSize:10,fontWeight:700,color:"#FFD93D"}}>😊 {lang==="ko"?"만족도 분석":"Satisfaction Analysis"}</div>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <div style={{fontSize:18,fontWeight:900,color:sat>=70?"#00E5A0":sat>=45?"#FFD93D":"#FF5757",lineHeight:1}}>{Math.round(sat)}%</div>
-                      <span style={{fontSize:12,color:trendColor,fontWeight:700}}>{satTrend}</span>
-                    </div>
+              <div style={{background:"#0C1128",border:"1px solid #FFD93D33",borderRadius:8,padding:8,marginBottom:8}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#FFD93D"}}>😊 {lang==="ko"?"만족도 분석":"Satisfaction Analysis"}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <div style={{fontSize:18,fontWeight:900,color:sat>=70?"#00E5A0":sat>=45?"#FFD93D":"#FF5757",lineHeight:1}}>{Math.round(sat)}%</div>
+                    <span style={{fontSize:12,color:satTrendColor,fontWeight:700}}>{satTrend}</span>
                   </div>
-                  {/* 만족도 바 */}
-                  <div style={{height:6,background:"#1A1A30",borderRadius:99,overflow:"hidden",marginBottom:6}}>
-                    <div style={{height:"100%",width:`${Math.min(100,sat)}%`,borderRadius:99,transition:"width 0.5s",background:sat>=70?"linear-gradient(90deg,#00E5A0,#5EF6A0)":sat>=45?"linear-gradient(90deg,#FFD93D,#FECA57)":"linear-gradient(90deg,#FF5757,#FF8888)"}}/>
-                  </div>
-                  {satFactors.filter(f=>f.val!==0).map(({label,val,tip})=>(
-                    <div key={label} style={{display:"flex",alignItems:"center",gap:4,fontSize:9,padding:"2px 0",borderBottom:"1px solid #1A1A3088"}}>
-                      <span style={{color:"#8888AA",flex:1}}>{label}</span>
-                      <div style={{height:4,width:Math.max(2,Math.min(40,Math.abs(val)*4)),borderRadius:99,background:val>0?"#00E5A088":"#FF575788",flexShrink:0}}/>
-                      <span style={{color:val>0?"#00E5A0":"#FF5757",fontWeight:700,minWidth:24,textAlign:"right"}}>{val>0?"+":""}{val>0?val.toFixed(0):val.toFixed(0)}</span>
-                    </div>
-                  ))}
-                  {satFactors.every(f=>f.val>=0)&&sat<50&&<div style={{fontSize:9,color:"#FF9F4388",marginTop:3,textAlign:"center"}}>⚠️ {lang==="ko"?"자연 감소보다 보너스가 부족합니다":"Bonuses not outpacing natural decay"}</div>}
                 </div>
-                );
-              })()}
-              {(()=>{
-                const segEntries=Object.entries(SEGS);
-                const totalSegW=segEntries.reduce((s,[k])=>s+(segs[k]||0),0)||1;
-                const lastRev=dailyHistory.length>=1?dailyHistory[dailyHistory.length-1].revenue:null;
-                const revPerVis=lastRev!=null&&visitors>0?(lastRev/Math.max(1,visitors)).toFixed(1):null;
-                const ridePersonality=grid.flat().filter(c=>c&&!c.ref&&B[c.type]?.personality).reduce((acc,c)=>{
-                  const w=B[c.type].personality.who?.ko||"";
-                  acc[w]=(acc[w]||0)+1; return acc;
-                },{});
-                const dominantPersonality=Object.entries(ridePersonality).sort((a,b)=>b[1]-a[1]);
-                const varietyWarn=dominantPersonality.length>0&&dominantPersonality[0][1]>=3&&(dominantPersonality[1]?.[1]||0)<2;
-                return(<div style={{background:"#0C1128",border:"1px solid #A29BFE33",borderRadius:8,padding:8,marginBottom:8}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                    <div style={{fontSize:10,fontWeight:700,color:"#A29BFE"}}>👥 {lang==="ko"?"방문객 분석":"Visitor Profile"}</div>
-                    {revPerVis&&<div style={{fontSize:9,color:"#FECA57",fontWeight:700}}>💵 ${revPerVis}/{lang==="ko"?"명":"vis"}</div>}
+                <div style={{height:6,background:"#1A1A30",borderRadius:99,overflow:"hidden",marginBottom:6}}>
+                  <div style={{height:"100%",width:`${Math.min(100,sat)}%`,borderRadius:99,transition:"width 0.5s",background:sat>=70?"linear-gradient(90deg,#00E5A0,#5EF6A0)":sat>=45?"linear-gradient(90deg,#FFD93D,#FECA57)":"linear-gradient(90deg,#FF5757,#FF8888)"}}/>
+                </div>
+                {satFactors.filter(f=>f.val!==0).map(({label,val})=>(
+                  <div key={label} style={{display:"flex",alignItems:"center",gap:4,fontSize:9,padding:"2px 0",borderBottom:"1px solid #1A1A3088"}}>
+                    <span style={{color:"#8888AA",flex:1}}>{label}</span>
+                    <div style={{height:4,width:Math.max(2,Math.min(40,Math.abs(val)*4)),borderRadius:99,background:val>0?"#00E5A088":"#FF575788",flexShrink:0}}/>
+                    <span style={{color:val>0?"#00E5A0":"#FF5757",fontWeight:700,minWidth:24,textAlign:"right"}}>{val>0?"+":""}{Math.round(val)}</span>
                   </div>
-                  <div style={{display:"flex",height:6,borderRadius:99,overflow:"hidden",marginBottom:5,gap:1}}>
-                    {segEntries.map(([k,s])=>{const w=(segs[k]||0)/totalSegW*100;return w>0?<div key={k} style={{width:`${w}%`,background:s.color,opacity:0.85}}/>:null;})}
-                  </div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:"2px 8px"}}>
-                    {segEntries.map(([k,s])=>{const pct=Math.round((segs[k]||0)/totalSegW*100);return pct>0?(<div key={k} style={{display:"flex",alignItems:"center",gap:2,fontSize:9}}>
-                      <div style={{width:6,height:6,borderRadius:"50%",background:s.color,flexShrink:0}}/>
-                      <span style={{color:"#8899BB"}}>{s.emoji} {pct}%</span>
-                    </div>):null;})}
-                  </div>
-                  {varietyWarn&&<div style={{marginTop:5,fontSize:9,color:"#FF9F43",background:"rgba(255,159,67,0.08)",borderRadius:4,padding:"3px 6px"}}>
-                    ⚠️ {lang==="ko"?`"${dominantPersonality[0][0]}" 유형 집중 — 다른 성격의 놀이기구 추가로 방문객 다양화 권장`:`"${dominantPersonality[0][0]}" type dominant — add different personality rides to diversify visitors`}
-                  </div>}
-                </div>);
-              })()}
+                ))}
+                {satFactors.every(f=>f.val>=0)&&sat<50&&<div style={{fontSize:9,color:"#FF9F4388",marginTop:3,textAlign:"center"}}>⚠️ {lang==="ko"?"자연 감소보다 보너스가 부족합니다":"Bonuses not outpacing natural decay"}</div>}
+              </div>
+              <div style={{background:"#0C1128",border:"1px solid #A29BFE33",borderRadius:8,padding:8,marginBottom:8}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#A29BFE"}}>👥 {lang==="ko"?"방문객 분석":"Visitor Profile"}</div>
+                  {revPerVis&&<div style={{fontSize:9,color:"#FECA57",fontWeight:700}}>💵 ${revPerVis}/{lang==="ko"?"명":"vis"}</div>}
+                </div>
+                <div style={{display:"flex",height:6,borderRadius:99,overflow:"hidden",marginBottom:5,gap:1}}>
+                  {segEntries.map(([k,s])=>{const w=(segs[k]||0)/totalSegW*100;return w>0?<div key={k} style={{width:`${w}%`,background:s.color,opacity:0.85}}/>:null;})}
+                </div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:"2px 8px"}}>
+                  {segEntries.map(([k,s])=>{const pct=Math.round((segs[k]||0)/totalSegW*100);return pct>0?(<div key={k} style={{display:"flex",alignItems:"center",gap:2,fontSize:9}}>
+                    <div style={{width:6,height:6,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                    <span style={{color:"#8899BB"}}>{s.emoji} {pct}%</span>
+                  </div>):null;})}
+                </div>
+                {varietyWarn&&<div style={{marginTop:5,fontSize:9,color:"#FF9F43",background:"rgba(255,159,67,0.08)",borderRadius:4,padding:"3px 6px"}}>
+                  ⚠️ {lang==="ko"?`"${dominantPersonality[0][0]}" 유형 집중 — 다른 성격의 놀이기구 추가로 방문객 다양화 권장`:`"${dominantPersonality[0][0]}" type dominant — add different personality rides to diversify visitors`}
+                </div>}
+              </div>
               {tutorialStep===6&&!tutTabVisited&&(
                 <div style={{background:"rgba(255,217,61,0.10)",border:"2px solid rgba(255,217,61,0.5)",borderRadius:7,padding:"6px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"center",animation:"pulse 2s infinite"}}>
                   <span style={{fontSize:16}}>👆</span>
