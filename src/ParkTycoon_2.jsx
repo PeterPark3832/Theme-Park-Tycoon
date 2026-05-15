@@ -2869,8 +2869,8 @@ export default function ParkTycoon(){
                   {label:lang==="ko"?"🧹 청결도":"🧹 Cleanliness",        val:clean<40?-4:clean<60?-2:0,     tip:lang==="ko"?`청결도 ${Math.round(clean)}%`:`Cleanliness ${Math.round(clean)}%`},
                   {label:lang==="ko"?"📉 자연 감소":"📉 Natural Decay",   val:-0.2,                           tip:lang==="ko"?"시간이 지나면 자연 감소":"Slowly decays over time"},
                 ];
-                const satTotal=satFactors.reduce((s,f)=>s+f.val,0);
-                const satTrend=dailyHistory.length>=3?(sat>dailyHistory[dailyHistory.length-3]?.sat?"▲":"sat<dailyHistory[dailyHistory.length-3]?.sat"?"▼":"→"):"→";
+                const prevSat=dailyHistory.length>=3?dailyHistory[dailyHistory.length-3]?.sat:null;
+                const satTrend=prevSat!=null?(sat>prevSat?"▲":sat<prevSat?"▼":"→"):"→";
                 const trendColor=satTrend==="▲"?"#00E5A0":satTrend==="▼"?"#FF5757":"#FFD93D";
                 return(
                 <div style={{background:"#0C1128",border:"1px solid #FFD93D33",borderRadius:8,padding:8,marginBottom:8}}>
