@@ -82,6 +82,8 @@ function _startMusicEngine(mg,ctx){
       const vol2=phase===0?0.17:phase===1?0.18:0.20;
       osc(c.a[ni],t,_N*0.88,'triangle',vol0);
       if(ni%2===0) osc(c.m[ni>>1],t,_N*1.9,'sine',vol1);
+      // Second melody layer — alternate beats, slightly higher for variation
+      if(ni%2===1&&phase>=1) osc(c.m[Math.min(3,(ni-1)>>1)+1>3?3:(ni-1)>>1]*1.25,t,_N*0.85,'triangle',vol1*0.65);
       if(ni===0){
         osc(c.b,t,_N*7.8,'sine',vol2);
         if(phase===2) pad(c.b*2,t,0.06);
@@ -481,6 +483,18 @@ export default function ParkTycoon(){
       startOwned=mkOwned(wc.gridRestrict);
     }
     if(wc?.timeLimit&&mode!=="campaign") setScenarioTimeLimit(wc.timeLimit);
+
+    // Easy challenge: pre-place entrance + carousel + food stall to accelerate early game
+    if(diff==="easy"&&mode==="challenge"&&!scenarioId){
+      const cr=Math.floor(GR/2),cc2=Math.floor(GC/2);
+      const freeE=(w,h,pr,pc)=>{const ok=(r,c)=>{if(r<2||r+h>GR-2||c<2||c+w>GC-2) return false;for(let dr=0;dr<h;dr++) for(let dc=0;dc<w;dc++) if(startGrid[r+dr]?.[c+dc]) return false;return true;};if(ok(pr,pc)) return [pr,pc];for(let d=1;d<10;d++){for(let dr=-d;dr<=d;dr++) for(let dc=-d;dc<=d;dc++) if((Math.abs(dr)===d||Math.abs(dc)===d)&&ok(pr+dr,pc+dc)) return [pr+dr,pc+dc];}return null;};
+      const ep=freeE(2,1,cr,Math.floor(GC*0.35));
+      if(ep){startGrid[ep[0]][ep[1]]={type:"entrance",level:0,broken:false};startGrid[ep[0]][ep[1]+1]={type:"entrance",ref:[ep[0],ep[1]]};}
+      const cp=freeE(2,2,cr-1,Math.floor(GC*0.42));
+      if(cp){startGrid[cp[0]][cp[1]]={type:"carousel",level:0,broken:false};for(let dr=0;dr<2;dr++) for(let dc=0;dc<2;dc++) if(dr||dc) startGrid[cp[0]+dr][cp[1]+dc]={type:"carousel",ref:[cp[0],cp[1]]};}
+      const fp=freeE(1,1,cr,Math.floor(GC*0.5));
+      if(fp) startGrid[fp[0]][fp[1]]={type:"foodStall",level:0,broken:false};
+    }
 
     // freeBuild perk: pre-place carousel and snack bar, avoiding preBuilt collisions
     if(perk==="freeBuild"&&mode!=="sandbox"){
@@ -1302,12 +1316,22 @@ export default function ParkTycoon(){
     crowdRef.current.setVolume(Math.min(0.10, visitors*0.0003));
   },[screen,soundOn,visitors]);
 
-  // Disaster drum — start low bass loop on warning, stop+fanfare on clear
+  // Disaster drum — start low bass loop on warning, reduce BGM gain for tension
   useEffect(()=>{
     if(disasterWarning&&soundOn){
       if(!disasterDrumRef.current) disasterDrumRef.current=startDisasterDrum(0.14);
+      if(bgMusicRef.current?.masterGain&&bgMusicRef.current?.ctx){
+        const{masterGain,ctx}=bgMusicRef.current;
+        masterGain.gain.cancelScheduledValues(ctx.currentTime);
+        masterGain.gain.linearRampToValueAtTime(bgVolumeRef.current*0.15,ctx.currentTime+1.2);
+      }
     } else {
       if(disasterDrumRef.current){disasterDrumRef.current();disasterDrumRef.current=null;}
+      if(bgMusicRef.current?.masterGain&&bgMusicRef.current?.ctx){
+        const{masterGain,ctx}=bgMusicRef.current;
+        masterGain.gain.cancelScheduledValues(ctx.currentTime);
+        masterGain.gain.linearRampToValueAtTime(bgVolumeRef.current*0.5,ctx.currentTime+1.5);
+      }
     }
     return()=>{if(!disasterWarning&&disasterDrumRef.current){disasterDrumRef.current();disasterDrumRef.current=null;}};
   },[disasterWarning,soundOn]);
@@ -1354,6 +1378,7 @@ export default function ParkTycoon(){
 
   // obstacleMap must be declared BEFORE handleGridClick to avoid TDZ in minified bundle
   const currentScenarioData=currentScenario?SCENARIOS.find(s=>s.id===currentScenario):null;
+  const nightPhase=currentScenarioData?.nightCycle?(Math.floor(day/3)%2===1):false;
   const obstacleMap=useMemo(()=>{
     if(!currentScenarioData?.obstacles) return {};
     return Object.fromEntries(currentScenarioData.obstacles.map(o=>[`${o.r},${o.c}`,o]));
@@ -1438,7 +1463,7 @@ export default function ParkTycoon(){
       }
       return n;
     });
-    setMoney(mo=>mo-bd.baseCost);setLastBuilt(selected);addLog(t("log.build",{name:t(`b.${selected}`)}));if(soundOn) playSound("build",selected);
+    setMoney(mo=>mo-bd.baseCost+(selected==="entrance"?500:0));setLastBuilt(selected);addLog(t("log.build",{name:t(`b.${selected}`)}));if(selected==="entrance") addLog(lang==="ko"?"🎪 개장 보너스 +$500!":"🎪 Grand Opening bonus +$500!");if(soundOn) playSound("build",selected);
     const pId=Date.now();
     const pColor=B[selected]?.color||"#FFD93D";
     const particles=Array.from({length:8},(_,i)=>{
@@ -1619,7 +1644,7 @@ export default function ParkTycoon(){
     link.click();
     addLog(`📷 ${lang === "ko" ? "스냅샷 저장됨!" : "Snapshot saved!"}`);
   };
-  const doResearch=id=>{const r=RESEARCH.find(x=>x.id===id);if(!r) return;if(weeklyChallengeMod?.noResearch){addLog(lang==="ko"?"🚫 이번 챌린지: 연구 불가":"🚫 This challenge: no research allowed");return;}if(researchPoints<r.cost){addLog(t("log.rpLacking"));return;}if(r.req&&!researched.includes(r.req)){addLog(t("log.resReq"));return;}if(researched.includes(id)) return;setResearched(p=>[...p,id]);setResearchPoints(p=>p-r.cost);addLog(t("log.resComplete", {name: t(`res.${r.id}.name`)}));};
+  const doResearch=id=>{const r=RESEARCH.find(x=>x.id===id);if(!r) return;if(weeklyChallengeMod?.noResearch){addLog(lang==="ko"?"🚫 이번 챌린지: 연구 불가":"🚫 This challenge: no research allowed");return;}if(researchPoints<r.cost){addLog(t("log.rpLacking"));return;}if(r.req&&!researched.includes(r.req)){addLog(t("log.resReq"));return;}if(researched.includes(id)) return;setResearched(p=>{const n=[...p,id];if(n.length===RESEARCH.length){setTimeout(()=>{addLog(lang==="ko"?"🏆 모든 연구 완료! '레전드 어워드' 도전이 해금됐습니다!":"🏆 All research complete! 'Legend Award' challenge unlocked!");setSandboxGoal({type:"vis",target:500,label:{ko:"🏆 레전드 어워드: 방문객 500명",en:"🏆 Legend Award: 500 Visitors"},achieved:false,legend:true});},100);}return n;});setResearchPoints(p=>p-r.cost);addLog(t("log.resComplete", {name: t(`res.${r.id}.name`)}));};
   const resImpact=(id)=>{
     const rbN=getRB([...researched,id]);
     const fK=n=>n>=1000?`$${(n/1000).toFixed(1)}k`:`$${n}`;
@@ -1732,8 +1757,8 @@ export default function ParkTycoon(){
   const hasNoPath = stats.hasEntrance && !grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy");
   const visitorZeroReason = screen === "game" && visitors === 0 && speed > 0 ? (
     !stats.hasEntrance    ? { emoji: "🎪", msg: lang === "ko" ? "입구 게이트를 먼저 배치하세요 (건설 탭)" : "Place an Entrance Gate first (Build tab)" } :
-    hasNoPath             ? { emoji: "🛤️", msg: lang === "ko" ? "입구에서 어트랙션까지 통로(🟫)를 연결하세요" : "Connect paths (🟫) from entrance to attractions" } :
-    stats.attraction < 5  ? { emoji: "🎡", msg: lang === "ko" ? "어트랙션을 추가하면 방문객이 옵니다 (건설 탭)" : "Add attractions to get visitors (Build tab)" } :
+    hasNoPath             ? { emoji: "🛤️", msg: lang === "ko" ? "입구에서 놀이기구까지 통로(🟫)를 연결하세요" : "Connect paths (🟫) from entrance to attractions" } :
+    stats.attraction < 5  ? { emoji: "🎡", msg: lang === "ko" ? "놀이기구를 추가하면 방문객이 옵니다 (건설 탭)" : "Add attractions to get visitors (Build tab)" } :
     fee > maxFee          ? { emoji: "💸", msg: lang === "ko" ? `입장료가 너무 높습니다 (현재 한도: $${maxFee})` : `Admission fee too high (current limit: $${maxFee})` } :
     sat < 20              ? { emoji: "😔", msg: lang === "ko" ? "만족도가 너무 낮습니다 — 고장난 시설을 수리하세요" : "Satisfaction too low — repair broken facilities" } :
     day <= 2              ? { emoji: "⏳", msg: lang === "ko" ? "공원 오픈 초반! 곧 방문객이 도착합니다…" : "Just opened! Visitors are on their way…" } :
@@ -2111,7 +2136,7 @@ export default function ParkTycoon(){
             if(clean<40) issues.push({emoji:"🗑️",col:"#FF5757",msg:lang==="ko"?`청결도 ${Math.round(clean)}% — 청소부 부족`:`Cleanliness ${Math.round(clean)}% — need janitors`});
             if(sat<50&&sat>0) issues.push({emoji:"😔",col:"#FF6B9D",msg:lang==="ko"?`만족도 ${Math.round(sat)}% — 방문객 감소 중`:`Satisfaction ${Math.round(sat)}% — visitors leaving`});
             if(hired.janitor===0&&hired.mechanic===0&&day>3) issues.push({emoji:"👷",col:"#4D9FFF",msg:lang==="ko"?"직원 없음 — 경영 탭에서 고용하세요":"No staff — hire in Manage tab"});
-            if(hasNoPath&&stats.hasEntrance) issues.push({emoji:"🛤️",col:"#FFD93D",msg:lang==="ko"?"통로 없음 — 어트랙션 수익 -40%":"No paths — ride income -40%"});
+            if(hasNoPath&&stats.hasEntrance) issues.push({emoji:"🛤️",col:"#FFD93D",msg:lang==="ko"?"통로 없음 — 놀이기구 수익 -40%":"No paths — ride income -40%"});
             if(issues.length===0) return null;
             return(<div style={{borderTop:"1px solid rgba(255,255,255,0.08)",paddingTop:8}} onClick={e=>e.stopPropagation()}>
               <div style={{fontSize:9,color:"#444466",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>{lang==="ko"?"⚠ 현재 문제점":"⚠ CURRENT ISSUES"}</div>
@@ -2311,7 +2336,7 @@ export default function ParkTycoon(){
           ].map(({ic,v,l,col,big,primary,isVis,isSat,tipKey})=>{
             if(ic==="__sep__") return <div key="__sep__" style={{width:1,alignSelf:"stretch",background:"rgba(255,255,255,0.12)",margin:"2px 3px",flexShrink:0}}/>;
             const STAT_TIPS={
-              vis:{title:lang==="ko"?"👥 방문객":"👥 Visitors",desc:lang==="ko"?"어트랙션 점수, 만족도, 요금, 날씨, 계절에 따라 결정됩니다. 입구가 있어야 방문객이 들어올 수 있어요.\nVisitors depend on attraction score, satisfaction, fees, weather & season. Requires an entrance gate.":"Visitors depend on attraction score, satisfaction, fees, weather & season. Requires an entrance gate."},
+              vis:{title:lang==="ko"?"👥 방문객":"👥 Visitors",desc:lang==="ko"?"놀이기구 점수, 만족도, 요금, 날씨, 계절에 따라 결정됩니다. 입구가 있어야 방문객이 들어올 수 있어요.\nVisitors depend on attraction score, satisfaction, fees, weather & season. Requires an entrance gate.":"Visitors depend on attraction score, satisfaction, fees, weather & season. Requires an entrance gate."},
               sat:{title:lang==="ko"?"😊 만족도":"😊 Satisfaction",desc:lang==="ko"?"청결도, 시설 품질, 요금, 혼잡도가 영향을 줍니다. 만족도가 높을수록 방문객이 더 오고 수익이 늘어요.\nAffected by cleanliness, facility quality, fees & congestion. Higher satisfaction = more visitors & revenue.":"Affected by cleanliness, facility quality, fees & congestion. Higher satisfaction = more visitors & revenue."},
               clean:{title:lang==="ko"?"🧹 청결도":"🧹 Cleanliness",desc:lang==="ko"?"방문객이 많을수록 더러워지고, 청소부를 고용하면 올라갑니다. 청결도 30% 미만이면 만족도가 크게 떨어져요.\nGets dirty with visitors; hire janitors to maintain. Below 30% causes big satisfaction penalty.":"Gets dirty with visitors; hire janitors to maintain. Below 30% causes big satisfaction penalty."},
               rp:{title:lang==="ko"?"🔬 연구 포인트":"🔬 Research Points",desc:lang==="ko"?"매일 방문객 수에 비례해 획득합니다. 연구 탭에서 공원 업그레이드에 사용하세요.\nEarned daily based on visitor count. Spend in the Research tab to unlock permanent park upgrades.":"Earned daily based on visitor count. Spend in the Research tab to unlock permanent park upgrades."},
@@ -2387,7 +2412,7 @@ export default function ParkTycoon(){
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 16px"}}>
               {[
-                {label:lang==="ko"?"⭐ 어트랙션 점수":"⭐ Attraction", val:visitorFactors.attraction, unit:"pts"},
+                {label:lang==="ko"?"⭐ 놀이기구 점수":"⭐ Attraction", val:visitorFactors.attraction, unit:"pts"},
                 {label:lang==="ko"?"🌱 기본 예상":"🌱 Base Estimate", val:visitorFactors.baseVis, unit:"명", highlight:true},
                 {label:lang==="ko"?"☀️ 날씨 보정":"☀️ Weather", val:`×${visitorFactors.weatherMult}`, unit:""},
                 {label:lang==="ko"?"📅 계절 보정":"📅 Season", val:`×${visitorFactors.seasonMult}`, unit:""},
@@ -2464,7 +2489,7 @@ export default function ParkTycoon(){
                 if(!hasRestroom&&(segData.family||0)>0.2) issues.push({sev:"yellow",msg:lang==="ko"?"화장실 없음 — 가족 방문객 만족도 페널티":"No restroom — family satisfaction penalty"});
                 if(stats.brokenCount>2) issues.push({sev:"yellow",msg:lang==="ko"?`고장 ${stats.brokenCount}개 — 정비공 필요`:`${stats.brokenCount} broken — hire mechanic`});
                 if(clean<35&&visitors>10) issues.push({sev:"red",msg:lang==="ko"?"청결도 위험 — 방문객 만족도 급감":"Critical cleanliness — satisfaction dropping"});
-                if(stats.attraction<5&&day>3) issues.push({sev:"red",msg:lang==="ko"?"어트랙션 부족 — 방문객 없음":"Need attractions — no visitors"});
+                if(stats.attraction<5&&day>3) issues.push({sev:"red",msg:lang==="ko"?"놀이기구 부족 — 방문객 없음":"Need attractions — no visitors"});
                 const top=issues.slice(0,3);
                 if(!top.length) return null;
                 return(<div style={{marginBottom:6,borderRadius:6,overflow:"hidden",border:"1px solid rgba(255,159,67,0.2)"}}>
@@ -2631,7 +2656,7 @@ export default function ParkTycoon(){
                         {isBldHov&&<div style={{background:"#1A1A3A",borderRadius:"0 0 5px 5px",padding:"4px 6px",marginBottom:2,fontSize:10,color:"#C7B8EA",lineHeight:1.6,border:`1px solid ${bd.color}22`,borderTop:"none"}}>
                           {isLocked&&<div style={{color:"#FF9F43",fontWeight:700,marginBottom:2}}>🔒 {lang==="ko"?"연구 탭 → VIP 언락 (r4) 필요":"Research tab → VIP Unlock (r4) required"}</div>}
                           {bd.flavor&&<div style={{color:"#A29BFE",fontStyle:"italic",marginBottom:3,fontSize:9}}>✨ {bd.flavor[lang]||bd.flavor.ko}</div>}
-                          {bd.stats(0).attraction>0&&<div>⭐ {lang==="ko"?"어트랙션":"Attraction"} +{bd.stats(0).attraction}</div>}
+                          {bd.stats(0).attraction>0&&<div>⭐ {lang==="ko"?"놀이기구":"Attraction"} +{bd.stats(0).attraction}</div>}
                           {bd.stats(0).maintenance>0&&<div>🔧 {lang==="ko"?"유지비":"Upkeep"} ${bd.stats(0).maintenance}/{lang==="ko"?"일":"day"}</div>}
                           {bd.stats(0).satBonus>0&&<div>😊 {lang==="ko"?"만족도":"Happiness"} +{bd.stats(0).satBonus}</div>}
                           {bd.stats(0).rpv>0&&<div>💰 {lang==="ko"?"수익/방문객":"Rev/visitor"} +{bd.stats(0).rpv}</div>}
@@ -2844,7 +2869,7 @@ export default function ParkTycoon(){
                 {finRevOpen&&<div style={{padding:"0 10px 8px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
                   {[
                     {label:lang==="ko"?"💰 입장료":"💰 Admission", val:Math.round(revBreak.adm), col:"#FFD93D"},
-                    {label:lang==="ko"?"🎢 어트랙션":"🎢 Rides",   val:Math.round(revBreak.ride),col:"#FF6B9D"},
+                    {label:lang==="ko"?"🎢 놀이기구":"🎢 Rides",   val:Math.round(revBreak.ride),col:"#FF6B9D"},
                     {label:lang==="ko"?"🍔 상업":"🍔 Shops",       val:Math.round(revBreak.shop),col:"#48DBFB"},
                     {label:lang==="ko"?"🎫 시즌패스":"🎫 Pass",    val:Math.round(revBreak.pass),col:"#5EF6A0"},
                   ].map(({label,val,col})=>(
@@ -2881,7 +2906,7 @@ export default function ParkTycoon(){
                   </div>
                   <div style={{display:"flex",flexDirection:"column",gap:3}}>
                     {[
-                      {label:lang==="ko"?"어트랙션":"Attraction", pct:Math.min(100,visitorFactors.attraction*2), col:"#FFD93D"},
+                      {label:lang==="ko"?"놀이기구":"Attraction", pct:Math.min(100,visitorFactors.attraction*2), col:"#FFD93D"},
                       {label:lang==="ko"?"날씨":"Weather", pct:Math.round(visitorFactors.weatherMult*100), col:visitorFactors.weatherMult>=1?"#00E5A0":"#FF5757"},
                       {label:lang==="ko"?"계절":"Season", pct:Math.round(visitorFactors.seasonMult*100), col:"#9B7FFF"},
                       {label:lang==="ko"?"만족도":"Happiness", pct:Math.round(visitorFactors.satMult*100), col:sat>70?"#00E5A0":sat>40?"#FFD93D":"#FF5757"},
@@ -3152,7 +3177,7 @@ export default function ParkTycoon(){
                 const steps=[
                   {done:stats.hasEntrance,ko:"입구 게이트 배치",       en:"Place entrance gate"},
                   {done:anyPaths2,         ko:"통로로 건물 연결",        en:"Connect buildings with paths"},
-                  {done:rideCount>=3,      ko:"어트랙션 3개 이상 건설",  en:"Build 3+ attractions"},
+                  {done:rideCount>=3,      ko:"놀이기구 3개 이상 건설",  en:"Build 3+ attractions"},
                   {done:hasStaff,          ko:"직원 1명 이상 고용",      en:"Hire at least 1 staff"},
                 ];
                 if(steps.every(s=>s.done)) return null;
@@ -3321,7 +3346,7 @@ export default function ParkTycoon(){
                 const isRunning=speed>0;
                 const steps=[
                   {done:hasEntrance, ko:"입구 게이트 배치", en:"Place Entrance Gate"},
-                  {done:hasRide,     ko:"어트랙션 1개 건설", en:"Build 1 Attraction"},
+                  {done:hasRide,     ko:"놀이기구 1개 건설", en:"Build 1 Attraction"},
                   {done:hasPath,     ko:"통로로 연결",       en:"Connect with Paths"},
                   {done:hasStaff,    ko:"직원 1명 고용",     en:"Hire 1 Staff Member"},
                   {done:isRunning,   ko:"▶ 눌러서 개장",    en:"Press ▶ to Open"},
@@ -3530,7 +3555,7 @@ export default function ParkTycoon(){
           )}
           {screen==="game"&&hired.mechanic===0&&stats.brokenCount===0&&(cc.rollerCoaster||cc.dropTower||cc.thrillRide)&&(
             <div style={{background:"rgba(255,159,67,0.10)",border:"1px solid rgba(255,159,67,0.4)",borderRadius:6,padding:"5px 10px",color:"#FF9F43",fontSize:10,fontWeight:700,display:"flex",gap:6,alignItems:"center",marginBottom:4,flexShrink:0,position:"relative",zIndex:10}}>
-              {lang==="ko"?"🔧 정비공 없음 — 고위험 어트랙션 고장 확률이 높습니다":"🔧 No mechanic — high-risk attractions have increased breakdown chance"}
+              {lang==="ko"?"🔧 정비공 없음 — 고위험 놀이기구 고장 확률이 높습니다":"🔧 No mechanic — high-risk attractions have increased breakdown chance"}
             </div>
           )}
           {screen==="game"&&!ftueGoalDone&&tutorialStep===0&&stats.hasEntrance&&visitors===0&&(
@@ -3559,19 +3584,19 @@ export default function ParkTycoon(){
                msg:lang==="ko"?`고장난 시설 ${stats.brokenCount}개 — 정비공 고용 또는 경영 탭에서 직접 수리하세요`:`${stats.brokenCount} broken facilities — hire a Mechanic or repair manually in Manage tab`},
               {id:"h_path",  show:day>=3&&stats.hasEntrance&&grid.flat().some(c=>c&&!c.ref&&B[c.type]?.cat==="ride"&&c.type!=="entrance")&&!grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy"),
                emoji:"🛤️", col:"#FF9F43",
-               msg:lang==="ko"?"어트랙션에 통로가 연결되지 않으면 수익이 -40%입니다 — 건설 탭 → 통로를 연결하세요":"Rides without paths lose -40% income — go to Build → place paths"},
+               msg:lang==="ko"?"놀이기구에 통로가 연결되지 않으면 수익이 -40%입니다 — 건설 탭 → 통로를 연결하세요":"Rides without paths lose -40% income — go to Build → place paths"},
               {id:"h_sat",   show:day>=6&&sat<50&&sat>0&&visitors>0,
                emoji:"😟", col:"#FF6B9D",
                msg:lang==="ko"?"만족도가 낮으면 방문객이 줄어듭니다 — 😊 버튼에 마우스를 올려 원인을 확인하세요":"Low happiness drives away visitors — hover 😊 icon to see causes"},
               {id:"h_congest", show:day>=5&&visitors>0&&congestedCells.size>0&&stats.brokenCount===0,
                emoji:"🚶", col:"#FF9F43",
-               msg:lang==="ko"?"공원이 혼잡합니다! 어트랙션을 추가해 수용인원을 늘리거나 입장료를 올리세요":"Park is over capacity! Add more attractions or raise the admission fee"},
+               msg:lang==="ko"?"공원이 혼잡합니다! 놀이기구를 추가해 수용인원을 늘리거나 입장료를 올리세요":"Park is over capacity! Add more attractions or raise the admission fee"},
               {id:"h_research", show:day>=10&&researchPoints>=5&&researched.length===0,
                emoji:"🔬", col:"#A29BFE",
                msg:lang==="ko"?"연구 포인트가 쌓였습니다! 연구 탭에서 업그레이드하세요":"Research points available! Go to the Research tab to unlock upgrades"},
               {id:"h_zone", show:day>=15&&visitors>20&&zoneGrid.flat().every(v=>!v),
                emoji:"🎨", col:"#5EF6A0",
-               msg:lang==="ko"?"구역(Zone)을 지정하면 어트랙션 효율이 +25~30% 상승합니다 — 건설 탭 → 구역 페인트":"Designate Zones for +25-30% attraction efficiency — Build tab → Zone Paint"},
+               msg:lang==="ko"?"구역(Zone)을 지정하면 놀이기구 효율이 +25~30% 상승합니다 — 건설 탭 → 구역 페인트":"Designate Zones for +25-30% attraction efficiency — Build tab → Zone Paint"},
             ];
             const activeHint=hints.find(h=>h.show&&!dismissedHints.includes(h.id));
             if(!activeHint) return null;
@@ -3821,7 +3846,7 @@ export default function ParkTycoon(){
                   </>}
 
                   {owned&&cell&&!isPath&&!isEntrance&&<>
-                    {zone&&<div style={{position:"absolute",inset:0,background:ZONES[zone]?.bg,borderRadius:4,opacity:0.6}}/>}
+                    {zone&&<div style={{position:"absolute",inset:0,background:ZONES[zone]?.color,borderRadius:4,opacity:0.1}}/>}
                     {/* 2-5: 대형 건물 배경 그라데이션 */}
                     {bw>=3&&!broken&&<>
                       <div style={{position:"absolute",inset:0,borderRadius:4,background:`radial-gradient(circle at 50% 50%,${bd.color}28 0%,transparent 70%)`,zIndex:1}}/>
@@ -3832,6 +3857,7 @@ export default function ParkTycoon(){
                       opacity:broken?0.25:isDemolishHov?0.5:1,
                       filter:broken?"grayscale(1)":"none",
                       transition:"opacity 0.1s,filter 0.1s",
+                      animation:!broken?({carousel:"carousel-spin 4s linear infinite",fountain:"fountain-wave 1.8s ease-in-out infinite",rollerCoaster:"roller-shake 0.35s ease-in-out infinite"}[cell.type]||undefined):undefined,
                     }}>
                       {hasBuildingIcon(cell.type)
                         ? getBuildingIcon(cell.type, bd.color, bw>=3?44:bw>=2?36:cell.level>=2?32:28)
@@ -3849,7 +3875,10 @@ export default function ParkTycoon(){
                     {isCongested&&!broken&&<div style={{position:"absolute",top:2,right:2,fontSize:12,zIndex:5,lineHeight:1,filter:"drop-shadow(0 0 2px #000)"}}>🚶</div>}
                   </>}
 
-                  {owned&&zone&&!cell&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,opacity:0.15}}>{ZONES[zone]?.emoji}</div>}
+                  {owned&&zone&&!cell&&<>
+                    <div style={{position:"absolute",inset:0,borderRadius:4,background:ZONES[zone]?.color,opacity:0.15,pointerEvents:"none"}}/>
+                    <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,opacity:0.45,pointerEvents:"none"}}>{ZONES[zone]?.emoji}</div>
+                  </>}
                   {owned&&cell&&!isPath&&zone&&<div style={{position:"absolute",bottom:2,left:2,width:5,height:5,borderRadius:"50%",background:ZONES[zone]?.color,zIndex:4,boxShadow:`0 0 3px ${ZONES[zone]?.color}`}}/>}
 
                   {tutHighlight&&<div style={{position:"absolute",inset:0,borderRadius:4,background:"#FECA5710",animation:"pulse 1s infinite"}}/>}
@@ -3867,6 +3896,11 @@ export default function ParkTycoon(){
                 </div>);
               }))}
             </div>
+
+            {/* 주야간 오버레이 — s7 야간 공포 분위기 */}
+            {screen==="game"&&nightPhase&&(
+              <div style={{position:"absolute",inset:0,borderRadius:10,zIndex:6,pointerEvents:"none",background:"rgba(0,0,20,0.40)",transition:"background 1.5s ease"}}/>
+            )}
 
             {/* 날씨 비주얼 오버레이 */}
             {screen==="game"&&(weather.id==="rainy"||weather.id==="stormy"||weather.id==="foggy"||weather.id==="rainbow")&&(
@@ -3979,7 +4013,7 @@ export default function ParkTycoon(){
                 </div>);
               })}
               {gridPopups.filter(p=>p.expires>Date.now()).map(p=>(
-                <div key={p.id} style={{position:"absolute",left:`${(p.c/GC)*100}%`,top:`${(p.r/GR)*100}%`,color:p.color,fontSize:10,fontWeight:900,animation:"float-up 2.8s ease-out forwards",pointerEvents:"none",zIndex:20,whiteSpace:"nowrap",textShadow:"0 1px 6px rgba(0,0,0,0.9)",fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{p.text}</div>
+                <div key={p.id} style={{position:"absolute",left:`${(p.c/GC)*100}%`,top:`${(p.r/GR)*100}%`,color:p.color,fontSize:14,fontWeight:900,animation:"float-up 2.8s ease-out forwards",pointerEvents:"none",zIndex:20,whiteSpace:"nowrap",textShadow:`0 0 8px ${p.color},0 2px 8px rgba(0,0,0,0.95)`,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{p.text}</div>
               ))}
               {bubbles.filter(b=>b.expires>Date.now()).map(b=>(
                 <div key={b.id} style={{
@@ -4050,17 +4084,17 @@ export default function ParkTycoon(){
                       {emoji:"🎪",title:lang==="ko"?"[1/8] 입구 게이트 배치":"[1/8] Place Entrance Gate",
                        desc:lang==="ko"?"왼쪽 패널 '건설' 탭에서 🎪 입구 게이트를 선택하고\n그리드 아무 곳에나 클릭해서 배치하세요.\n입구가 없으면 방문객이 입장할 수 없어요!":"In the left Build tab, select 🎪 Entrance Gate\nand click the grid to place it.\nNo entrance = no visitors!"},
                       {emoji:"🛤️",title:lang==="ko"?"[2/8] 통로 연결":"[2/8] Connect with Paths",
-                       desc:lang==="ko"?"입구 옆에 🟫 통로를 배치하세요.\n통로가 없으면 방문객이 어트랙션까지\n이동할 수 없어요. 연속으로 여러 개 배치하세요!":"Place paths 🟫 next to the entrance.\nVisitors need paths to reach attractions.\nPlace several to extend coverage!"},
-                      {emoji:"🎡",title:lang==="ko"?"[3/8] 어트랙션 배치":"[3/8] Add Attractions",
-                       desc:lang==="ko"?"통로 옆에 어트랙션을 배치하세요.\n관람차·회전목마부터 시작하고,\n여러 종류를 배치할수록 방문객이 늘어요!":"Place attractions next to paths.\nStart with Ferris Wheel or Carousel.\nMore variety = more visitors!"},
+                       desc:lang==="ko"?"입구 옆에 🟫 통로를 배치하세요.\n통로가 없으면 방문객이 놀이기구까지\n이동할 수 없어요. 연속으로 여러 개 배치하세요!":"Place paths 🟫 next to the entrance.\nVisitors need paths to reach attractions.\nPlace several to extend coverage!"},
+                      {emoji:"🎡",title:lang==="ko"?"[3/8] 놀이기구 배치":"[3/8] Add Attractions",
+                       desc:lang==="ko"?"통로 옆에 놀이기구를 배치하세요.\n관람차·회전목마부터 시작하고,\n여러 종류를 배치할수록 방문객이 늘어요!":"Place attractions next to paths.\nStart with Ferris Wheel or Carousel.\nMore variety = more visitors!"},
                       {emoji:"▶",title:lang==="ko"?"[4/8] 시간 시작":"[4/8] Start Time",
                        desc:lang==="ko"?"상단의 ▶ 버튼으로 시간을 진행시키세요.\n⏩ 빨리 감기, ⚡ 매우 빨리 감기도 있어요.\n방문객이 들어오기 시작할 거예요!":"Press ▶ to start time.\nUse ⏩ Fast or ⚡ Very Fast to speed up.\nVisitors will start arriving!"},
                       {emoji:"🧹",title:lang==="ko"?"[5/8] 직원 고용":"[5/8] Hire Staff",
                        desc:lang==="ko"?"'경영' 탭 → 직원 고용에서\n청소부(🧹)와 정비공(🔧)을 고용하세요.\n청결도·시설 고장률이 만족도를 크게 좌우해요!":"Go to 'Manage' tab → Hire Staff.\nHire a Janitor 🧹 or Mechanic 🔧.\nCleanliness and repairs are key to satisfaction!"},
                       {emoji:"🎨",title:lang==="ko"?"[6/8] 구역 지정으로 시너지":"[6/8] Zone Synergy",
-                       desc:lang==="ko"?"건설 탭 → '구역' 탭에서 어트랙션 구역을 지정하세요.\n🎠 놀이 / 🌿 자연 / 🍔 음식 등 테마 구역으로\n수익·만족도 보너스를 받을 수 있어요! (3칸+ 연결 시 활성화)":"In Build → Zone tab, paint zones on your park.\nTheme areas like 🎠 Fun, 🌿 Nature, 🍔 Food\ngive revenue & satisfaction bonuses! (3+ connected cells)"},
+                       desc:lang==="ko"?"건설 탭 → '구역' 탭에서 놀이기구 구역을 지정하세요.\n🎠 놀이 / 🌿 자연 / 🍔 음식 등 테마 구역으로\n수익·만족도 보너스를 받을 수 있어요! (3칸+ 연결 시 활성화)":"In Build → Zone tab, paint zones on your park.\nTheme areas like 🎠 Fun, 🌿 Nature, 🍔 Food\ngive revenue & satisfaction bonuses! (3+ connected cells)"},
                       {emoji:"🔬",title:lang==="ko"?"[7/8] 연구로 공원 강화":"[7/8] Research Upgrades",
-                       desc:lang==="ko"?"'연구' 탭에서 RP(연구 포인트)를 사용해\n어트랙션 강화·유지비 절감·VIP 언락 등을 연구하세요.\nRP는 방문객이 올수록 매일 자동으로 쌓여요!":"In the Research tab, spend RP to unlock upgrades:\n🎡 Ride Boost, 🔧 Cost Reduction, 🛋️ VIP Unlock and more.\nRP accumulates daily — more visitors = more RP!"},
+                       desc:lang==="ko"?"'연구' 탭에서 RP(연구 포인트)를 사용해\n놀이기구 강화·유지비 절감·VIP 언락 등을 연구하세요.\nRP는 방문객이 올수록 매일 자동으로 쌓여요!":"In the Research tab, spend RP to unlock upgrades:\n🎡 Ride Boost, 🔧 Cost Reduction, 🛋️ VIP Unlock and more.\nRP accumulates daily — more visitors = more RP!"},
                       {emoji:"🎊",title:lang==="ko"?"[8/8] 완료! 이제 탐험하세요":"[8/8] Done! Explore Now",
                        desc:lang==="ko"?"튜토리얼 완료! 이제 자유롭게 공원을 운영하세요.\n'재무' 탭으로 수익 확인, '마케팅' 탭으로 광고 캠페인,\n시나리오 모드에서 도전 과제를 클리어해보세요! 🏆":"Tutorial complete! Run your park freely.\nCheck Finance for revenue, Marketing for ad campaigns,\nand try Scenario mode for exciting challenges! 🏆"},
                     ];
@@ -4132,7 +4166,7 @@ export default function ParkTycoon(){
               )}
               {hired.mechanic===0&&stats.brokenCount===0&&(cc.rollerCoaster||cc.dropTower||cc.thrillRide)&&(
                 <div style={{background:"rgba(255,159,67,0.08)",border:"1px solid rgba(255,159,67,0.35)",borderRadius:6,padding:"6px 8px",color:"#FF9F43",fontSize:10,fontWeight:700,marginBottom:4,lineHeight:1.4}}>
-                  {lang==="ko"?"🔧 정비공 없음 — 고위험 어트랙션 고장 확률↑":"🔧 No mechanic — breakdown risk↑"}
+                  {lang==="ko"?"🔧 정비공 없음 — 고위험 놀이기구 고장 확률↑":"🔧 No mechanic — breakdown risk↑"}
                 </div>
               )}
               {!ftueGoalDone&&tutorialStep===0&&stats.hasEntrance&&visitors===0&&(
@@ -4262,7 +4296,7 @@ export default function ParkTycoon(){
       {segArrivalShown&&visitors>0&&(()=>{
         const domSeg=Object.entries(segData||{}).sort((a,b)=>b[1]-a[1])[0];
         if(!domSeg) return null;
-        const segInfo={couple:{emoji:"💑",ko:"커플",en:"Couples",tip:{ko:"커플은 감성적인 경험을 선호해요. 분수·정원을 배치하세요.",en:"Couples love romantic experiences. Place fountains & gardens."}},family:{emoji:"👨‍👩‍👧",ko:"가족",en:"Families",tip:{ko:"가족은 어린이 어트랙션을 좋아해요. 회전목마 등을 늘리세요.",en:"Families love kid rides. Add carousels & family attractions."}},thrill:{emoji:"😱",ko:"스릴",en:"Thrill Seekers",tip:{ko:"스릴 방문객은 롤러코스터를 원해요!",en:"Thrill seekers want roller coasters!"}},child:{emoji:"👶",ko:"어린이",en:"Children",tip:{ko:"어린이는 안전한 소형 어트랙션을 선호해요.",en:"Children prefer safe small attractions."}},general:{emoji:"🚶",ko:"일반",en:"General",tip:{ko:"다양한 시설을 균형 있게 배치하세요.",en:"Balance a variety of facilities."}}};
+        const segInfo={couple:{emoji:"💑",ko:"커플",en:"Couples",tip:{ko:"커플은 감성적인 경험을 선호해요. 분수·정원을 배치하세요.",en:"Couples love romantic experiences. Place fountains & gardens."}},family:{emoji:"👨‍👩‍👧",ko:"가족",en:"Families",tip:{ko:"가족은 어린이 놀이기구를 좋아해요. 회전목마 등을 늘리세요.",en:"Families love kid rides. Add carousels & family attractions."}},thrill:{emoji:"😱",ko:"스릴",en:"Thrill Seekers",tip:{ko:"스릴 방문객은 롤러코스터를 원해요!",en:"Thrill seekers want roller coasters!"}},child:{emoji:"👶",ko:"어린이",en:"Children",tip:{ko:"어린이는 안전한 소형 놀이기구를 선호해요.",en:"Children prefer safe small attractions."}},general:{emoji:"🚶",ko:"일반",en:"General",tip:{ko:"다양한 시설을 균형 있게 배치하세요.",en:"Balance a variety of facilities."}}};
         const info=segInfo[domSeg[0]]||{emoji:"👥",ko:"일반",en:"General",tip:{ko:"균형 잡힌 공원을 만드세요.",en:"Build a balanced park."}};
         return(
           <div style={{position:"fixed",bottom:16,right:16,zIndex:8000,background:"rgba(8,12,32,0.96)",border:"1px solid rgba(100,120,255,0.3)",borderRadius:12,padding:"12px 16px",maxWidth:260,backdropFilter:"blur(10px)",animation:"slide-in 0.3s ease"}}>
@@ -4407,7 +4441,7 @@ export default function ParkTycoon(){
                   <div style={{fontSize:9,color:"#FF9F43",fontWeight:600,marginBottom:4}}>💡 {lang==="ko"?"개선 팁:":"Tips to improve:"}</div>
                   {[
                     sat<50&&(lang==="ko"?"😊 만족도가 낮았습니다. 청소부를 고용하고 혼잡도를 줄이세요.":"😊 Low satisfaction. Hire janitors & reduce congestion."),
-                    totalRev<1000&&(lang==="ko"?"💰 수익이 너무 적었습니다. 어트랙션을 늘리고 입장료를 조정하세요.":"💰 Too little revenue. Add attractions & adjust admission fees."),
+                    totalRev<1000&&(lang==="ko"?"💰 수익이 너무 적었습니다. 놀이기구를 늘리고 입장료를 조정하세요.":"💰 Too little revenue. Add attractions & adjust admission fees."),
                     stats.hasEntrance===false&&(lang==="ko"?"🎪 입구 게이트가 없었습니다. 반드시 배치하세요!":"🎪 No entrance gate was placed. This is required!"),
                     stats.brokenCount>2&&(lang==="ko"?"🔧 시설 고장이 많았습니다. 정비공을 고용하세요.":"🔧 Too many broken facilities. Hire mechanics."),
                   ].filter(Boolean).slice(0,2).map((tip,i)=>(

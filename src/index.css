@@ -194,6 +194,10 @@ body {
   100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }
 
+@keyframes carousel-spin { to { transform: rotate(360deg); } }
+@keyframes fountain-wave { 0%,100% { transform: scale(1); } 50% { transform: scale(1.14) translateY(-2px); } }
+@keyframes roller-shake  { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+
 .grid-area {
   background-image:
     repeating-linear-gradient(
