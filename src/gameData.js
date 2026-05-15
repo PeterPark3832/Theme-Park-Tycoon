@@ -52,6 +52,20 @@ export const LEAGUES = [
 ];
 
 export const BREAK_CHANCE = {entrance:0.004,ferrisWheel:0.04,rollerCoaster:0.07,carousel:0.03,thrillRide:0.055,waterRide:0.045,bumperCars:0.03,dropTower:0.06,miniTrain:0.025,hauntedHouse:0.02,cinema4D:0.015,balloonRide:0.035};
+export const BUILDING_EVENTS = {
+  rollerCoaster: [{ko:"🎢 최고속도 기록 달성! 방문객 흥분 최고조!",en:"🎢 New speed record! Crowd goes wild!",satBonus:3,moneyBonus:200}],
+  ferrisWheel:   [{ko:"🎡 야경이 아름다워 연인들이 줄을 섰습니다!",en:"🎡 Beautiful night view — couples lining up!",satBonus:2,moneyBonus:150}],
+  carousel:      [{ko:"🎠 어린이들이 환호하며 재탑승 줄을 섭니다!",en:"🎠 Kids cheering for another ride!",satBonus:2,moneyBonus:100}],
+  fountain:      [{ko:"💍 분수대 앞에서 프러포즈 성공!",en:"💍 Proposal by the fountain — success!",satBonus:5,moneyBonus:300}],
+  foodStall:     [{ko:"🍔 오늘의 인기 메뉴! 줄이 길게 늘어섰어요.",en:"🍔 Today's special is a hit! Long lines!",satBonus:1,moneyBonus:180}],
+  iceCream:      [{ko:"🍦 무더위에 아이스크림 대박! 매출 급등!",en:"🍦 Ice cream boom in the heat!",satBonus:2,moneyBonus:220}],
+  hauntedHouse:  [{ko:"👻 공포 지수 MAX! 비명소리가 멈추지 않아요!",en:"👻 Terror level MAX! Screams everywhere!",satBonus:3,moneyBonus:250}],
+  thrillRide:    [{ko:"⚡ 스릴 라이드 한계 돌파! 아드레날린 폭발!",en:"⚡ Thrill ride at its limit! Adrenaline surge!",satBonus:3,moneyBonus:200}],
+  garden:        [{ko:"🌸 정원이 만개! SNS 인증샷 명소가 됐습니다.",en:"🌸 Garden in full bloom — Instagram hotspot!",satBonus:4,moneyBonus:100}],
+  miniGolf:      [{ko:"⛳ 홀인원 달성! 박수갈채가 울려퍼집니다!",en:"⛳ Hole in one! The crowd erupts!",satBonus:2,moneyBonus:150}],
+  balloonRide:   [{ko:"🎈 구름 위 비행 — 방문객 절경에 감탄!",en:"🎈 Above the clouds — breathtaking views!",satBonus:3,moneyBonus:175}],
+  arcade:        [{ko:"🕹️ 최고점수 기록! 도전자들이 몰려듭니다!",en:"🕹️ New high score! Challengers lining up!",satBonus:2,moneyBonus:120}],
+};
 export const ZONES = {thrill:{emoji:"🎢",color:"#FF4757",bg:"#FF475718"},family:{emoji:"👨‍👩‍👧",color:"#FF9F43",bg:"#FF9F4318"},food:{emoji:"🍔",color:"#FECA57",bg:"#FECA5718"},nature:{emoji:"🌳",color:"#1DD1A1",bg:"#1DD1A118"},vip:{emoji:"⭐",color:"#A29BFE",bg:"#A29BFE18"}};
 export const PARCELS = [
   {id:"westA",cost:8000, cols:[8,11], icon:"🌿",req:null,   label:{ko:"서쪽 A구역",en:"West Wing A"}},
@@ -242,29 +256,34 @@ export const SCENARIOS = [
   ],gridRestrict:null,goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"방문객 50명",en:"50 visitors"},check:s=>s.vis>=50},
     {id:"silver",medal:"🥈",desc:{ko:"방문객 100명 + 만족도 65%",en:"100 visitors + 65% happiness"},check:s=>s.vis>=100&&s.sat>=65},
-    {id:"gold",medal:"🥇",desc:{ko:"방문객 200명 + 만족도 75%",en:"200 visitors + 75% happiness"},check:s=>s.vis>=200&&s.sat>=75}]},
+    {id:"gold",medal:"🥇",desc:{ko:"방문객 200명 + 만족도 75%",en:"200 visitors + 75% happiness"},check:s=>s.vis>=200&&s.sat>=75},
+    {id:"platinum",medal:"🏅",desc:{ko:"방문객 300명 + 5성 + 만족도 85%",en:"300 visitors + 5 stars + 85% happiness"},check:s=>s.vis>=300&&s.pres>=5&&s.sat>=85}]},
   {id:"s2",emoji:"💑",difficulty:2,color:"#FF6B9D",startMoney:38000,timeLimit:50,allowedCampaigns:["sns","billboard"],preBuilt:[],gridRestrict:null,
    obstacles:[{r:7,c:21,type:"water"},{r:7,c:22,type:"water"},{r:8,c:21,type:"water"},{r:8,c:22,type:"water"}],
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"커플 비율 40%",en:"40% couple ratio"},check:s=>s.coupleRatio>=0.4},
     {id:"silver",medal:"🥈",desc:{ko:"커플 55% + 입장료 $20",en:"55% couples + $20 fee"},check:s=>s.coupleRatio>=0.55&&s.fee>=20},
-    {id:"gold",medal:"🥇",desc:{ko:"커플 65% + 순이익 $2k",en:"65% couples + $2k profit"},check:s=>s.coupleRatio>=0.65&&s.net>=2000}]},
+    {id:"gold",medal:"🥇",desc:{ko:"커플 65% + 순이익 $2k",en:"65% couples + $2k profit"},check:s=>s.coupleRatio>=0.65&&s.net>=2000},
+    {id:"platinum",medal:"🏅",desc:{ko:"커플 70% + 5성 + 순이익 $5k",en:"70% couples + 5 stars + $5k profit"},check:s=>s.coupleRatio>=0.7&&s.pres>=5&&s.net>=5000}]},
   {id:"s3",emoji:"🔧",difficulty:3,color:"#FF9F43",startMoney:27000,timeLimit:55,preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"ferrisWheel",r:5,c:12,level:0,broken:true},{type:"carousel",r:11,c:18,level:0,broken:true},{type:"restroom",r:8,c:17,level:0,broken:false},{type:"foodStall",r:12,c:15,level:0,broken:false}],gridRestrict:null,
    obstacles:[{r:3,c:20,type:"rubble"},{r:3,c:21,type:"rubble"},{r:4,c:20,type:"rubble"},{r:14,c:19,type:"rubble"},{r:15,c:19,type:"rubble"}],
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"공원 2성",en:"2-star park"},check:s=>s.pres>=2},
     {id:"silver",medal:"🥈",desc:{ko:"3성 + 고장 없음",en:"3 stars + no breakdowns"},check:s=>s.pres>=3&&s.brokenCount===0},
-    {id:"gold",medal:"🥇",desc:{ko:"4성 + 만족도 75%",en:"4 stars + 75% happiness"},check:s=>s.pres>=4&&s.sat>=75}]},
+    {id:"gold",medal:"🥇",desc:{ko:"4성 + 만족도 75%",en:"4 stars + 75% happiness"},check:s=>s.pres>=4&&s.sat>=75},
+    {id:"platinum",medal:"🏅",desc:{ko:"5성 + 만족도 85% + 고장 없음",en:"5 stars + 85% happiness + no breakdowns"},check:s=>s.pres>=5&&s.sat>=85&&s.brokenCount===0}]},
   {id:"s4",emoji:"🏙️",difficulty:3,color:"#48DBFB",startMoney:45000,timeLimit:60,preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false}],gridRestrict:{cols:[14,25]},bannedBuildings:["waterRide","miniTrain","balloonRide"],
    obstacles:[{r:5,c:14,type:"rock"},{r:5,c:15,type:"rock"},{r:14,c:14,type:"rock"},{r:14,c:15,type:"rock"}],
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"순이익 $1,000/일",en:"$1,000 daily profit"},check:s=>s.net>=1000},
     {id:"silver",medal:"🥈",desc:{ko:"순이익 $3,000/일",en:"$3,000 daily profit"},check:s=>s.net>=3000},
-    {id:"gold",medal:"🥇",desc:{ko:"순이익 $5k + 만족도 75%",en:"$5k profit + 75% happiness"},check:s=>s.net>=5000&&s.sat>=75}]},
+    {id:"gold",medal:"🥇",desc:{ko:"순이익 $5k + 만족도 75%",en:"$5k profit + 75% happiness"},check:s=>s.net>=5000&&s.sat>=75},
+    {id:"platinum",medal:"🏅",desc:{ko:"순이익 $8k + 방문객 200명",en:"$8k profit + 200 visitors"},check:s=>s.net>=8000&&s.vis>=200}]},
   {id:"s5",emoji:"👦",difficulty:2,color:"#FECA57",startMoney:42000,timeLimit:55,bannedBuildings:["thrillRide","dropTower"],preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false},{type:"carousel",r:7,c:19,level:0,broken:true},{type:"miniTrain",r:11,c:17,level:0,broken:true}],gridRestrict:null,goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"어린이 비율 40%",en:"40% child ratio"},check:s=>s.childRatio>=0.4},
     {id:"silver",medal:"🥈",desc:{ko:"어린이 55% + 만족도 70%",en:"55% children + 70% happiness"},check:s=>s.childRatio>=0.55&&s.sat>=70},
-    {id:"gold",medal:"🥇",desc:{ko:"어린이 65% + 방문객 150명",en:"65% children + 150 visitors"},check:s=>s.childRatio>=0.65&&s.vis>=150}]},
+    {id:"gold",medal:"🥇",desc:{ko:"어린이 65% + 방문객 150명",en:"65% children + 150 visitors"},check:s=>s.childRatio>=0.65&&s.vis>=150},
+    {id:"platinum",medal:"🏅",desc:{ko:"어린이 75% + 방문객 200명 + 만족도 85%",en:"75% children + 200 visitors + 85% happiness"},check:s=>s.childRatio>=0.75&&s.vis>=200&&s.sat>=85}]},
   {id:"s6",emoji:"🏖️",difficulty:2,color:"#54A0FF",startMoney:42000,timeLimit:65,allowedCampaigns:["tv","celebrity","event"],preBuilt:[
     {type:"entrance",r:9,c:15,level:0,broken:false},
     {type:"_path",   r:9,c:17,level:0,broken:false},
@@ -273,7 +292,8 @@ export const SCENARIOS = [
   ],gridRestrict:null,goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"커플 35% + 방문객 80명",en:"35% couples + 80 visitors"},check:s=>s.coupleRatio>=0.35&&s.vis>=80},
     {id:"silver",medal:"🥈",desc:{ko:"커플 50% + 만족도 70%",en:"50% couples + 70% happiness"},check:s=>s.coupleRatio>=0.50&&s.sat>=70&&s.vis>=130},
-    {id:"gold",medal:"🥇",desc:{ko:"커플 60% + 방문객 220명 + 순이익 $2k",en:"60% couples + 220 visitors + $2k profit"},check:s=>s.coupleRatio>=0.60&&s.vis>=220&&s.net>=2000}]},
+    {id:"gold",medal:"🥇",desc:{ko:"커플 60% + 방문객 220명 + 순이익 $2k",en:"60% couples + 220 visitors + $2k profit"},check:s=>s.coupleRatio>=0.60&&s.vis>=220&&s.net>=2000},
+    {id:"platinum",medal:"🏅",desc:{ko:"커플 70% + 5성 + 방문객 250명",en:"70% couples + 5 stars + 250 visitors"},check:s=>s.coupleRatio>=0.7&&s.pres>=5&&s.vis>=250}]},
   {id:"s7",emoji:"👻",difficulty:4,color:"#5F27CD",startMoney:38000,timeLimit:55,nightCycle:true,bannedBuildings:["carousel","miniTrain","iceCream","balloonRide"],preBuilt:[
     {type:"entrance",    r:9,c:15,level:0,broken:false},
     {type:"_path",       r:9,c:17,level:0,broken:false},
@@ -284,13 +304,15 @@ export const SCENARIOS = [
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"방문객 60명 + 순이익 $800",en:"60 visitors + $800 profit"},check:s=>s.vis>=60&&s.net>=800},
     {id:"silver",medal:"🥈",desc:{ko:"방문객 120명 + 3성 + 만족도 65%",en:"120 visitors + 3 stars + 65% happiness"},check:s=>s.vis>=120&&s.pres>=3&&s.sat>=65},
-    {id:"gold",medal:"🥇",desc:{ko:"방문객 200명 + 4성 + 만족도 75%",en:"200 visitors + 4 stars + 75% happiness"},check:s=>s.vis>=200&&s.pres>=4&&s.sat>=75}]},
+    {id:"gold",medal:"🥇",desc:{ko:"방문객 200명 + 4성 + 만족도 75%",en:"200 visitors + 4 stars + 75% happiness"},check:s=>s.vis>=200&&s.pres>=4&&s.sat>=75},
+    {id:"platinum",medal:"🏅",desc:{ko:"5성 + 방문객 200명 + 순이익 $5k",en:"5 stars + 200 visitors + $5k profit"},check:s=>s.pres>=5&&s.vis>=200&&s.net>=5000}]},
   {id:"s8",emoji:"👑",difficulty:5,color:"#FECA57",startMoney:65000,timeLimit:82,preBuilt:[{type:"entrance",r:9,c:15,level:1,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false},{type:"rollerCoaster",r:4,c:18,level:0,broken:true},{type:"ferrisWheel",r:12,c:21,level:1,broken:false}],gridRestrict:null,
    obstacles:[{r:4,c:16,type:"rock"},{r:4,c:17,type:"rock"},{r:10,c:13,type:"water"},{r:10,c:14,type:"water"},{r:15,c:22,type:"rock"},{r:7,c:23,type:"rock"}],
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"3성 + 순이익 $1,500",en:"3 stars + $1,500 profit"},check:s=>s.pres>=3&&s.net>=1500},
     {id:"silver",medal:"🥈",desc:{ko:"4성 + 순이익 $3,000 + 만족도 75%",en:"4 stars + $3,000 profit + 75% happiness"},check:s=>s.pres>=4&&s.net>=3000&&s.sat>=75},
-    {id:"gold",medal:"🥇",desc:{ko:"5성 + 순이익 $5,000 + 만족도 80%",en:"5 stars + $5,000 profit + 80% happiness"},check:s=>s.pres>=5&&s.net>=5000&&s.sat>=80}]},
+    {id:"gold",medal:"🥇",desc:{ko:"5성 + 순이익 $5,000 + 만족도 80%",en:"5 stars + $5,000 profit + 80% happiness"},check:s=>s.pres>=5&&s.net>=5000&&s.sat>=80},
+    {id:"platinum",medal:"🏅",desc:{ko:"5성 + 방문객 300명 + 순이익 $10k",en:"5 stars + 300 visitors + $10k profit"},check:s=>s.pres>=5&&s.vis>=300&&s.net>=10000}]},
 ];
 
 export const SCENARIO_CLEAR_FLAVOR = {

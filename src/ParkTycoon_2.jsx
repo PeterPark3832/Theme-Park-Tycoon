@@ -8,7 +8,7 @@ import {
   WEATHERS, WEATHER_WEIGHTS, DEFAULT_RIDE_PRICES, DEFAULT_SHOP_MULTS, MAX_FEE_BY_STARS,
   LANG_FLAGS, TR, SCENARIOS, DIFFICULTY_SETTINGS, STAGES, B, STARTING_PERKS, WEEKLY_CHALLENGES,
   STAFF, STAFF_UPGRADES, RIVAL_PARKS, FRANCHISES, ZONE_MASTERY, LOAN_OPTS, DOTS, TUTORIAL_STEPS, DAILY_CHALLENGES, SCENARIO_CLEAR_REWARDS, SCENARIO_DIFFICULTY,
-  RIVAL_EVENTS, ACHIEVEMENTS, BONUS_EVENTS, SCENARIO_CLEAR_FLAVOR,
+  RIVAL_EVENTS, ACHIEVEMENTS, BONUS_EVENTS, SCENARIO_CLEAR_FLAVOR, BUILDING_EVENTS,
 } from './gameData.js';
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
 import {
@@ -177,7 +177,7 @@ export default function ParkTycoon(){
   const [segData,setSegData]=useState({family:0.2,couple:0.2,thrill:0.2,child:0.1,general:0.3});
   const [zonePaint,setZonePaint]=useState(null);
   const [buildMode,setBuildMode]=useState("build");
-  const [dots,setDots]=useState(()=>Array(24).fill(null).map((_,i)=>({id:i,r:Math.floor(Math.random()*GR),c:Math.floor(Math.random()*GC),emoji:DOTS[i%DOTS.length]})));
+  const [dots,setDots]=useState(()=>Array(40).fill(null).map((_,i)=>({id:i,r:Math.floor(Math.random()*GR),c:Math.floor(Math.random()*GC),emoji:DOTS[i%DOTS.length]})));
   const [gridPopups,setGridPopups]=useState([]);
   const [campaigns,setCampaigns]=useState([]);
   const [pendingVIP,setPendingVIP]=useState(null);
@@ -285,6 +285,7 @@ export default function ParkTycoon(){
   const undoTimerRef=useRef(null);
   const dragBuildRef=useRef({active:false,mode:null,selected:null,moved:false,startR:-1,startC:-1});
   const lastBonusEventRef=useRef(null);
+  const quietHintShownRef=useRef(new Set());
 
   // New gameplay-improvements states
   const [statTooltip,setStatTooltip]=useState(null); // null | string
