@@ -257,13 +257,21 @@ export const SCENARIOS = [
     {type:"_path",   r:9,c:17,level:0,broken:false},
     {type:"_path",   r:9,c:18,level:0,broken:false},
     {type:"carousel",r:9,c:19,level:0,broken:false},
-  ],gridRestrict:null,goals:[
+  ],gridRestrict:null,
+  constraints:{},
+  goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"방문객 50명",en:"50 visitors"},check:s=>s.vis>=50},
     {id:"silver",medal:"🥈",desc:{ko:"방문객 100명 + 만족도 65%",en:"100 visitors + 65% happiness"},check:s=>s.vis>=100&&s.sat>=65},
     {id:"gold",medal:"🥇",desc:{ko:"방문객 200명 + 만족도 75%",en:"200 visitors + 75% happiness"},check:s=>s.vis>=200&&s.sat>=75},
     {id:"platinum",medal:"🏅",desc:{ko:"방문객 300명 + 5성 + 만족도 85%",en:"300 visitors + 5 stars + 85% happiness"},check:s=>s.vis>=300&&s.pres>=5&&s.sat>=85}]},
   {id:"s2",emoji:"💑",difficulty:2,color:"#FF6B9D",startMoney:38000,timeLimit:50,allowedCampaigns:["sns","billboard"],preBuilt:[],gridRestrict:null,
    obstacles:[{r:7,c:21,type:"water"},{r:7,c:22,type:"water"},{r:8,c:21,type:"water"},{r:8,c:22,type:"water"}],
+   constraints:{
+     satRules:[
+       {type:"coupleBelow",threshold:0.28,penalty:-5,desc:{ko:"커플 비율 낮음 (28% 미만) — 만족도 -5/일",en:"Low couple ratio (<28%) — Sat -5/day"}},
+       {type:"coupleAbove",threshold:0.55,bonus:5,desc:{ko:"커플 테마 달성! (55% 이상) — 만족도 +5/일",en:"Couple theme achieved (>55%) — Sat +5/day"}},
+     ],
+   },
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"커플 비율 40%",en:"40% couple ratio"},check:s=>s.coupleRatio>=0.4},
     {id:"silver",medal:"🥈",desc:{ko:"커플 55% + 입장료 $20",en:"55% couples + $20 fee"},check:s=>s.coupleRatio>=0.55&&s.fee>=20},
@@ -271,6 +279,10 @@ export const SCENARIOS = [
     {id:"platinum",medal:"🏅",desc:{ko:"커플 70% + 5성 + 순이익 $5k",en:"70% couples + 5 stars + $5k profit"},check:s=>s.coupleRatio>=0.7&&s.pres>=5&&s.net>=5000}]},
   {id:"s3",emoji:"🔧",difficulty:3,color:"#FF9F43",startMoney:27000,timeLimit:55,preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"ferrisWheel",r:5,c:12,level:0,broken:true},{type:"carousel",r:11,c:18,level:0,broken:true},{type:"restroom",r:8,c:17,level:0,broken:false},{type:"foodStall",r:12,c:15,level:0,broken:false}],gridRestrict:null,
    obstacles:[{r:3,c:20,type:"rubble"},{r:3,c:21,type:"rubble"},{r:4,c:20,type:"rubble"},{r:14,c:19,type:"rubble"},{r:15,c:19,type:"rubble"}],
+   constraints:{
+     breakChanceMult:1.5,
+     breakChanceMemo:{ko:"노후 시설 — 고장 확률 ×1.5",en:"Aged equipment — breakdown risk ×1.5"},
+   },
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"공원 2성",en:"2-star park"},check:s=>s.pres>=2},
     {id:"silver",medal:"🥈",desc:{ko:"3성 + 고장 없음",en:"3 stars + no breakdowns"},check:s=>s.pres>=3&&s.brokenCount===0},
@@ -278,12 +290,26 @@ export const SCENARIOS = [
     {id:"platinum",medal:"🏅",desc:{ko:"5성 + 만족도 85% + 고장 없음",en:"5 stars + 85% happiness + no breakdowns"},check:s=>s.pres>=5&&s.sat>=85&&s.brokenCount===0}]},
   {id:"s4",emoji:"🏙️",difficulty:3,color:"#48DBFB",startMoney:45000,timeLimit:60,preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false}],gridRestrict:{cols:[14,25]},bannedBuildings:["waterRide","miniTrain","balloonRide"],
    obstacles:[{r:5,c:14,type:"rock"},{r:5,c:15,type:"rock"},{r:14,c:14,type:"rock"},{r:14,c:15,type:"rock"}],
+   constraints:{
+     satRules:[
+       {type:"feeLow",threshold:12,penalty:-3,desc:{ko:"입장료 낮음 ($12 미만) — 도심 기대치 미달 -3",en:"Fee too low (<$12) — below urban expectations -3"}},
+       {type:"feeHigh",threshold:18,bonus:3,desc:{ko:"프리미엄 입장료 ($18+) — 도심 방문객 만족 +3",en:"Premium fee ($18+) — urban visitors satisfied +3"}},
+     ],
+   },
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"순이익 $1,000/일",en:"$1,000 daily profit"},check:s=>s.net>=1000},
     {id:"silver",medal:"🥈",desc:{ko:"순이익 $3,000/일",en:"$3,000 daily profit"},check:s=>s.net>=3000},
     {id:"gold",medal:"🥇",desc:{ko:"순이익 $5k + 만족도 75%",en:"$5k profit + 75% happiness"},check:s=>s.net>=5000&&s.sat>=75},
     {id:"platinum",medal:"🏅",desc:{ko:"순이익 $8k + 방문객 200명",en:"$8k profit + 200 visitors"},check:s=>s.net>=8000&&s.vis>=200}]},
-  {id:"s5",emoji:"👦",difficulty:2,color:"#FECA57",startMoney:42000,timeLimit:55,bannedBuildings:["thrillRide","dropTower"],preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false},{type:"carousel",r:7,c:19,level:0,broken:true},{type:"miniTrain",r:11,c:17,level:0,broken:true}],gridRestrict:null,goals:[
+  {id:"s5",emoji:"👦",difficulty:2,color:"#FECA57",startMoney:42000,timeLimit:55,bannedBuildings:["thrillRide","dropTower"],preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false},{type:"carousel",r:7,c:19,level:0,broken:true},{type:"miniTrain",r:11,c:17,level:0,broken:true}],gridRestrict:null,
+   constraints:{
+     admFeeCap:12,
+     admFeeCapPenalty:-8,
+     satRules:[
+       {type:"noRestroom",penalty:-6,desc:{ko:"화장실 없음 — 가족 만족도 급락 -6",en:"No restroom — family satisfaction -6/day"}},
+     ],
+   },
+   goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"어린이 비율 40%",en:"40% child ratio"},check:s=>s.childRatio>=0.4},
     {id:"silver",medal:"🥈",desc:{ko:"어린이 55% + 만족도 70%",en:"55% children + 70% happiness"},check:s=>s.childRatio>=0.55&&s.sat>=70},
     {id:"gold",medal:"🥇",desc:{ko:"어린이 65% + 방문객 150명",en:"65% children + 150 visitors"},check:s=>s.childRatio>=0.65&&s.vis>=150},
@@ -293,7 +319,13 @@ export const SCENARIOS = [
     {type:"_path",   r:9,c:17,level:0,broken:false},
     {type:"_path",   r:9,c:18,level:0,broken:false},
     {type:"waterRide",r:8,c:19,level:0,broken:true},
-  ],gridRestrict:null,goals:[
+  ],gridRestrict:null,
+   constraints:{
+     satRules:[
+       {type:"noWaterRide",penalty:-4,desc:{ko:"워터라이드 없음 — 해변 매력 부족 -4",en:"No water ride — missing beach appeal -4"}},
+     ],
+   },
+   goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"커플 35% + 방문객 80명",en:"35% couples + 80 visitors"},check:s=>s.coupleRatio>=0.35&&s.vis>=80},
     {id:"silver",medal:"🥈",desc:{ko:"커플 50% + 만족도 70%",en:"50% couples + 70% happiness"},check:s=>s.coupleRatio>=0.50&&s.sat>=70&&s.vis>=130},
     {id:"gold",medal:"🥇",desc:{ko:"커플 60% + 방문객 220명 + 순이익 $2k",en:"60% couples + 220 visitors + $2k profit"},check:s=>s.coupleRatio>=0.60&&s.vis>=220&&s.net>=2000},
@@ -305,6 +337,13 @@ export const SCENARIOS = [
     {type:"hauntedHouse",r:9,c:19,level:0,broken:true},
   ],gridRestrict:null,
    obstacles:[{r:2,c:13,type:"deadtree"},{r:2,c:14,type:"deadtree"},{r:16,c:20,type:"deadtree"},{r:16,c:21,type:"deadtree"},{r:5,c:23,type:"deadtree"}],
+   constraints:{
+     breakChanceMult:1.3,
+     breakChanceMemo:{ko:"강렬한 공포 라이드 — 고장 확률 ×1.3",en:"Intense horror rides — breakdown risk ×1.3"},
+     satRules:[
+       {type:"familyAbove",threshold:0.20,penalty:-4,desc:{ko:"가족 방문객 과다 (20%+) — 공포 분위기 저해 -4",en:"Too many families (>20%) — dilutes horror atmosphere -4"}},
+     ],
+   },
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"방문객 60명 + 순이익 $800",en:"60 visitors + $800 profit"},check:s=>s.vis>=60&&s.net>=800},
     {id:"silver",medal:"🥈",desc:{ko:"방문객 120명 + 3성 + 만족도 65%",en:"120 visitors + 3 stars + 65% happiness"},check:s=>s.vis>=120&&s.pres>=3&&s.sat>=65},
@@ -312,6 +351,11 @@ export const SCENARIOS = [
     {id:"platinum",medal:"🏅",desc:{ko:"5성 + 방문객 200명 + 순이익 $5k",en:"5 stars + 200 visitors + $5k profit"},check:s=>s.pres>=5&&s.vis>=200&&s.net>=5000}]},
   {id:"s8",emoji:"👑",difficulty:5,color:"#FECA57",startMoney:65000,timeLimit:82,preBuilt:[{type:"entrance",r:9,c:15,level:1,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false},{type:"rollerCoaster",r:4,c:18,level:0,broken:true},{type:"ferrisWheel",r:12,c:21,level:1,broken:false}],gridRestrict:null,
    obstacles:[{r:4,c:16,type:"rock"},{r:4,c:17,type:"rock"},{r:10,c:13,type:"water"},{r:10,c:14,type:"water"},{r:15,c:22,type:"rock"},{r:7,c:23,type:"rock"}],
+   constraints:{
+     satRules:[
+       {type:"starBelow",threshold:3,afterDay:20,penalty:-4,desc:{ko:"3성 미달 (20일 이후) — 왕실 기대치 미충족 -4",en:"Below 3 stars (after day 20) — royal expectations unmet -4"}},
+     ],
+   },
    goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"3성 + 순이익 $1,500",en:"3 stars + $1,500 profit"},check:s=>s.pres>=3&&s.net>=1500},
     {id:"silver",medal:"🥈",desc:{ko:"4성 + 순이익 $3,000 + 만족도 75%",en:"4 stars + $3,000 profit + 75% happiness"},check:s=>s.pres>=4&&s.net>=3000&&s.sat>=75},
