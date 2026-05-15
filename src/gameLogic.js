@@ -342,7 +342,14 @@ export function loadSaveSlots() {
 }
 
 export function writeSaveSlots(slots) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(slots)); } catch {}
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(slots));
+    return { ok: true };
+  } catch (e) {
+    const isQuota = e instanceof DOMException &&
+      (e.code === 22 || e.code === 1014 || e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED');
+    return { ok: false, quota: isQuota };
+  }
 }
 
 export const mkGrid = () => Array(GR).fill(null).map(() => Array(GC).fill(null));
@@ -359,9 +366,19 @@ export function timeAgoL(ts, t) {
   return `${Math.floor(s / 86400)}${t("misc.daysAgo")}`;
 }
 
+function _getAudioCtx() {
+  try {
+    if (!window._ptAudioCtx || window._ptAudioCtx.state === 'closed') {
+      window._ptAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (window._ptAudioCtx.state === 'suspended') window._ptAudioCtx.resume().catch(() => {});
+    return window._ptAudioCtx;
+  } catch { return null; }
+}
+
 export function playSound(type, bldType) {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _getAudioCtx(); if (!ctx) return;
     const now = ctx.currentTime;
     const note = (f, t, dur, wt, vol) => {
       const o = ctx.createOscillator(), g = ctx.createGain();
@@ -407,7 +424,7 @@ export function playSound(type, bldType) {
 
 export function startDisasterDrum(volume = 0.18) {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _getAudioCtx(); if (!ctx) return () => {};
     const mg = ctx.createGain(); mg.gain.value = volume; mg.connect(ctx.destination);
     let stopped = false;
     const beat = () => {
@@ -421,13 +438,13 @@ export function startDisasterDrum(volume = 0.18) {
       setTimeout(beat, 1400);
     };
     beat();
-    return () => { stopped = true; try { mg.disconnect(); ctx.close(); } catch {} };
+    return () => { stopped = true; try { mg.disconnect(); } catch {} };
   } catch { return () => {}; }
 }
 
 export function startCrowdNoise() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _getAudioCtx(); if (!ctx) return { setVolume: () => {}, stop: () => {} };
     const bufLen = ctx.sampleRate * 2;
     const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
     const d = buf.getChannelData(0);
@@ -439,7 +456,7 @@ export function startCrowdNoise() {
     src.start();
     return {
       setVolume: v => { gainNode.gain.setTargetAtTime(Math.max(0, Math.min(0.12, v)), ctx.currentTime, 0.5); },
-      stop: () => { try { src.stop(); gainNode.disconnect(); ctx.close(); } catch {} },
+      stop: () => { try { src.stop(); gainNode.disconnect(); } catch {} },
     };
   } catch { return { setVolume: () => {}, stop: () => {} }; }
 }
