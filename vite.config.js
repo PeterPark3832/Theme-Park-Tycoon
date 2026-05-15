@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
+// Vercel sets process.env.VERCEL automatically; GitHub Pages needs the repo sub-path
+const base = process.env.VERCEL ? '/' : '/Theme-Park-Tycoon/'
+
 export default defineConfig({
   plugins: [react()],
-  base: '/Theme-Park-Tycoon/',
+  base,
   build: {
     chunkSizeWarningLimit: 900,
     minify: 'terser',
