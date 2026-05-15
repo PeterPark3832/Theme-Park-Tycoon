@@ -2300,7 +2300,8 @@ export default function ParkTycoon(){
           {[
             {ic:"💰",v:`$${money.toLocaleString()}`,l:t("lbl.budget"),  col:"#FFD93D",big:true,primary:true,isVis:false},
             {ic:"👥",v:visitors.toLocaleString(),   l:t("lbl.visitors"), col:"#4D9FFF",big:true,primary:true,isVis:true, tipKey:"vis"},
-            {ic:"😊",v:`${Math.round(sat)}%`,        l:t("lbl.satisfaction"),col:sat>70?"#00E5A0":sat>40?"#FFD93D":"#FF5757",big:false,primary:true,isVis:false,isSat:true, tipKey:"sat"},
+            {ic:"😊",v:`${Math.round(sat)}%`,        l:t("lbl.satisfaction"),col:sat>70?"#00E5A0":sat>40?"#FFD93D":"#FF5757",big:true,primary:true,isVis:false,isSat:true, tipKey:"sat"},
+            {ic:"__sep__"},
             {ic:"🧹",v:`${Math.round(clean)}%`,      l:t("lbl.cleanliness"), col:clean>70?"#00E5A0":clean>40?"#FFD93D":"#FF5757",big:false,primary:false,isVis:false, tipKey:"clean"},
             {ic:estNet>=0?"📈":"📉",v:`${estNet>=0?"+":""}$${Math.abs(estNet)>=1000?`${(Math.abs(estNet)/1000).toFixed(1)}k`:Math.abs(estNet)}${netTrendArrow}`,l:lang==="ko"?"일 순이익":"Net/Day",col:estNet>=0?"#5EF6A0":"#FF6B6B",big:false,primary:false,isVis:false},
             {ic:"📅",v:`Day ${day}`,                 l:t("lbl.day"),    col:"#9B7FFF",big:false,primary:false,isVis:false},
@@ -2308,6 +2309,7 @@ export default function ParkTycoon(){
             ...(totalDebt>0?[{ic:"💳",v:`$${(totalDebt/1000).toFixed(0)}k`,l:t("lbl.loan"),col:"#FF5757",big:false,primary:false,isVis:false}]:[]),
             ...(activeDisaster?[{ic:"🚨",v:`${activeDisaster.remaining}d`,l:t("lbl.disaster"),col:"#FF5757",big:false,primary:false,isVis:false}]:[]),
           ].map(({ic,v,l,col,big,primary,isVis,isSat,tipKey})=>{
+            if(ic==="__sep__") return <div key="__sep__" style={{width:1,alignSelf:"stretch",background:"rgba(255,255,255,0.12)",margin:"2px 3px",flexShrink:0}}/>;
             const STAT_TIPS={
               vis:{title:lang==="ko"?"👥 방문객":"👥 Visitors",desc:lang==="ko"?"어트랙션 점수, 만족도, 요금, 날씨, 계절에 따라 결정됩니다. 입구가 있어야 방문객이 들어올 수 있어요.\nVisitors depend on attraction score, satisfaction, fees, weather & season. Requires an entrance gate.":"Visitors depend on attraction score, satisfaction, fees, weather & season. Requires an entrance gate."},
               sat:{title:lang==="ko"?"😊 만족도":"😊 Satisfaction",desc:lang==="ko"?"청결도, 시설 품질, 요금, 혼잡도가 영향을 줍니다. 만족도가 높을수록 방문객이 더 오고 수익이 늘어요.\nAffected by cleanliness, facility quality, fees & congestion. Higher satisfaction = more visitors & revenue.":"Affected by cleanliness, facility quality, fees & congestion. Higher satisfaction = more visitors & revenue."},
