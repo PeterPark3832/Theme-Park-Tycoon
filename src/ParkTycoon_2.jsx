@@ -2869,8 +2869,8 @@ export default function ParkTycoon(){
                   {label:lang==="ko"?"🧹 청결도":"🧹 Cleanliness",        val:clean<40?-4:clean<60?-2:0,     tip:lang==="ko"?`청결도 ${Math.round(clean)}%`:`Cleanliness ${Math.round(clean)}%`},
                   {label:lang==="ko"?"📉 자연 감소":"📉 Natural Decay",   val:-0.2,                           tip:lang==="ko"?"시간이 지나면 자연 감소":"Slowly decays over time"},
                 ];
-                const satTotal=satFactors.reduce((s,f)=>s+f.val,0);
-                const satTrend=dailyHistory.length>=3?(sat>dailyHistory[dailyHistory.length-3]?.sat?"▲":"sat<dailyHistory[dailyHistory.length-3]?.sat"?"▼":"→"):"→";
+                const prevSat=dailyHistory.length>=3?dailyHistory[dailyHistory.length-3]?.sat:null;
+                const satTrend=prevSat!=null?(sat>prevSat?"▲":sat<prevSat?"▼":"→"):"→";
                 const trendColor=satTrend==="▲"?"#00E5A0":satTrend==="▼"?"#FF5757":"#FFD93D";
                 return(
                 <div style={{background:"#0C1128",border:"1px solid #FFD93D33",borderRadius:8,padding:8,marginBottom:8}}>
@@ -2895,6 +2895,36 @@ export default function ParkTycoon(){
                   {satFactors.every(f=>f.val>=0)&&sat<50&&<div style={{fontSize:9,color:"#FF9F4388",marginTop:3,textAlign:"center"}}>⚠️ {lang==="ko"?"자연 감소보다 보너스가 부족합니다":"Bonuses not outpacing natural decay"}</div>}
                 </div>
                 );
+              })()}
+              {(()=>{
+                const segEntries=Object.entries(SEGS);
+                const totalSegW=segEntries.reduce((s,[k])=>s+(segs[k]||0),0)||1;
+                const lastRev=dailyHistory.length>=1?dailyHistory[dailyHistory.length-1].revenue:null;
+                const revPerVis=lastRev!=null&&visitors>0?(lastRev/Math.max(1,visitors)).toFixed(1):null;
+                const ridePersonality=grid.flat().filter(c=>c&&!c.ref&&B[c.type]?.personality).reduce((acc,c)=>{
+                  const w=B[c.type].personality.who?.ko||"";
+                  acc[w]=(acc[w]||0)+1; return acc;
+                },{});
+                const dominantPersonality=Object.entries(ridePersonality).sort((a,b)=>b[1]-a[1]);
+                const varietyWarn=dominantPersonality.length>0&&dominantPersonality[0][1]>=3&&(dominantPersonality[1]?.[1]||0)<2;
+                return(<div style={{background:"#0C1128",border:"1px solid #A29BFE33",borderRadius:8,padding:8,marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                    <div style={{fontSize:10,fontWeight:700,color:"#A29BFE"}}>👥 {lang==="ko"?"방문객 분석":"Visitor Profile"}</div>
+                    {revPerVis&&<div style={{fontSize:9,color:"#FECA57",fontWeight:700}}>💵 ${revPerVis}/{lang==="ko"?"명":"vis"}</div>}
+                  </div>
+                  <div style={{display:"flex",height:6,borderRadius:99,overflow:"hidden",marginBottom:5,gap:1}}>
+                    {segEntries.map(([k,s])=>{const w=(segs[k]||0)/totalSegW*100;return w>0?<div key={k} style={{width:`${w}%`,background:s.color,opacity:0.85}}/>:null;})}
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:"2px 8px"}}>
+                    {segEntries.map(([k,s])=>{const pct=Math.round((segs[k]||0)/totalSegW*100);return pct>0?(<div key={k} style={{display:"flex",alignItems:"center",gap:2,fontSize:9}}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                      <span style={{color:"#8899BB"}}>{s.emoji} {pct}%</span>
+                    </div>):null;})}
+                  </div>
+                  {varietyWarn&&<div style={{marginTop:5,fontSize:9,color:"#FF9F43",background:"rgba(255,159,67,0.08)",borderRadius:4,padding:"3px 6px"}}>
+                    ⚠️ {lang==="ko"?`"${dominantPersonality[0][0]}" 유형 집중 — 다른 성격의 놀이기구 추가로 방문객 다양화 권장`:`"${dominantPersonality[0][0]}" type dominant — add different personality rides to diversify visitors`}
+                  </div>}
+                </div>);
               })()}
               {tutorialStep===6&&!tutTabVisited&&(
                 <div style={{background:"rgba(255,217,61,0.10)",border:"2px solid rgba(255,217,61,0.5)",borderRadius:7,padding:"6px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"center",animation:"pulse 2s infinite"}}>
@@ -3327,7 +3357,7 @@ export default function ParkTycoon(){
               </div>}
               {day<=30&&(()=>{
                 const anyPaths2=grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy");
-                const rideTypes=['ferrisWheel','rollerCoaster','carousel','thrillRide','waterRide','bumperCars','dropTower','miniTrain','hauntedHouse','cinema4D','balloonRide','miniGolf'];
+                const rideTypes=['ferrisWheel','rollerCoaster','carousel','thrillRide','waterRide','bumperCars','dropTower','miniTrain','hauntedHouse','cinema4D','balloonRide','miniGolf','amphitheater'];
                 const rideCount=grid.flat().filter(c=>c&&!c.ref&&rideTypes.includes(c.type)).length;
                 const hasStaff=Object.values(hired).some(v=>v>0);
                 const steps=[

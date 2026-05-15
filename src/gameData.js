@@ -51,7 +51,7 @@ export const LEAGUES = [
   {id:"diamond",emoji:"💎",name:{ko:"다이아 리그",en:"Diamond League"},color:"#A8D8EA",req:{medals:5,type:"gold",allScenarios:true}},
 ];
 
-export const BREAK_CHANCE = {entrance:0.004,ferrisWheel:0.04,rollerCoaster:0.07,carousel:0.03,thrillRide:0.055,waterRide:0.045,bumperCars:0.03,dropTower:0.06,miniTrain:0.025,hauntedHouse:0.02,cinema4D:0.015,balloonRide:0.035};
+export const BREAK_CHANCE = {entrance:0.004,ferrisWheel:0.04,rollerCoaster:0.07,carousel:0.03,thrillRide:0.055,waterRide:0.045,bumperCars:0.03,dropTower:0.06,miniTrain:0.025,hauntedHouse:0.02,cinema4D:0.015,balloonRide:0.035,amphitheater:0.018,kidsPlayground:0.010};
 export const BUILDING_EVENTS = {
   rollerCoaster: [{ko:"🎢 최고속도 기록 달성! 방문객 흥분 최고조!",en:"🎢 New speed record! Crowd goes wild!",satBonus:3,moneyBonus:200}],
   ferrisWheel:   [{ko:"🎡 야경이 아름다워 연인들이 줄을 섰습니다!",en:"🎡 Beautiful night view — couples lining up!",satBonus:2,moneyBonus:150}],
@@ -65,6 +65,10 @@ export const BUILDING_EVENTS = {
   miniGolf:      [{ko:"⛳ 홀인원 달성! 박수갈채가 울려퍼집니다!",en:"⛳ Hole in one! The crowd erupts!",satBonus:2,moneyBonus:150}],
   balloonRide:   [{ko:"🎈 구름 위 비행 — 방문객 절경에 감탄!",en:"🎈 Above the clouds — breathtaking views!",satBonus:3,moneyBonus:175}],
   arcade:        [{ko:"🕹️ 최고점수 기록! 도전자들이 몰려듭니다!",en:"🕹️ New high score! Challengers lining up!",satBonus:2,moneyBonus:120}],
+  coffeeCafe:    [{ko:"☕ 바리스타 대회 우승! 방문객 인증샷 폭발!",en:"☕ Barista champion! Visitors flood in for photos!",satBonus:3,moneyBonus:200}],
+  photoBooth:    [{ko:"📸 인증샷 바이럴! SNS 입소문으로 방문객 급증!",en:"📸 Photo goes viral! Visitor surge from social media!",satBonus:4,moneyBonus:280}],
+  amphitheater:  [{ko:"🎭 매진 공연! 관객 기립박수로 만족도 최고조!",en:"🎭 Sold-out show! Standing ovation — satisfaction peaks!",satBonus:6,moneyBonus:400}],
+  kidsPlayground:[{ko:"🧸 생일 파티 대성공! 어린이들이 환호합니다!",en:"🧸 Birthday bash! Kids are absolutely thrilled!",satBonus:4,moneyBonus:150}],
 };
 export const ZONES = {thrill:{emoji:"🎢",color:"#FF4757",bg:"#FF475718"},family:{emoji:"👨‍👩‍👧",color:"#FF9F43",bg:"#FF9F4318"},food:{emoji:"🍔",color:"#FECA57",bg:"#FECA5718"},nature:{emoji:"🌳",color:"#1DD1A1",bg:"#1DD1A118"},vip:{emoji:"⭐",color:"#A29BFE",bg:"#A29BFE18"}};
 export const PARCELS = [
@@ -76,7 +80,7 @@ export const PARCELS = [
   {id:"eastC",cost:38000,cols:[36,39],icon:"🌄",req:"eastB",label:{ko:"동쪽 C구역",en:"East Wing C"}},
 ];
 export const SEGS = {family:{emoji:"👨‍👩‍👧",color:"#FF9F43",spendMult:1.2},couple:{emoji:"💑",color:"#FF6B9D",spendMult:1.5},thrill:{emoji:"🎢",color:"#FF6B6B",spendMult:0.8},child:{emoji:"👦",color:"#48DBFB",spendMult:0.5},general:{emoji:"🧑",color:"#C7B8EA",spendMult:1.0}};
-export const SEG_PULL = {ferrisWheel:{family:2,couple:4},rollerCoaster:{thrill:5},carousel:{family:3,child:4},thrillRide:{thrill:4},waterRide:{thrill:3,family:2},foodStall:{family:3,child:2},iceCream:{child:4,family:1},giftShop:{couple:2,family:1},restroom:{family:3},garden:{couple:4,family:1},fountain:{couple:5},bumperCars:{child:3,thrill:2},dropTower:{thrill:5},miniTrain:{child:4,family:3},hauntedHouse:{thrill:3,couple:2},cinema4D:{couple:3,general:2},balloonRide:{couple:4,family:2},miniGolf:{family:4,couple:2},arcade:{child:5,general:2},vipLounge:{couple:5,general:1}};
+export const SEG_PULL = {ferrisWheel:{family:2,couple:4},rollerCoaster:{thrill:5},carousel:{family:3,child:4},thrillRide:{thrill:4},waterRide:{thrill:3,family:2},foodStall:{family:3,child:2},iceCream:{child:4,family:1},giftShop:{couple:2,family:1},restroom:{family:3},garden:{couple:4,family:1},fountain:{couple:5},bumperCars:{child:3,thrill:2},dropTower:{thrill:5},miniTrain:{child:4,family:3},hauntedHouse:{thrill:3,couple:2},cinema4D:{couple:3,general:2},balloonRide:{couple:4,family:2},miniGolf:{family:4,couple:2},arcade:{child:5,general:2},vipLounge:{couple:5,general:1},coffeeCafe:{couple:3,general:3},photoBooth:{couple:5,general:2},kidsPlayground:{child:5,family:4},amphitheater:{family:4,general:3,couple:2}};
 
 export const CAMPAIGNS_DATA = {tv:{emoji:"📺",cost:3000,days:10,boost:0.30},sns:{emoji:"📱",cost:1500,days:7,boost:0.15},event:{emoji:"🎪",cost:800,days:5,boost:0.20},billboard:{emoji:"🪧",cost:2000,days:8,boost:0.25},celebrity:{emoji:"⭐",cost:5000,days:12,boost:0.45}};
 export const VIP_EVENTS = [{id:"school",emoji:"🎒",bonusVis:160,bonusRev:2200,presBonus:3,req:{restroom:2,foodStall:1}},{id:"corp",emoji:"💼",bonusVis:90,bonusRev:6000,presBonus:5,req:{}},{id:"media",emoji:"📸",bonusVis:0,bonusRev:0,presBonus:15,req:{}},{id:"influencer",emoji:"🌟",bonusVis:220,bonusRev:800,presBonus:8,req:{}},{id:"sports",emoji:"🏆",bonusVis:130,bonusRev:3500,presBonus:4,req:{foodStall:2}}];
@@ -409,6 +413,11 @@ export const B = {
   garden:      {emoji:"🌳",baseCost:1000, cat:"facility",size:{w:2,h:2},color:"#5F27CD",upgradeCost:[800,2000],   levelEmoji:["🌿","🌺","🌸"],stats:lv=>({attraction:4+lv*3,  rpv:0,      maintenance:30+lv*12,  satBonus:3+lv*2,cap:0})},
   fountain:    {emoji:"⛲",baseCost:2500, cat:"facility",size:{w:2,h:2},color:"#00D2D3",upgradeCost:[2000,5000],  levelEmoji:["⛲","💦","🌊"],stats:lv=>({attraction:6+lv*4,  rpv:0,      maintenance:70+lv*25,  satBonus:5+lv*3,cap:0})},
   miniGolf:    {emoji:"⛳",baseCost:4500, cat:"facility",size:{w:3,h:2},color:"#1DD1A1",upgradeCost:[2000,5000],  stats:lv=>({attraction:8+lv*4,  rpv:2+lv*2, maintenance:90+lv*30,  satBonus:4+lv,cap:0})},
+  coffeeCafe:  {emoji:"☕",baseCost:3500, cat:"shop",   size:{w:2,h:1},color:"#C89B7B",upgradeCost:[2000,5000],  levelEmoji:["☕","🫖","🧋"],   stats:lv=>({attraction:3+lv*2, rpv:5+lv*4, maintenance:75+lv*25, satBonus:2+lv,cap:0})},
+  photoBooth:  {emoji:"📸",baseCost:2200, cat:"shop",   size:{w:1,h:1},color:"#FF6B9D",upgradeCost:[1500,4000],  stats:lv=>({attraction:4+lv*3, rpv:6+lv*5, maintenance:50+lv*18, satBonus:2,   cap:0})},
+  firstAid:    {emoji:"🏥",baseCost:2000, cat:"facility",size:{w:1,h:1},color:"#FF5757",upgradeCost:[1200,3000], stats:lv=>({attraction:0,       rpv:0,      maintenance:55+lv*20, satBonus:5+lv*3,cap:0})},
+  kidsPlayground:{emoji:"🧸",baseCost:5500,cat:"facility",size:{w:3,h:2},color:"#FFD93D",upgradeCost:[3000,7000],stats:lv=>({attraction:10+lv*5,rpv:0,       maintenance:110+lv*35,satBonus:4+lv*2,cap:0})},
+  amphitheater:{emoji:"🎭",baseCost:18000,cat:"ride",   size:{w:4,h:3},color:"#A29BFE",upgradeCost:[10000,22000],personality:{exc:2,fear:0,fam:5,who:{ko:"전 가족",en:"All Families"}},flavor:{ko:"공연 관람 — 가족·일반 방문객 최강 만족도",en:"Live shows — unbeatable for families & general visitors"},stats:lv=>({attraction:25+lv*10,rpv:3+lv*3,maintenance:420+lv*130,satBonus:5+lv*3,cap:100+lv*50})},
   _path:       {emoji:"🟫",baseCost:100,  cat:"path",   size:{w:1,h:1},color:"#8B7355",upgradeCost:[600,0],      stats:lv=>({attraction:0,rpv:0,maintenance:2+lv*3,satBonus:0,cap:0})},
   _pathFancy:  {emoji:"🟨",baseCost:400,  cat:"path",   size:{w:1,h:1},color:"#D4AF37",upgradeCost:[0,0],        stats:()=>({attraction:0,rpv:0,maintenance:8,satBonus:1,cap:0})},
   bench:       {emoji:"🪑",baseCost:300,  cat:"deco",   size:{w:1,h:1},color:"#A0897A",upgradeCost:[0,0],        stats:()=>({attraction:0,rpv:0,maintenance:5,satBonus:3,cap:0})},
