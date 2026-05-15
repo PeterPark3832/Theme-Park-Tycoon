@@ -661,11 +661,15 @@ export default function ParkTycoon(){
       const mechUpg=STAFF_UPGRADES.mechanic[Math.min(sLvls.mechanic-1,2)];
       const mechRepairMult=mechUpg.repairMult||0.3;
       const mechBreakMult=mechUpg.breakMult||0.3;
+      // Phase 1-4: scenario-specific constraint data
+      const scnDataTick=SCENARIOS.find(sc=>sc.id===cs);
+      const scnConstraints=scnDataTick?.constraints||{};
+      const scnBreakMult=scnConstraints.breakChanceMult||1;
       const newGrid=g.map(row=>row.map(cell=>{
         if(!cell||cell.ref) return cell;
         const bc=BREAK_CHANCE[cell.type];if(!bc) return cell;
         if(cell.broken) return(hired.mechanic>0&&Math.random()<(hired.mechanic*mechRepairMult+rb.autoRepairBonus))?{...cell,broken:false}:cell;
-        return Math.random()<Math.max(0.001,bc*rb.breakMult*(1-hired.mechanic*mechBreakMult))?{...cell,broken:true}:cell;
+        return Math.random()<Math.max(0.001,bc*scnBreakMult*rb.breakMult*(1-hired.mechanic*mechBreakMult))?{...cell,broken:true}:cell;
       }));
 
       const s=calcStats(newGrid,zg,hired,rb);
@@ -706,6 +710,22 @@ export default function ParkTycoon(){
       const curStage=calcStage(totalBldCount,parkRat.stars,ref.current.money);
       const stgVisMult=1+stageVisBonus(curStage);
       const stgRevMult=1+stageRevBonus(curStage);
+
+      // Phase 1-4: scenario constraint sat rules
+      let scnSatMod=0;
+      if(scnConstraints.satRules&&gm==="campaign"){
+        for(const rule of scnConstraints.satRules){
+          if(rule.type==="coupleBelow"&&(segs.couple||0)<rule.threshold) scnSatMod+=rule.penalty||0;
+          else if(rule.type==="coupleAbove"&&(segs.couple||0)>=rule.threshold) scnSatMod+=rule.bonus||0;
+          else if(rule.type==="feeLow"&&fee<rule.threshold) scnSatMod+=rule.penalty||0;
+          else if(rule.type==="feeHigh"&&fee>=rule.threshold) scnSatMod+=rule.bonus||0;
+          else if(rule.type==="noRestroom"&&!cc2.restroom) scnSatMod+=rule.penalty||0;
+          else if(rule.type==="noWaterRide"&&!cc2.waterRide) scnSatMod+=rule.penalty||0;
+          else if(rule.type==="familyAbove"&&(segs.family||0)>rule.threshold) scnSatMod+=rule.penalty||0;
+          else if(rule.type==="starBelow"&&(day+1)>=(rule.afterDay||0)&&parkRat.stars<rule.threshold) scnSatMod+=rule.penalty||0;
+        }
+      }
+      const scnFeeCapPen=(scnConstraints.admFeeCap&&fee>scnConstraints.admFeeCap&&gm==="campaign")?(scnConstraints.admFeeCapPenalty||0):0;
 
       const feeEff=pm==="per_ride"?1.25:Math.max(0.15,1.3-fee*0.022/(1+(parkRat.stars-1)*0.06));
       // Phase 2-1: entertainer level bonus
@@ -789,7 +809,7 @@ export default function ParkTycoon(){
       // 방문객 없을 때 패널티 제거 (운영 안 하면 만족도 변화 없음)
       const baseSatDelta = vis > 0 ? -0.18 : 0;
       const coupleBoostSat=ref.current.startPerk==="coupleBoost"?5:0;
-      const newSat=Math.min(100,Math.max(5,s0+hired.janitor*janSatBonus+hired.security*secSatBonus+s.satBonus+baseSatDelta+cleanMod+(congested&&vis>0?-5:0)+Math.min(0,-s.brokenCount*2)+segSatMod(newGrid,segs)+Math.min(0,-s.isolatedCount)+(fee>maxFee?-6:0)-satPenExtra+wth.satMod+holidaySatMod-rivalEventSatPen*0.5+coupleBoostSat));
+      const newSat=Math.min(100,Math.max(5,s0+hired.janitor*janSatBonus+hired.security*secSatBonus+s.satBonus+baseSatDelta+cleanMod+(congested&&vis>0?-5:0)+Math.min(0,-s.brokenCount*2)+segSatMod(newGrid,segs)+Math.min(0,-s.isolatedCount)+(fee>maxFee?-6:0)-satPenExtra+wth.satMod+holidaySatMod-rivalEventSatPen*0.5+coupleBoostSat+scnSatMod+scnFeeCapPen));
 
       let newDisaster=ad?{...ad,remaining:ad.remaining-1}:null;
       if(newDisaster?.remaining<=0){addLog(t("log.disasterEnd", {name: t(`dis.${newDisaster.id}`)}));newDisaster=null;}
@@ -3486,6 +3506,53 @@ export default function ParkTycoon(){
                     </div>);
                   })}
                 </div>
+                {/* Phase 1-4: Scenario constraint rules panel */}
+                {currentScenarioData.constraints&&(currentScenarioData.constraints.breakChanceMemo||currentScenarioData.constraints.satRules?.length>0||currentScenarioData.constraints.admFeeCap)&&(
+                  <div style={{background:"rgba(162,155,254,0.06)",border:"1px solid rgba(162,155,254,0.2)",borderRadius:7,padding:8,marginBottom:7}}>
+                    <div style={{fontSize:9,fontWeight:700,color:"#A29BFE",letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>⚖️ {lang==="ko"?"시나리오 규칙":"Scenario Rules"}</div>
+                    {currentScenarioData.constraints.breakChanceMemo&&(
+                      <div style={{display:"flex",alignItems:"center",gap:5,padding:"3px 5px",marginBottom:3,background:"rgba(255,159,67,0.08)",border:"1px solid rgba(255,159,67,0.2)",borderRadius:4}}>
+                        <span style={{fontSize:11}}>🔧</span>
+                        <span style={{fontSize:9,color:"#FF9F43",flex:1}}>{currentScenarioData.constraints.breakChanceMemo[lang]||currentScenarioData.constraints.breakChanceMemo.ko}</span>
+                      </div>
+                    )}
+                    {currentScenarioData.constraints.admFeeCap&&(
+                      <div style={{display:"flex",alignItems:"center",gap:5,padding:"3px 5px",marginBottom:3,background:fee>currentScenarioData.constraints.admFeeCap?"rgba(255,87,87,0.10)":"rgba(94,246,160,0.06)",border:`1px solid ${fee>currentScenarioData.constraints.admFeeCap?"rgba(255,87,87,0.3)":"rgba(94,246,160,0.2)"}`,borderRadius:4}}>
+                        <span style={{fontSize:11}}>{fee>currentScenarioData.constraints.admFeeCap?"⚠️":"✅"}</span>
+                        <span style={{fontSize:9,color:fee>currentScenarioData.constraints.admFeeCap?"#FF5757":"#5EF6A0",flex:1}}>{lang==="ko"?`입장료 상한 $${currentScenarioData.constraints.admFeeCap} — 현재 $${fee}`:`Fee cap $${currentScenarioData.constraints.admFeeCap} — current $${fee}`}</span>
+                        {fee>currentScenarioData.constraints.admFeeCap&&<span style={{fontSize:9,color:"#FF5757",fontWeight:700}}>{currentScenarioData.constraints.admFeeCapPenalty}/일</span>}
+                      </div>
+                    )}
+                    {currentScenarioData.constraints.satRules?.map((rule,ri)=>{
+                      const coupleRatio=segs.couple||0;
+                      const familyRatio=segs.family||0;
+                      const hasRestroom=!!(grid.flat().some(c=>c&&!c.ref&&c.type==="restroom"));
+                      const hasWaterRide=!!(grid.flat().some(c=>c&&!c.ref&&c.type==="waterRide"));
+                      let active=false;
+                      if(rule.type==="coupleBelow") active=coupleRatio<rule.threshold;
+                      else if(rule.type==="coupleAbove") active=coupleRatio>=rule.threshold;
+                      else if(rule.type==="feeLow") active=fee<rule.threshold;
+                      else if(rule.type==="feeHigh") active=fee>=rule.threshold;
+                      else if(rule.type==="noRestroom") active=!hasRestroom;
+                      else if(rule.type==="noWaterRide") active=!hasWaterRide;
+                      else if(rule.type==="familyAbove") active=familyRatio>rule.threshold;
+                      else if(rule.type==="starBelow") active=day>=(rule.afterDay||0)&&parkRating.stars<rule.threshold;
+                      const isBad=active&&(rule.penalty!==undefined);
+                      const isGood=active&&(rule.bonus!==undefined&&!rule.penalty);
+                      const col=isBad?"#FF5757":isGood?"#00E5A0":"#666688";
+                      const bg=isBad?"rgba(255,87,87,0.08)":isGood?"rgba(0,229,160,0.06)":"rgba(255,255,255,0.02)";
+                      const border=isBad?"rgba(255,87,87,0.25)":isGood?"rgba(0,229,160,0.2)":"rgba(255,255,255,0.06)";
+                      return(
+                        <div key={ri} style={{display:"flex",alignItems:"center",gap:5,padding:"3px 5px",marginBottom:3,background:bg,border:`1px solid ${border}`,borderRadius:4}}>
+                          <span style={{fontSize:11}}>{isBad?"⚠️":isGood?"✅":"⬜"}</span>
+                          <span style={{fontSize:9,color:col,flex:1}}>{rule.desc[lang]||rule.desc.ko}</span>
+                          {active&&rule.penalty&&<span style={{fontSize:9,color:"#FF5757",fontWeight:700}}>{rule.penalty}/일</span>}
+                          {active&&rule.bonus&&<span style={{fontSize:9,color:"#00E5A0",fontWeight:700}}>+{rule.bonus}/일</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </>}
 
               {activeDailyChallenge&&(

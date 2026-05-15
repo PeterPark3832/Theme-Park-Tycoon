@@ -7,5 +7,10 @@ export default defineConfig({
   base: '/Theme-Park-Tycoon/',
   build: {
     chunkSizeWarningLimit: 900,
+    minify: 'terser',
+    terserOptions: {
+      compress: { passes: 2 },
+      mangle: true,
+    },
   },
 })
