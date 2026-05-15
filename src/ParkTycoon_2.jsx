@@ -3758,7 +3758,7 @@ export default function ParkTycoon(){
         {!isPC&&<button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:isMobile?36:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#7788BB",cursor:"pointer",fontSize:isMobile?16:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?(lang==="ko"?"패널 열기":"Open panel"):(lang==="ko"?"패널 닫기":"Close panel")}>{panelCollapsed?"▶":"◀"}</button>}
 
         {/* ── GRID + LOG ── */}
-        <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:7,gap:5,overflow:"hidden",background:"var(--bg-deep)"}}
+        <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:isMobile?2:7,gap:isMobile?2:5,overflow:"hidden",background:"var(--bg-deep)"}}
           onTouchStart={(e) => {
             if (e.touches.length === 2) {
               panRef.current.active = false;
@@ -3809,13 +3809,13 @@ export default function ParkTycoon(){
               {lang==="ko"?`⚠️ 고장 시설 ${stats.brokenCount}개 — 경영 탭에서 수리하거나 정비공을 고용하세요`:`⚠️ ${stats.brokenCount} broken ride${stats.brokenCount>1?"s":""} — repair in Manage tab or hire a mechanic`}
             </div>
           )}
-          {screen==="game"&&hired.mechanic===0&&stats.brokenCount===0&&(cc.rollerCoaster||cc.dropTower||cc.thrillRide)&&(
+          {!isMobile&&screen==="game"&&hired.mechanic===0&&stats.brokenCount===0&&(cc.rollerCoaster||cc.dropTower||cc.thrillRide)&&(
             <div style={{background:"rgba(255,159,67,0.10)",border:"1px solid rgba(255,159,67,0.4)",borderRadius:6,padding:"5px 10px",color:"#FF9F43",fontSize:10,fontWeight:700,display:"flex",gap:6,alignItems:"center",marginBottom:4,flexShrink:0,position:"relative",zIndex:10}}>
               {lang==="ko"?"🔧 정비공 없음 — 고위험 놀이기구 고장 확률이 높습니다":"🔧 No mechanic — high-risk attractions have increased breakdown chance"}
             </div>
           )}
-          {/* 튜토리얼 완료 후 방향 허브 — day 7까지 표시 */}
-          {screen==="game"&&tutDone&&tutorialStep===0&&day<=7&&day>=1&&(()=>{
+          {/* 튜토리얼 완료 후 방향 허브 — day 7까지 표시, 모바일 제외 */}
+          {!isMobile&&screen==="game"&&tutDone&&tutorialStep===0&&day<=7&&day>=1&&(()=>{
             const nextGoals=[
               visitors<50&&{emoji:"👥",text:lang==="ko"?"방문객 50명 달성 — 놀이기구 다양화":"Reach 50 visitors — add variety"},
               sat<70&&{emoji:"😊",text:lang==="ko"?"만족도 70%+ — 청소부 고용 & 입장료 조정":"Satisfaction 70%+ — hire janitor & adjust fee"},
@@ -3837,7 +3837,7 @@ export default function ParkTycoon(){
               </div>
             );
           })()}
-          {screen==="game"&&!ftueGoalDone&&tutorialStep===0&&stats.hasEntrance&&visitors===0&&(
+          {!isMobile&&screen==="game"&&!ftueGoalDone&&tutorialStep===0&&stats.hasEntrance&&visitors===0&&(
             <div style={{background:"rgba(0,229,160,0.08)",border:"1px solid rgba(0,229,160,0.3)",borderRadius:6,padding:"5px 10px",color:"#00E5A0",fontSize:10,fontWeight:700,display:"flex",gap:8,alignItems:"center",marginBottom:4,flexShrink:0}}>
               <span style={{fontSize:14}}>🎯</span>
               <div style={{flex:1}}>
@@ -3847,7 +3847,7 @@ export default function ParkTycoon(){
               <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,fontFamily:"inherit"}} onClick={()=>setFtueGoalDone(true)}>✕</button>
             </div>
           )}
-          {screen==="game"&&tutorialStep===0&&(()=>{
+          {!isMobile&&screen==="game"&&tutorialStep===0&&(()=>{
             const hints=[
               {id:"h_entrance", show:day>=2&&!stats.hasEntrance,
                emoji:"🎪", col:"#FF5757",
@@ -3991,8 +3991,8 @@ export default function ParkTycoon(){
             <div style={{display:"grid",
               gridTemplateColumns:`repeat(${GC},1fr)`,
               gridTemplateRows:`repeat(${GR},1fr)`,
-              gap:2,width:"100%",height:"100%",
-              background:"#020408",borderRadius:10,padding:4,boxSizing:"border-box",
+              gap:isMobile?1:2,width:"100%",height:"100%",
+              background:"#020408",borderRadius:isMobile?4:10,padding:isMobile?2:4,boxSizing:"border-box",
               border:"1px solid rgba(100,120,255,0.08)",
               boxShadow:"inset 0 0 40px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.6)",
               transform:`scale(${gridScale}) translate(${gridPan.x/gridScale}px,${gridPan.y/gridScale}px)`,
@@ -4331,17 +4331,18 @@ export default function ParkTycoon(){
             {tutorialStep>0&&tutorialStep<=10&&screen==="game"&&(
               <>
                 {/* 배경 오버레이 */}
-                <div style={{position:"absolute",inset:0,zIndex:25,pointerEvents:"none",
-                  background:tutorialStep===10?"rgba(0,0,0,0.75)":"rgba(0,0,0,0.38)",borderRadius:6,transition:"background 0.5s"}}/>
+                <div style={{position:isMobile?"fixed":"absolute",inset:0,zIndex:isMobile?240:25,pointerEvents:"none",
+                  background:tutorialStep===10?"rgba(0,0,0,0.75)":"rgba(0,0,0,0.38)",borderRadius:isMobile?0:6,transition:"background 0.5s"}}/>
                 {/* 단계 완료 flash */}
                 {tutFlash&&<div style={{position:"absolute",inset:0,zIndex:26,pointerEvents:"none",borderRadius:6,
                   background:"rgba(0,229,160,0.20)",animation:"build-flash 0.5s ease-out forwards"}}/>}
 
                 {/* ── 완료 화면 (step 10) ── */}
                 {tutorialStep===10?(
-                  <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
+                  <div style={{position:isMobile?"fixed":"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
                     background:"linear-gradient(135deg,#0D1535,#080B20)",border:"2px solid #00E5A088",
-                    borderRadius:18,padding:"28px 28px 22px",zIndex:30,minWidth:280,maxWidth:360,textAlign:"center",
+                    borderRadius:18,padding:isMobile?"20px 20px 16px":"28px 28px 22px",zIndex:isMobile?250:30,
+                    minWidth:isMobile?Math.min(window.innerWidth-32,300):280,maxWidth:isMobile?Math.min(window.innerWidth-24,340):360,textAlign:"center",
                     boxShadow:"0 12px 60px rgba(0,0,0,0.95),0 0 0 1px rgba(0,229,160,0.2)",
                     animation:"slide-in 0.4s ease",pointerEvents:"auto"}}>
                     <div style={{fontSize:50,marginBottom:8,filter:"drop-shadow(0 0 14px rgba(0,229,160,0.6))"}}>🎊</div>
@@ -4373,9 +4374,14 @@ export default function ParkTycoon(){
                   </div>
                 ):(
                   /* ── 일반 단계 카드 (steps 1-9) ── */
-                  <div style={{position:"absolute",bottom:16,left:"50%",transform:"translateX(-50%)",
+                  <div style={{
+                    position:isMobile?"fixed":"absolute",
+                    bottom:isMobile?64:16,
+                    left:"50%",transform:"translateX(-50%)",
                     background:"linear-gradient(135deg,#0D1535,#080B20)",border:"2px solid #FFD93D88",
-                    borderRadius:14,padding:"14px 20px",zIndex:30,minWidth:270,maxWidth:350,
+                    borderRadius:14,padding:isMobile?"10px 14px":"14px 20px",
+                    zIndex:isMobile?250:30,
+                    minWidth:isMobile?Math.min(window.innerWidth-32,300):270,maxWidth:isMobile?Math.min(window.innerWidth-24,340):350,
                     boxShadow:"0 8px 40px rgba(0,0,0,0.9),0 0 0 1px rgba(255,217,61,0.15)",
                     animation:"slide-in 0.3s ease",pointerEvents:"auto"}}>
 
@@ -4525,7 +4531,7 @@ export default function ParkTycoon(){
             )}
           </div>
 
-          {!isPC&&<div style={{background:"linear-gradient(90deg,#05060F,#08091A)",border:"1px solid rgba(100,120,255,0.08)",borderRadius:8,padding:"5px 10px",flexShrink:0}}>
+          {!isPC&&!isMobile&&<div style={{background:"linear-gradient(90deg,#05060F,#08091A)",border:"1px solid rgba(100,120,255,0.08)",borderRadius:8,padding:"5px 10px",flexShrink:0}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:logCollapsed?0:3,cursor:"pointer"}} onClick={()=>setLogCollapsed(v=>!v)}>
               <div style={{fontSize:10,color:"#7788BB",letterSpacing:3,fontWeight:700,textTransform:"uppercase"}}>▸ Event Log</div>
               <span style={{fontSize:10,color:"#7788BB",transition:"transform 0.2s",display:"inline-block",transform:logCollapsed?"rotate(-90deg)":"rotate(0deg)"}}>▾</span>
