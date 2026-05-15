@@ -896,6 +896,33 @@ export default function ParkTycoon(){
         }
       }
 
+      // Feature 2: Day 1-5 slow day hint
+      if(day<=5&&vis<5&&ref.current.speed<2&&[1,3,5].includes(day)&&!quietHintShownRef.current.has(day)){
+        quietHintShownRef.current.add(day);
+        addLog(lang==="ko"?`💡 Day${day}: 조용하네요 — ⏩ 빠른배속으로 시간을 넘겨보세요!`:`💡 Day${day}: Slow day — try ⏩ fast-forward!`);
+      }
+
+      // Feature 3: Random building special events (1.5% chance per tick)
+      if(Math.random()<0.015){
+        const builtCells=ref.current.grid.flat().filter(c=>c&&!c.ref&&BUILDING_EVENTS[c.type]);
+        if(builtCells.length>0){
+          const cell=builtCells[Math.floor(Math.random()*builtCells.length)];
+          const evts=BUILDING_EVENTS[cell.type];
+          const evt=evts[Math.floor(Math.random()*evts.length)];
+          addLog(ref.current.lang==="ko"?evt.ko:evt.en);
+          if(evt.satBonus) setSat(s=>Math.min(100,s+evt.satBonus));
+          if(evt.moneyBonus) setMoney(m=>m+evt.moneyBonus);
+          const evtGrid=ref.current.grid;
+          const evtR=evtGrid.findIndex(row=>row.some(c=>c&&c.type===cell.type&&!c.ref));
+          const evtC=evtR>=0?evtGrid[evtR].findIndex(c=>c&&c.type===cell.type&&!c.ref):-1;
+          if(evtR>=0&&evtC>=0){
+            const evtTs=Date.now();
+            const evtTxt=ref.current.lang==="ko"?evt.ko.split(' ').slice(0,3).join(' '):evt.en.split(' ').slice(0,4).join(' ');
+            setBubbles(p=>[...p.filter(b=>b.expires>Date.now()),{id:evtTs,r:evtR,c:evtC,text:evtTxt,expires:evtTs+4000}]);
+          }
+        }
+      }
+
       const sEvt=ssn.events.find(([,p])=>Math.random()<p)?.[0]||null;
       const warn=!newDisaster&&s.brokenCount>2?t("log.warnBroken", {cnt: s.brokenCount}):(congested&&vis>0)?t("log.warnCongest"):newClean<30?t("log.warnTrash"):fee>maxFee?t("log.warnFee", {fee: maxFee}):null;
 
@@ -989,6 +1016,26 @@ export default function ParkTycoon(){
       // Opening buzz log
       if(day===3) addLog(lang==="ko"?"🎉 오픈 버즈 약화 — 방문객 +20% 보너스 (Day 7까지)":"🎉 Opening buzz fading — +20% visitor bonus until Day 7");
       if(day===7) addLog(lang==="ko"?"📊 오픈 특수 기간 종료 — 정상 운영 시작":"📊 Opening period ended — normal operations begin");
+      // Quiet-day speed hint (Day 1/3/5, visitors<5, speed<2)
+      if([1,3,5].includes(day)&&vis<5&&ref.current.speed<2&&!quietHintShownRef.current.has(day)){
+        quietHintShownRef.current.add(day);
+        addLog(lang==="ko"?`💡 Day${day}: 조용하네요 — ⏩ 빠른배속으로 시간을 넘겨보세요!`:`💡 Day${day}: Slow day — try ⏩ fast-forward!`);
+      }
+      // Building special events (1.5% chance per tick)
+      if(Math.random()<0.015){
+        const eventCells=newGrid.flat().filter(c=>c&&!c.ref&&!c.broken&&BUILDING_EVENTS[c.type]);
+        if(eventCells.length>0){
+          const cell=eventCells[Math.floor(Math.random()*eventCells.length)];
+          const evt=BUILDING_EVENTS[cell.type][Math.floor(Math.random()*BUILDING_EVENTS[cell.type].length)];
+          addLog(lang==="ko"?evt.ko:evt.en);
+          if(evt.satBonus) setSat(s=>Math.min(100,s+evt.satBonus));
+          if(evt.moneyBonus) setMoney(m=>m+evt.moneyBonus);
+          // Find origin cell position for bubble
+          let evtR=-1,evtC=-1;
+          outer2: for(let rr=0;rr<GR;rr++) for(let cc2=0;cc2<GC;cc2++){if(newGrid[rr][cc2]===cell){evtR=rr;evtC=cc2;break outer2;}}
+          if(evtR>=0) setBubbles(p=>[...p.filter(b=>b.expires>Date.now()).slice(-3),{id:Date.now(),r:evtR,c:evtC,text:(lang==="ko"?evt.ko:evt.en).slice(0,18),expires:Date.now()+4000}]);
+        }
+      }
       setGrid(newGrid);setSat(newSat);setClean(newClean);setSegData(segs);
       setMoney(m=>m+net+mM);setVisitors(vis);setLoans(newLoans);setCampaigns(newCamps);
       setPassHolders(newPH);setActiveDisaster(newDisaster);
@@ -2251,33 +2298,35 @@ export default function ParkTycoon(){
             </div>
           )}
           {[
-            {ic:"💰",v:`$${money.toLocaleString()}`,l:t("lbl.budget"),  col:"#FFD93D",big:true,isVis:false},
-            {ic:"👥",v:visitors.toLocaleString(),   l:t("lbl.visitors"), col:"#4D9FFF",big:true,isVis:true, tipKey:"vis"},
-            {ic:"😊",v:`${Math.round(sat)}%`,        l:t("lbl.satisfaction"),col:sat>70?"#00E5A0":sat>40?"#FFD93D":"#FF5757",big:false,isVis:false,isSat:true, tipKey:"sat"},
-            {ic:"🧹",v:`${Math.round(clean)}%`,      l:t("lbl.cleanliness"), col:clean>70?"#00E5A0":clean>40?"#FFD93D":"#FF5757",big:false,isVis:false, tipKey:"clean"},
-            {ic:estNet>=0?"📈":"📉",v:`${estNet>=0?"+":""}$${Math.abs(estNet)>=1000?`${(Math.abs(estNet)/1000).toFixed(1)}k`:Math.abs(estNet)}${netTrendArrow}`,l:lang==="ko"?"일 순이익":"Net/Day",col:estNet>=0?"#5EF6A0":"#FF6B6B",big:false,isVis:false},
-            {ic:"📅",v:`Day ${day}`,                 l:t("lbl.day"),    col:"#9B7FFF",big:false,isVis:false},
-            {ic:"🔬",v:`${researchPoints}RP`,         l:lang==="ko"?"연구 포인트":"Research",col:"#A29BFE",big:false,isVis:false, tipKey:"rp"},
-            ...(totalDebt>0?[{ic:"💳",v:`$${(totalDebt/1000).toFixed(0)}k`,l:t("lbl.loan"),col:"#FF5757",big:false,isVis:false}]:[]),
-            ...(activeDisaster?[{ic:"🚨",v:`${activeDisaster.remaining}d`,l:t("lbl.disaster"),col:"#FF5757",big:false,isVis:false}]:[]),
-          ].map(({ic,v,l,col,big,isVis,isSat,tipKey})=>{
+            {ic:"💰",v:`$${money.toLocaleString()}`,l:t("lbl.budget"),  col:"#FFD93D",big:true,primary:true,isVis:false},
+            {ic:"👥",v:visitors.toLocaleString(),   l:t("lbl.visitors"), col:"#4D9FFF",big:true,primary:true,isVis:true, tipKey:"vis"},
+            {ic:"😊",v:`${Math.round(sat)}%`,        l:t("lbl.satisfaction"),col:sat>70?"#00E5A0":sat>40?"#FFD93D":"#FF5757",big:false,primary:true,isVis:false,isSat:true, tipKey:"sat"},
+            {ic:"🧹",v:`${Math.round(clean)}%`,      l:t("lbl.cleanliness"), col:clean>70?"#00E5A0":clean>40?"#FFD93D":"#FF5757",big:false,primary:false,isVis:false, tipKey:"clean"},
+            {ic:estNet>=0?"📈":"📉",v:`${estNet>=0?"+":""}$${Math.abs(estNet)>=1000?`${(Math.abs(estNet)/1000).toFixed(1)}k`:Math.abs(estNet)}${netTrendArrow}`,l:lang==="ko"?"일 순이익":"Net/Day",col:estNet>=0?"#5EF6A0":"#FF6B6B",big:false,primary:false,isVis:false},
+            {ic:"📅",v:`Day ${day}`,                 l:t("lbl.day"),    col:"#9B7FFF",big:false,primary:false,isVis:false},
+            {ic:"🔬",v:`${researchPoints}RP`,         l:lang==="ko"?"연구 포인트":"Research",col:"#A29BFE",big:false,primary:false,isVis:false, tipKey:"rp"},
+            ...(totalDebt>0?[{ic:"💳",v:`$${(totalDebt/1000).toFixed(0)}k`,l:t("lbl.loan"),col:"#FF5757",big:false,primary:false,isVis:false}]:[]),
+            ...(activeDisaster?[{ic:"🚨",v:`${activeDisaster.remaining}d`,l:t("lbl.disaster"),col:"#FF5757",big:false,primary:false,isVis:false}]:[]),
+          ].map(({ic,v,l,col,big,primary,isVis,isSat,tipKey})=>{
             const STAT_TIPS={
               vis:{title:lang==="ko"?"👥 방문객":"👥 Visitors",desc:lang==="ko"?"어트랙션 점수, 만족도, 요금, 날씨, 계절에 따라 결정됩니다. 입구가 있어야 방문객이 들어올 수 있어요.\nVisitors depend on attraction score, satisfaction, fees, weather & season. Requires an entrance gate.":"Visitors depend on attraction score, satisfaction, fees, weather & season. Requires an entrance gate."},
               sat:{title:lang==="ko"?"😊 만족도":"😊 Satisfaction",desc:lang==="ko"?"청결도, 시설 품질, 요금, 혼잡도가 영향을 줍니다. 만족도가 높을수록 방문객이 더 오고 수익이 늘어요.\nAffected by cleanliness, facility quality, fees & congestion. Higher satisfaction = more visitors & revenue.":"Affected by cleanliness, facility quality, fees & congestion. Higher satisfaction = more visitors & revenue."},
               clean:{title:lang==="ko"?"🧹 청결도":"🧹 Cleanliness",desc:lang==="ko"?"방문객이 많을수록 더러워지고, 청소부를 고용하면 올라갑니다. 청결도 30% 미만이면 만족도가 크게 떨어져요.\nGets dirty with visitors; hire janitors to maintain. Below 30% causes big satisfaction penalty.":"Gets dirty with visitors; hire janitors to maintain. Below 30% causes big satisfaction penalty."},
               rp:{title:lang==="ko"?"🔬 연구 포인트":"🔬 Research Points",desc:lang==="ko"?"매일 방문객 수에 비례해 획득합니다. 연구 탭에서 공원 업그레이드에 사용하세요.\nEarned daily based on visitor count. Spend in the Research tab to unlock permanent park upgrades.":"Earned daily based on visitor count. Spend in the Research tab to unlock permanent park upgrades."},
             };
+            const valFontSize=big?16:primary?13:10;
+            const lblColor=primary?"#5566AA":"#3A4A6A";
             return(
             <div key={l} style={{position:"relative",display:"flex",alignItems:"center",gap:1}}>
               <div
                 onClick={isVis?()=>setShowVisBreakdown(x=>!x):undefined}
                 onMouseEnter={isSat?(e)=>{const r=e.currentTarget.getBoundingClientRect();const tw=200,th=180;const x=Math.max(8,Math.min(r.left,window.innerWidth-tw-8));const y=r.bottom+4+th>window.innerHeight?r.top-th-4:r.bottom+4;setSatTooltipPos({x,y});setShowSatTooltip(true);}:undefined}
                 onMouseLeave={isSat?()=>setShowSatTooltip(false):undefined}
-                style={{display:"flex",alignItems:"center",gap:4,background:big?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.03)",border:`1px solid ${isVis&&showVisBreakdown?"#4D9FFF66":isSat&&showSatTooltip?col+"66":big?col+"33":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:big?"3px 10px":"3px 8px",whiteSpace:"nowrap",flexShrink:0,cursor:isVis||isSat?"pointer":"default",transition:"border-color 0.15s"}}>
-                <span style={{fontSize:big?14:11}}>{ic}</span>
+                style={{display:"flex",alignItems:"center",gap:4,background:big?"rgba(255,255,255,0.05)":primary?"rgba(255,255,255,0.04)":"rgba(255,255,255,0.025)",border:`1px solid ${isVis&&showVisBreakdown?"#4D9FFF66":isSat&&showSatTooltip?col+"66":big?col+"33":primary?col+"22":"rgba(255,255,255,0.06)"}`,borderRadius:8,padding:big?"3px 10px":primary?"3px 9px":"3px 7px",whiteSpace:"nowrap",flexShrink:0,cursor:isVis||isSat?"pointer":"default",transition:"border-color 0.15s",opacity:primary?1:0.85}}>
+                <span style={{fontSize:big?14:primary?12:10}}>{ic}</span>
                 <div>
-                  <div style={{fontSize:9,color:"#3A4A6A",textTransform:"uppercase",letterSpacing:1,lineHeight:1,fontWeight:600}}>{l}{isVis&&<span style={{marginLeft:3,fontSize:8,color:"#4D9FFF44"}}>{showVisBreakdown?"▲":"▼"}</span>}{isSat&&<span style={{marginLeft:2,fontSize:7,color:col+"66"}}>▼</span>}</div>
-                  <div style={{fontSize:big?16:12,fontWeight:big?900:700,fontFamily:"'Barlow Condensed',sans-serif",color:col,lineHeight:1.1}}>{v}</div>
+                  <div style={{fontSize:primary?9:8,color:lblColor,textTransform:"uppercase",letterSpacing:1,lineHeight:1,fontWeight:600}}>{l}{isVis&&<span style={{marginLeft:3,fontSize:8,color:"#4D9FFF44"}}>{showVisBreakdown?"▲":"▼"}</span>}{isSat&&<span style={{marginLeft:2,fontSize:7,color:col+"66"}}>▼</span>}</div>
+                  <div style={{fontSize:valFontSize,fontWeight:big?900:primary?800:700,fontFamily:"'Barlow Condensed',sans-serif",color:primary?col:col+"CC",lineHeight:1.1}}>{v}</div>
                 </div>
               </div>
               {tipKey&&STAT_TIPS[tipKey]&&<button onClick={()=>setStatTooltip(st=>st?.title===STAT_TIPS[tipKey].title?null:STAT_TIPS[tipKey])} style={{background:"none",border:"1px solid rgba(100,120,255,0.2)",borderRadius:"50%",width:13,height:13,fontSize:7,color:"#5566AA",cursor:"pointer",padding:0,lineHeight:1,flexShrink:0}}>?</button>}
@@ -2762,14 +2811,28 @@ export default function ParkTycoon(){
             </>}
 
             {tab==="finance"&&<>
-              {/* 순이익 히어로 블록 */}
-              <div style={{background:estNet>=0?"rgba(0,229,160,0.09)":"rgba(255,87,87,0.09)",border:`2px solid ${estNet>=0?"#00E5A044":"#FF575744"}`,borderRadius:10,padding:"10px 12px",marginBottom:8,textAlign:"center"}}>
-                <div style={{fontSize:9,color:"#6B7CA1",letterSpacing:2,textTransform:"uppercase",marginBottom:2}}>{lang==="ko"?"일 순이익 (추정)":"Est. Daily Net Profit"}</div>
-                <div style={{fontSize:28,fontWeight:900,color:estNet>=0?"#00E5A0":"#FF5757",fontFamily:"'Barlow Condensed',sans-serif",lineHeight:1}}>
-                  {estNet>=0?"+":""}{estNet.toLocaleString()}
+              {/* 순이익 히어로 블록 — Enhanced */}
+              {(()=>{
+                const last3net=dailyHistory.slice(-3);
+                const trendDir=last3net.length>=2?(last3net[last3net.length-1].net>last3net[0].net?"up":last3net[last3net.length-1].net<last3net[0].net?"down":"flat"):"flat";
+                const trendArrow=trendDir==="up"?"↑":trendDir==="down"?"↓":"→";
+                const trendCol=trendDir==="up"?"#00E5A0":trendDir==="down"?"#FF5757":"#FFD93D";
+                return(
+                <div style={{background:estNet>=0?"linear-gradient(135deg,rgba(0,229,160,0.14),rgba(0,229,160,0.04))":"linear-gradient(135deg,rgba(255,87,87,0.14),rgba(255,87,87,0.04))",border:`2px solid ${estNet>=0?"#00E5A066":"#FF575766"}`,borderRadius:12,padding:"14px 16px",marginBottom:8,textAlign:"center",boxShadow:`0 4px 20px ${estNet>=0?"rgba(0,229,160,0.08)":"rgba(255,87,87,0.08)"}`}}>
+                  <div style={{fontSize:9,color:"#6B7CA1",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>{lang==="ko"?"오늘":"Today"} · {lang==="ko"?"일 순이익 (추정)":"Est. Daily Net Profit"}</div>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                    <div style={{fontSize:32,fontWeight:900,color:estNet>=0?"#00E5A0":"#FF5757",fontFamily:"'Barlow Condensed',sans-serif",lineHeight:1,letterSpacing:-1}}>
+                      {estNet>=0?"+":""}{estNet.toLocaleString()}
+                    </div>
+                    {last3net.length>=2&&<span style={{fontSize:24,fontWeight:900,color:trendCol,lineHeight:1,fontFamily:"'Barlow Condensed',sans-serif"}}>{trendArrow}</span>}
+                  </div>
+                  <div style={{display:"flex",justifyContent:"center",gap:12,marginTop:6}}>
+                    <span style={{fontSize:9,color:"#556688"}}>{lang==="ko"?"누적 수익":"Total Rev"}: <span style={{color:"#FFD93D",fontWeight:700}}>${totalRev.toLocaleString()}</span></span>
+                    {last3net.length>=2&&<span style={{fontSize:9,color:"#556688"}}>{lang==="ko"?"3일 추세":"3d trend"}: <span style={{color:trendCol,fontWeight:700}}>{trendArrow}</span></span>}
+                  </div>
                 </div>
-                <div style={{fontSize:9,color:"#556688",marginTop:3}}>{lang==="ko"?"누적 수익":"Total Revenue"}: <span style={{color:"#FFD93D",fontWeight:700}}>${totalRev.toLocaleString()}</span></div>
-              </div>
+                );
+              })()}
               {/* 수익 상세 아코디언 */}
               <div style={{background:"#0A1220",border:"1px solid rgba(255,217,61,0.15)",borderRadius:8,marginBottom:6,overflow:"hidden"}}>
                 <div onClick={()=>setFinRevOpen(o=>!o)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",cursor:"pointer",userSelect:"none"}}>
@@ -3354,10 +3417,11 @@ export default function ParkTycoon(){
               {/* Phase 3-5: League System Panel — show after day 20 or when medals earned */}
               {(earnedMedals.length>0||day>=20)&&(()=>{
                 const curLeague=calcLeague(earnedMedals);
-                const bronzeC=earnedMedals.filter(m=>["bronze","silver","gold"].includes(m.medalId)).length;
-                const silverC=earnedMedals.filter(m=>["silver","gold"].includes(m.medalId)).length;
-                const goldC=earnedMedals.filter(m=>m.medalId==="gold").length;
-                const goldScen=new Set(earnedMedals.filter(m=>m.medalId==="gold").map(m=>m.scenarioId)).size;
+                const bronzeC=earnedMedals.filter(m=>["bronze","silver","gold","platinum"].includes(m.medalId)).length;
+                const silverC=earnedMedals.filter(m=>["silver","gold","platinum"].includes(m.medalId)).length;
+                const goldC=earnedMedals.filter(m=>["gold","platinum"].includes(m.medalId)).length;
+                const platinumC=earnedMedals.filter(m=>m.medalId==="platinum").length;
+                const goldScen=new Set(earnedMedals.filter(m=>["gold","platinum"].includes(m.medalId)).map(m=>m.scenarioId)).size;
                 let nextLeague=LEAGUES[0];let nextDesc="";let nextPct=0;
                 if(!curLeague){nextLeague=LEAGUES[0];nextDesc=`🥉 1${lang==="ko"?"개 필요":"needed"}`;nextPct=Math.min(1,bronzeC/1);}
                 else if(curLeague.id==="bronze"){nextLeague=LEAGUES[1];nextDesc=`🥈 3${lang==="ko"?"개 필요":"needed"} (${silverC}/3)`;nextPct=Math.min(1,silverC/3);}
@@ -3369,7 +3433,7 @@ export default function ParkTycoon(){
                     <span style={{fontSize:18}}>{curLeague?curLeague.emoji:"🏅"}</span>
                     <div>
                       <div style={{fontSize:10,fontWeight:700,color:curLeague?curLeague.color:"#666688"}}>{curLeague?(curLeague.name[lang]||curLeague.name.ko):(lang==="ko"?"리그 미가입":"No League")}</div>
-                      <div style={{fontSize:10,color:"#666688"}}>🥉×{bronzeC} 🥈×{silverC} 🥇×{goldC}</div>
+                      <div style={{fontSize:10,color:"#666688"}}>🥉×{bronzeC} 🥈×{silverC} 🥇×{goldC}{platinumC>0?` 🏅×${platinumC}`:""}</div>
                     </div>
                   </div>
                   {curLeague?.id!=="diamond"&&<>
@@ -3721,6 +3785,10 @@ export default function ParkTycoon(){
                   }}
                   onMouseLeave={()=>setHovered(null)}>
 
+                  {/* Build preview icon at hover origin cell */}
+                  {isInFootprint&&selected&&hovered?.r===r&&hovered?.c===c&&!cell&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",opacity:0.6,pointerEvents:"none",zIndex:4}}>
+                    {hasBuildingIcon(selected)?getBuildingIcon(selected,hovFootprintValid?"#00E5A0":"#FF5757",Math.min(32,Math.max(14,Math.floor(gridScale*(selBd?.size?.w||1)*14)))):B[selected]?.emoji||"🏗️"}
+                  </div>}
                   {!owned&&isNextBuyable&&<span style={{fontSize:10,opacity:0.6,color:"#4D9FFF"}}>🔓</span>}
                   {!owned&&!isNextBuyable&&<span style={{fontSize:10,opacity:0.5,color:"#333355"}}>▪</span>}
 
@@ -3875,30 +3943,39 @@ export default function ParkTycoon(){
               <div style={{
                 position:"absolute",inset:0,zIndex:40,pointerEvents:"none",
                 display:"flex",alignItems:"center",justifyContent:"center",
-                background:"rgba(0,0,0,0.3)",
+                background:"rgba(0,0,0,0.55)",
                 borderRadius:6,
                 animation:"pulse 0.5s ease",
               }}>
-                <div style={{textAlign:"center",animation:"slide-in 0.4s ease"}}>
-                  <div style={{fontSize:48,marginBottom:8,filter:"drop-shadow(0 0 20px rgba(255,217,61,1))"}}>🎊</div>
+                {/* confetti dots */}
+                {[...Array(12)].map((_,i)=>(
+                  <div key={i} style={{position:"absolute",width:8,height:8,borderRadius:"50%",background:["#FFD93D","#00E5A0","#FF6B9D","#4D9FFF","#FF9F43"][i%5],left:`${10+i*7}%`,top:`${15+Math.sin(i)*20}%`,animation:`float-up ${1.5+i*0.3}s ease-out forwards`,opacity:0.9,animationDelay:`${i*0.1}s`}}/>
+                ))}
+                <div style={{textAlign:"center",animation:"slide-in 0.4s ease",background:"linear-gradient(135deg,rgba(13,18,53,0.97),rgba(8,11,32,0.97))",border:"2px solid rgba(255,217,61,0.6)",borderRadius:16,padding:"20px 32px",boxShadow:"0 8px 40px rgba(255,217,61,0.3),0 0 80px rgba(255,217,61,0.1)"}}>
+                  <div style={{fontSize:52,marginBottom:10,filter:"drop-shadow(0 0 24px rgba(255,217,61,1))"}}>🎊</div>
                   <div style={{
-                    fontSize:20,fontWeight:900,color:"#FFD93D",
+                    fontSize:26,fontWeight:900,color:"#FFD93D",
                     textShadow:"0 0 30px rgba(255,217,61,0.8)",
                     fontFamily:"'Barlow Condensed',sans-serif",
-                    letterSpacing:2,
+                    letterSpacing:3,marginBottom:6,
                   }}>
                     {lang==="ko"?"공원 오픈!":"PARK OPEN!"}
                   </div>
-                  <div style={{fontSize:11,color:"#00E5A0",marginTop:4}}>
-                    {lang==="ko"?"첫 번째 방문객이 도착했습니다! 🎉":"First visitors have arrived! 🎉"}
+                  <div style={{fontSize:13,color:"#00E5A0",fontWeight:700,marginBottom:4}}>
+                    {lang==="ko"?`첫 방문객 ${visitors}명이 도착했습니다! 🎉`:`${visitors} visitor${visitors!==1?"s":""} just arrived! 🎉`}
                   </div>
+                  <div style={{fontSize:10,color:"#7788BB",marginTop:4}}>{lang==="ko"?"🎵 파크 오픈 사운드":"🎵 Park open!"}</div>
                 </div>
               </div>
             )}
             {visitors>0&&<div style={{position:"absolute",inset:3,pointerEvents:"none",overflow:"hidden",borderRadius:6}}>
-              {dots.slice(0,Math.min(24,Math.max(4,Math.round(visitors/4)))).map(dot=><div key={dot.id} style={{position:"absolute",left:`${(dot.c/GC)*100}%`,top:`${(dot.r/GR)*100}%`,width:`${(1/GC)*100}%`,height:`${(1/GR)*100}%`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,transition:"left 1.1s ease,top 1.1s ease",filter:"drop-shadow(0 2px 4px rgba(0,0,0,1))",zIndex:5,animation:`visitor-wander ${3+dot.id%3}s ease-in-out infinite`,animationDelay:`${(dot.id*0.4)%3}s`}}>
-                {dot.emoji}
-              </div>)}
+              {dots.slice(0,Math.min(40,Math.max(4,Math.round(visitors/4)))).map(dot=>{
+                const isSimple=visitors<20;
+                const dotColors=["#4D9FFF","#00E5A0","#FFD93D","#FF9F43","#FF6B9D"];
+                return(<div key={dot.id} style={{position:"absolute",left:`${(dot.c/GC)*100}%`,top:`${(dot.r/GR)*100}%`,width:`${(1/GC)*100}%`,height:`${(1/GR)*100}%`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:isSimple?9:11,transition:"left 1.1s ease,top 1.1s ease",filter:"drop-shadow(0 2px 4px rgba(0,0,0,1))",zIndex:5,animation:`visitor-wander ${3+dot.id%3}s ease-in-out infinite`,animationDelay:`${(dot.id*0.4)%3}s`}}>
+                  {isSimple?<span style={{color:dotColors[dot.id%dotColors.length],fontSize:8}}>●</span>:dot.emoji}
+                </div>);
+              })}
               {gridPopups.filter(p=>p.expires>Date.now()).map(p=>(
                 <div key={p.id} style={{position:"absolute",left:`${(p.c/GC)*100}%`,top:`${(p.r/GR)*100}%`,color:p.color,fontSize:10,fontWeight:900,animation:"float-up 2.8s ease-out forwards",pointerEvents:"none",zIndex:20,whiteSpace:"nowrap",textShadow:"0 1px 6px rgba(0,0,0,0.9)",fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{p.text}</div>
               ))}
@@ -4282,7 +4359,7 @@ export default function ParkTycoon(){
       )}
 
       {scenarioResult&&(()=>{
-        const bestMedal=earnedMedals.filter(m=>m.scenarioId===currentScenario).sort((a,b)=>['bronze','silver','gold'].indexOf(b.medalId)-['bronze','silver','gold'].indexOf(a.medalId))[0];
+        const bestMedal=earnedMedals.filter(m=>m.scenarioId===currentScenario).sort((a,b)=>['bronze','silver','gold','platinum'].indexOf(b.medalId)-['bronze','silver','gold','platinum'].indexOf(a.medalId))[0];
         return(
         <div style={{position:"fixed",inset:0,background:"rgba(2,5,16,0.92)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
           <div style={{background:"linear-gradient(135deg,#0D1235,#080B20)",border:`3px solid ${scenarioResult.medal?"rgba(255,217,61,0.5)":"rgba(255,87,87,0.4)"}`,borderRadius:20,padding:"36px 44px",textAlign:"center",maxWidth:380,boxShadow:`0 20px 60px rgba(0,0,0,0.8), 0 0 40px ${scenarioResult.medal?"rgba(255,217,61,0.1)":"rgba(255,87,87,0.1)"}`,animation:"slide-in 0.3s ease",fontFamily:"'Rajdhani','Barlow Condensed',sans-serif"}}>
