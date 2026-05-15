@@ -22,6 +22,12 @@ export const HOLIDAY_EVENTS = [
    actionCost:2000,actionVisMult:1.15,actionBonus:{ko:"공포 조명 설치! 스릴 보너스 +15%",en:"Spooky lighting! Thrill bonus +15%"}},
   {id:"christmas",emoji:"🎄",season:3,name:{ko:"크리스마스 스페셜",en:"Christmas Special"},desc:{ko:"가족·커플 만족도 급상승!",en:"Family & couple satisfaction soars!"},duration:10,startDayInSeason:10,visMult:1.35,coupleBonus:0.20,satMod:15,specialBld:null,
    actionCost:3000,actionVisMult:1.25,actionBonus:{ko:"크리스마스 장식 설치! 방문객 +25%",en:"Festive decorations! Visitors +25%"}},
+  {id:"new_year",emoji:"🎆",season:3,name:{ko:"신년 카운트다운",en:"New Year Countdown"},desc:{ko:"연말 분위기 절정! 전 세그먼트 방문객 급증",en:"Year-end hype peaks! All segments surge"},duration:8,startDayInSeason:18,visMult:1.40,coupleBonus:0.15,satMod:12,specialBld:null,
+   actionCost:2500,actionVisMult:1.20,actionBonus:{ko:"카운트다운 무대 설치! 방문객 +20%",en:"Countdown stage set up! Visitors +20%"}},
+  {id:"summer_sale",emoji:"☀️",season:1,name:{ko:"여름 특가 이벤트",en:"Summer Special"},desc:{ko:"할인 이벤트로 가족 방문객 집중 유입!",en:"Discount event drives family visitor surge!"},duration:6,startDayInSeason:3,visMult:1.28,coupleBonus:0.05,satMod:7,specialBld:null,
+   actionCost:1800,actionVisMult:1.15,actionBonus:{ko:"여름 할인 이벤트 시작! 가족 방문객 +15%",en:"Summer sale launched! Family visitors +15%"}},
+  {id:"year_end",emoji:"🎉",season:3,name:{ko:"연말 페스티벌",en:"Year-End Festival"},desc:{ko:"한 해의 마지막 축제! 만족도·방문객 모두 최고조",en:"Year's final celebration! Peak satisfaction & visitors"},duration:9,startDayInSeason:6,visMult:1.35,coupleBonus:0.18,satMod:14,specialBld:null,
+   actionCost:2800,actionVisMult:1.22,actionBonus:{ko:"연말 장식과 불꽃놀이 준비 완료! 방문객 +22%",en:"Year-end decor & fireworks ready! Visitors +22%"}},
 ];
 
 export const INVESTOR_OFFERS = [
@@ -68,6 +74,11 @@ export const RESEARCH = [
   {id:"o1",branch:"ops",tier:1,emoji:"⚙️",cost:5,req:null}, {id:"o2",branch:"ops",tier:1,emoji:"🤖",cost:6,req:null}, {id:"o3",branch:"ops",tier:2,emoji:"🌱",cost:10,req:"o1"}, {id:"o4",branch:"ops",tier:3,emoji:"🧠",cost:11,req:"o3"},
   {id:"p1",branch:"prestige",tier:1,emoji:"📺",cost:5,req:null}, {id:"p2",branch:"prestige",tier:1,emoji:"📱",cost:6,req:null}, {id:"p3",branch:"prestige",tier:2,emoji:"🥇",cost:10,req:"p1"}, {id:"p4",branch:"prestige",tier:3,emoji:"🌍",cost:11,req:"p3"},
   {id:"ex1",branch:"expansion",tier:1,emoji:"🎪",cost:8,req:null}, {id:"ex2",branch:"expansion",tier:2,emoji:"🌐",cost:12,req:"ex1"}, {id:"ex3",branch:"expansion",tier:2,emoji:"🤖",cost:12,req:"ex1"}, {id:"ex4",branch:"expansion",tier:3,emoji:"🔮",cost:13,req:"ex2"},
+  {id:"r5", branch:"ride",      tier:4,emoji:"🎭",cost:18,req:"r4"},
+  {id:"c5", branch:"commerce",  tier:4,emoji:"📊",cost:18,req:"c4"},
+  {id:"o5", branch:"ops",       tier:4,emoji:"🔮",cost:17,req:"o4"},
+  {id:"p5", branch:"prestige",  tier:4,emoji:"🌟",cost:18,req:"p4"},
+  {id:"ex5",branch:"expansion", tier:4,emoji:"🛸",cost:20,req:"ex4"},
 ];
 
 export const MISSIONS = [
@@ -160,7 +171,12 @@ export const TR = {
     "res.ex1.name": "이벤트 전문가", "res.ex1.effect": "이벤트 효과 +30%",
     "res.ex2.name": "글로벌 네트워크", "res.ex2.effect": "해외 방문객 +20%",
     "res.ex3.name": "스마트 운영", "res.ex3.effect": "전 유지비 -20%, 자동수리↑",
-    "res.ex4.name": "차세대 기술", "res.ex4.effect": "모든 어트랙션 +30%"
+    "res.ex4.name": "차세대 기술", "res.ex4.effect": "모든 어트랙션 +30%",
+    "res.r5.name":  "테마 라이드", "res.r5.effect":  "라이드 어트랙션 +20% (중첩)",
+    "res.c5.name":  "스마트 상거래", "res.c5.effect": "상점 수익 +25% · 입장료 +15%",
+    "res.o5.name":  "예측 정비", "res.o5.effect":  "고장률 -75% (누적)",
+    "res.p5.name":  "바이럴 명성", "res.p5.effect": "명성 획득 ×2 · 방문객 +35%",
+    "res.ex5.name": "메가 확장", "res.ex5.effect": "수용인원 +50% · 전 보너스 ×1.2"
   },
   en:{
     "tab.build":"Build","tab.manage":"Manage","tab.finance":"Finance","tab.marketing":"Marketing","tab.research":"Research","tab.mission":"Mission",
@@ -208,12 +224,17 @@ export const TR = {
     "res.ex1.name": "Event Specialist", "res.ex1.effect": "Event effect +30%",
     "res.ex2.name": "Global Network", "res.ex2.effect": "Int'l visitors +20%",
     "res.ex3.name": "Smart Operations", "res.ex3.effect": "All maintenance -20%, auto-repair↑",
-    "res.ex4.name": "Next-Gen Tech", "res.ex4.effect": "All attractions +30%"
+    "res.ex4.name": "Next-Gen Tech", "res.ex4.effect": "All attractions +30%",
+    "res.r5.name":  "Themed Rides", "res.r5.effect":  "Ride attraction +20% (stacks)",
+    "res.c5.name":  "Smart Commerce", "res.c5.effect": "Shop rev +25% · Admission +15%",
+    "res.o5.name":  "Predictive Maint.", "res.o5.effect": "Breakdowns -75% total",
+    "res.p5.name":  "Viral Fame", "res.p5.effect":  "Prestige rate ×2 · Visitors +35%",
+    "res.ex5.name": "Mega Expansion", "res.ex5.effect": "Capacity +50% · All bonuses ×1.2"
   }
 };
 
 export const SCENARIOS = [
-  {id:"s1",emoji:"🌱",difficulty:1,color:"#5EF6A0",startMoney:40000,timeLimit:60,preBuilt:[
+  {id:"s1",emoji:"🌱",difficulty:1,color:"#5EF6A0",startMoney:40000,timeLimit:60,noParcels:true,preBuilt:[
     {type:"entrance",r:9,c:15,level:0,broken:false},
     {type:"_path",   r:9,c:17,level:0,broken:false},
     {type:"_path",   r:9,c:18,level:0,broken:false},
@@ -240,7 +261,7 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"순이익 $1,000/일",en:"$1,000 daily profit"},check:s=>s.net>=1000},
     {id:"silver",medal:"🥈",desc:{ko:"순이익 $3,000/일",en:"$3,000 daily profit"},check:s=>s.net>=3000},
     {id:"gold",medal:"🥇",desc:{ko:"순이익 $5k + 만족도 75%",en:"$5k profit + 75% happiness"},check:s=>s.net>=5000&&s.sat>=75}]},
-  {id:"s5",emoji:"👦",difficulty:2,color:"#FECA57",startMoney:42000,timeLimit:55,preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false},{type:"carousel",r:7,c:19,level:0,broken:true},{type:"miniTrain",r:11,c:17,level:0,broken:true}],gridRestrict:null,goals:[
+  {id:"s5",emoji:"👦",difficulty:2,color:"#FECA57",startMoney:42000,timeLimit:55,bannedBuildings:["thrillRide","dropTower"],preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false},{type:"carousel",r:7,c:19,level:0,broken:true},{type:"miniTrain",r:11,c:17,level:0,broken:true}],gridRestrict:null,goals:[
     {id:"bronze",medal:"🥉",desc:{ko:"어린이 비율 40%",en:"40% child ratio"},check:s=>s.childRatio>=0.4},
     {id:"silver",medal:"🥈",desc:{ko:"어린이 55% + 만족도 70%",en:"55% children + 70% happiness"},check:s=>s.childRatio>=0.55&&s.sat>=70},
     {id:"gold",medal:"🥇",desc:{ko:"어린이 65% + 방문객 150명",en:"65% children + 150 visitors"},check:s=>s.childRatio>=0.65&&s.vis>=150}]},
@@ -289,12 +310,15 @@ export const SCENARIO_DIFFICULTY = {
   hard:   { moneyMult:0.65, timeMult:0.78, emoji:"🔴", color:"#FF5757", diffKey:"hard",   label:{ko:"어려움", en:"Hard"},   desc:{ko:"자금 -35%, 시간 -22%, 재난 빈번",   en:"-35% funds, -22% time, frequent disasters"} },
 };
 
-export const DIFFICULTY_SETTINGS = {easy:{emoji:"🟢",startMoney:70000,disasterMult:0.4,maintenanceMult:0.8},normal:{emoji:"🟡",startMoney:55000,disasterMult:1.0,maintenanceMult:1.0},hard:{emoji:"🔴",startMoney:30000,disasterMult:2.0,maintenanceMult:1.3},extreme:{emoji:"💀",startMoney:18000,disasterMult:2.2,maintenanceMult:1.4}};
+export const DIFFICULTY_SETTINGS = {easy:{emoji:"🟢",startMoney:70000,disasterMult:0.4,maintenanceMult:0.8},normal:{emoji:"🟡",startMoney:62000,disasterMult:1.0,maintenanceMult:1.0},hard:{emoji:"🔴",startMoney:30000,disasterMult:2.0,maintenanceMult:1.3},extreme:{emoji:"💀",startMoney:18000,disasterMult:2.2,maintenanceMult:1.4}};
 
 export const STARTING_PERKS = [
   {id:"disasterGuard",emoji:"🛡️",color:"#5EF6A0",name:{ko:"재난 면역 10일",en:"Disaster Guard"},desc:{ko:"처음 10일간 재난 발생 없음. 초반 안정 확보에 유리.",en:"No disasters for first 10 days. Safe early build phase."}},
   {id:"rpBoost",      emoji:"🔬",color:"#A29BFE",name:{ko:"연구포인트 2배",en:"Double Research"},desc:{ko:"모든 연구포인트 획득량 2배. 빠른 연구 트리 완성.",en:"Earn double RP from all sources. Rush the research tree."}},
   {id:"premiumGate",  emoji:"💰",color:"#FFD93D",name:{ko:"입장료 상한 +$10",en:"Premium Gate"},desc:{ko:"각 별점 기준 입장료 한도 $10 상향. 수익 특화 전략.",en:"Admission cap +$10 per star tier. Revenue-focused build."}},
+  {id:"coupleBoost",  emoji:"💑",color:"#FF6B9D",name:{ko:"커플 특화",en:"Couple Focus"},desc:{ko:"커플 방문객 60% 보장 · 만족도 +5",en:"Couples make up 60% of visitors · Satisfaction +5"}},
+  {id:"freeBuild",    emoji:"🏗️",color:"#48DBFB",name:{ko:"무료 건설",en:"Free Builder"},desc:{ko:"랜덤 건물 2개 무료 시작 (회전목마 + 매점)",en:"Start with 2 free buildings (carousel + snack bar)"}},
+  {id:"fastResearch", emoji:"⏩",color:"#FF9F43",name:{ko:"연구 가속",en:"Research Rush"},desc:{ko:"연구 속도 1.5× · 대신 재난 확률 1.5×",en:"Research speed ×1.5 · But disaster chance ×1.5"}},
 ];
 
 export const WEEKLY_CHALLENGES = [
@@ -343,24 +367,24 @@ export const STAGES = [
 export const B = {
   entrance:    {emoji:"🎪",baseCost:0,    cat:"ride",   size:{w:2,h:1},color:"#FF6B6B",upgradeCost:[3000,8000],  stats:lv=>({attraction:5+lv*4,  rpv:0,      maintenance:0,         satBonus:0, cap:0})},
   ferrisWheel: {emoji:"🎡",baseCost:6500, cat:"ride",   size:{w:2,h:3},color:"#4ECDC4",upgradeCost:[4000,10000], flavor:{ko:"커플 명소 — 높은 수용인원",en:"Couple hotspot — high capacity"},stats:lv=>({attraction:15+lv*8, rpv:0,      maintenance:180+lv*60, satBonus:0, cap:50+lv*25})},
-  rollerCoaster:{emoji:"🎢",baseCost:12000,cat:"ride",  size:{w:5,h:3},color:"#FF6B9D",upgradeCost:[10000,25000],flavor:{ko:"최강 어트랙션 — 별점 상승에 최고",en:"Peak attraction — best for star rating"},stats:lv=>({attraction:40+lv*15,rpv:0,      maintenance:450+lv*150,satBonus:0, cap:70+lv*30})},
-  carousel:    {emoji:"🎠",baseCost:4500, cat:"ride",   size:{w:2,h:2},color:"#C7B8EA",upgradeCost:[2500,6000],  flavor:{ko:"가족·아이 전문 — 만족도 보너스",en:"Family & kid — satisfaction bonus"},stats:lv=>({attraction:12+lv*5, rpv:0,      maintenance:130+lv*40, satBonus:lv,cap:35+lv*15})},
-  thrillRide:  {emoji:"🚀",baseCost:12000,cat:"ride",   size:{w:3,h:3},color:"#FF9F43",upgradeCost:[7000,18000], flavor:{ko:"스릴 마니아 전용 — 가성비 중간",en:"Thrill seekers — solid mid-tier value"},stats:lv=>({attraction:25+lv*12,rpv:0,      maintenance:300+lv*100,satBonus:0, cap:45+lv*20})},
+  rollerCoaster:{emoji:"🎢",baseCost:12000,cat:"ride",  size:{w:5,h:3},color:"#FF6B9D",upgradeCost:[10000,25000],flavor:{ko:"최강 어트랙션 — 별점 상승에 최고",en:"Peak attraction — best for star rating"},levelEmoji:["🎢","🎢","🚀"],stats:lv=>({attraction:32+lv*13,rpv:0,      maintenance:550+lv*160,satBonus:0, cap:70+lv*30})},
+  carousel:    {emoji:"🎠",baseCost:4500, cat:"ride",   size:{w:2,h:2},color:"#C7B8EA",upgradeCost:[2500,6000],  flavor:{ko:"가족·아이 전문 — 만족도 보너스",en:"Family & kid — satisfaction bonus"},levelEmoji:["🎠","🎡","🎪"],stats:lv=>({attraction:12+lv*5, rpv:0,      maintenance:130+lv*40, satBonus:lv,cap:35+lv*15})},
+  thrillRide:  {emoji:"🚀",baseCost:12000,cat:"ride",   size:{w:3,h:3},color:"#FF9F43",upgradeCost:[7000,18000], flavor:{ko:"스릴 마니아 전용 — 롤러코스터의 유력한 대안",en:"Thrill seekers — strong alternative to rollercoaster"},stats:lv=>({attraction:28+lv*12,rpv:0,      maintenance:280+lv*95, satBonus:0, cap:45+lv*20})},
   waterRide:   {emoji:"💦",baseCost:10000,cat:"ride",   size:{w:3,h:3},color:"#54A0FF",upgradeCost:[6000,15000], flavor:{ko:"여름 시즌 최강 — 높은 수용인원",en:"Summer season best — high capacity"},stats:lv=>({attraction:20+lv*10,rpv:0,      maintenance:250+lv*90, satBonus:0, cap:60+lv*25})},
   bumperCars:  {emoji:"🚗",baseCost:3200, cat:"ride",   size:{w:2,h:2},color:"#FF4757",upgradeCost:[2000,5000],  flavor:{ko:"저비용 초반 필수 — 만족도+어트랙션",en:"Budget early pick — satisfaction + attraction"},stats:lv=>({attraction:10+lv*5, rpv:0,      maintenance:100+lv*40, satBonus:2+lv,cap:40+lv*20})},
-  dropTower:   {emoji:"🗼",baseCost:15000,cat:"ride",   size:{w:2,h:4},color:"#2F3542",upgradeCost:[8000,20000], flavor:{ko:"좁은 공간 고효율 — 수직형 배치 가능",en:"Small footprint, high draw — fits in tight spaces"},stats:lv=>({attraction:35+lv*14,rpv:0,      maintenance:400+lv*130,satBonus:0, cap:30+lv*15})},
+  dropTower:   {emoji:"🗼",baseCost:15000,cat:"ride",   size:{w:2,h:4},color:"#2F3542",upgradeCost:[8000,20000], flavor:{ko:"좁은 공간 고효율 — 수직형 배치 가능",en:"Small footprint, high draw — fits in tight spaces"},stats:lv=>({attraction:38+lv*14,rpv:0,      maintenance:370+lv*120,satBonus:0, cap:30+lv*15})},
   miniTrain:   {emoji:"🚂",baseCost:2800, cat:"ride",   size:{w:3,h:2},color:"#8B7355",upgradeCost:[1500,4000],  flavor:{ko:"아이·가족 특화 — 수용인원 최대",en:"Kid & family specialist — highest capacity"},stats:lv=>({attraction:8+lv*4,  rpv:0,      maintenance:80+lv*30,  satBonus:3+lv,cap:60+lv*30})},
   hauntedHouse:{emoji:"👻",baseCost:8500, cat:"ride",   size:{w:3,h:2},color:"#5F27CD",upgradeCost:[5000,12000], flavor:{ko:"커플·스릴 전용 — 야간 방문객 유인",en:"Couple & thrill draw — unique nighttime appeal"},stats:lv=>({attraction:22+lv*10,rpv:0,      maintenance:200+lv*80, satBonus:0, cap:25+lv*10})},
   cinema4D:    {emoji:"🎥",baseCost:8000, cat:"ride",   size:{w:3,h:2},color:"#3742FA",upgradeCost:[4000,10000], flavor:{ko:"유일한 라이드+수익 겸용 — 날씨 무관",en:"Only ride with shop revenue — weather immune"},stats:lv=>({attraction:18+lv*7, rpv:2+lv,   maintenance:160+lv*60, satBonus:2+lv,cap:80+lv*30})},
   balloonRide: {emoji:"🎈",baseCost:6000, cat:"ride",   size:{w:2,h:3},color:"#FF9FF3",upgradeCost:[3000,7000],  flavor:{ko:"커플·가족 분위기 — 높은 만족도 보너스",en:"Couple & family ambiance — strong sat bonus"},stats:lv=>({attraction:14+lv*6, rpv:0,      maintenance:140+lv*50, satBonus:3+lv,cap:20+lv*10})},
-  foodStall:   {emoji:"🍔",baseCost:2500, cat:"shop",   size:{w:1,h:1},color:"#FECA57",upgradeCost:[2000,5000],  stats:lv=>({attraction:2+lv,    rpv:4+lv*3, maintenance:65+lv*25,  satBonus:lv,cap:0})},
-  iceCream:    {emoji:"🍦",baseCost:1600, cat:"shop",   size:{w:1,h:1},color:"#48DBFB",upgradeCost:[1500,4000],  stats:lv=>({attraction:3+lv,    rpv:3+lv*3, maintenance:40+lv*16,  satBonus:0, cap:0})},
+  foodStall:   {emoji:"🍔",baseCost:2500, cat:"shop",   size:{w:1,h:1},color:"#FECA57",upgradeCost:[2000,5000],  levelEmoji:["🍿","🥤","🍔"],stats:lv=>({attraction:2+lv,    rpv:4+lv*3, maintenance:65+lv*25,  satBonus:lv,cap:0})},
+  iceCream:    {emoji:"🍦",baseCost:1600, cat:"shop",   size:{w:1,h:1},color:"#48DBFB",upgradeCost:[1500,4000],  levelEmoji:["🍦","🍨","🧁"],stats:lv=>({attraction:3+lv,    rpv:3+lv*3, maintenance:40+lv*16,  satBonus:0, cap:0})},
   giftShop:    {emoji:"🛍️",baseCost:4500, cat:"shop",   size:{w:2,h:2},color:"#FF9FF3",upgradeCost:[3000,8000],  stats:lv=>({attraction:1,       rpv:7+lv*5, maintenance:100+lv*40, satBonus:0, cap:0})},
   arcade:      {emoji:"🕹️",baseCost:3000, cat:"shop",   size:{w:2,h:2},color:"#A29BFE",upgradeCost:[2000,5000],  stats:lv=>({attraction:6+lv*3,  rpv:4+lv*3, maintenance:70+lv*25,  satBonus:0, cap:0})},
   vipLounge:   {emoji:"🛋️",baseCost:15000,cat:"shop",   size:{w:3,h:2},color:"#FECA57",upgradeCost:[8000,15000], locked:true, stats:lv=>({attraction:5+lv*3,  rpv:18+lv*10,maintenance:250+lv*80, satBonus:8+lv*4,cap:0})},
   restroom:    {emoji:"🚻",baseCost:1500, cat:"facility",size:{w:1,h:1},color:"#778CA3",upgradeCost:[1000,2500],  stats:lv=>({attraction:0,       rpv:0,      maintenance:45+lv*18,  satBonus:8+lv*4,cap:0})},
-  garden:      {emoji:"🌳",baseCost:1000, cat:"facility",size:{w:2,h:2},color:"#5F27CD",upgradeCost:[800,2000],   stats:lv=>({attraction:4+lv*3,  rpv:0,      maintenance:30+lv*12,  satBonus:3+lv*2,cap:0})},
-  fountain:    {emoji:"⛲",baseCost:2500, cat:"facility",size:{w:2,h:2},color:"#00D2D3",upgradeCost:[2000,5000],  stats:lv=>({attraction:6+lv*4,  rpv:0,      maintenance:70+lv*25,  satBonus:5+lv*3,cap:0})},
+  garden:      {emoji:"🌳",baseCost:1000, cat:"facility",size:{w:2,h:2},color:"#5F27CD",upgradeCost:[800,2000],   levelEmoji:["🌿","🌺","🌸"],stats:lv=>({attraction:4+lv*3,  rpv:0,      maintenance:30+lv*12,  satBonus:3+lv*2,cap:0})},
+  fountain:    {emoji:"⛲",baseCost:2500, cat:"facility",size:{w:2,h:2},color:"#00D2D3",upgradeCost:[2000,5000],  levelEmoji:["⛲","💦","🌊"],stats:lv=>({attraction:6+lv*4,  rpv:0,      maintenance:70+lv*25,  satBonus:5+lv*3,cap:0})},
   miniGolf:    {emoji:"⛳",baseCost:4500, cat:"facility",size:{w:3,h:2},color:"#1DD1A1",upgradeCost:[2000,5000],  stats:lv=>({attraction:8+lv*4,  rpv:2+lv*2, maintenance:90+lv*30,  satBonus:4+lv,cap:0})},
   _path:       {emoji:"🟫",baseCost:100,  cat:"path",   size:{w:1,h:1},color:"#8B7355",upgradeCost:[600,0],      stats:lv=>({attraction:0,rpv:0,maintenance:2+lv*3,satBonus:0,cap:0})},
   _pathFancy:  {emoji:"🟨",baseCost:400,  cat:"path",   size:{w:1,h:1},color:"#D4AF37",upgradeCost:[0,0],        stats:()=>({attraction:0,rpv:0,maintenance:8,satBonus:1,cap:0})},
@@ -415,11 +439,11 @@ export const ZONE_MASTERY = {
 export const LOAN_OPTS = [{id:"small", amount:10000,rate:0.04,days:30,icon:"💴"},{id:"medium", amount:25000,rate:0.055,days:50,icon:"💵"},{id:"large", amount:50000,rate:0.07,days:70,icon:"💰"}];
 export const DOTS = ["🧑","👦","👧","🧒","🧔","👩","🧑‍🦱","👴","🧓","👱","🙋","🚶"];
 export const TUTORIAL_STEPS = [
-  {title:"🎪 입구 게이트 배치",text:"먼저 건설 탭에서 🎪 입구 게이트를 그리드에 배치하세요.\n입구가 없으면 방문객이 들어올 수 없어요!"},
-  {title:"🛤️ 통로 연결",text:"건물 옆에 🟫 통로를 연결하세요.\n통로가 없는 시설은 방문객이 이용할 수 없어 수익이 -40%가 됩니다."},
-  {title:"🎡 어트랙션 건설",text:"관람차·롤러코스터 등 어트랙션을 건설하세요.\n어트랙션이 많을수록 방문객이 늘고 공원 평점이 올라가요!"},
-  {title:"🧹 직원 고용",text:"경영 탭에서 청소부·정비공을 고용하세요.\n청결도와 시설 고장률이 만족도에 큰 영향을 줍니다."},
-  {title:"⏩ 속도 조절 & 확장",text:"상단 ▶▶ 버튼으로 게임 속도를 조절하세요.\n자금이 쌓이면 토지를 구매해 공원을 확장할 수 있어요!"},
+  {title:"🎪 입구 게이트 배치",text:"먼저 건설 탭에서 🎪 입구 게이트를 그리드에 배치하세요 — 입구가 없으면 방문객이 들어올 수 없어 공원 운영이 시작되지 않습니다!"},
+  {title:"🛤️ 통로 연결",text:"건물 옆에 🟫 통로를 연결하세요 — 통로가 없는 시설은 방문객이 이용할 수 없어 수익이 -40%가 됩니다."},
+  {title:"🎡 어트랙션 건설",text:"관람차·롤러코스터 등 어트랙션을 건설하세요 — 어트랙션 점수가 높을수록 방문객이 많이 오고 공원 평점이 올라가요!"},
+  {title:"🧹 직원 고용",text:"경영 탭에서 청소부·정비공을 고용하세요 — 청결도와 시설 고장률이 만족도에 큰 영향을 미쳐 방문객 이탈을 막아줍니다."},
+  {title:"⏩ 속도 조절 & 확장",text:"상단 ▶▶ 버튼으로 게임 속도를 조절하세요 — 자금이 쌓이면 토지를 구매해 공원을 확장하고 더 많은 시설을 지을 수 있어요!"},
 ];
 
 export const SCENARIO_CLEAR_REWARDS = {
