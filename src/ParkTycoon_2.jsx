@@ -481,17 +481,34 @@ export default function ParkTycoon(){
     }
     if(wc?.timeLimit&&mode!=="campaign") setScenarioTimeLimit(wc.timeLimit);
 
-    // freeBuild perk: pre-place carousel and snack bar
+    // freeBuild perk: pre-place carousel and snack bar, avoiding preBuilt collisions
     if(perk==="freeBuild"&&mode!=="sandbox"){
       const cr=Math.floor(GR/2),cc2=Math.floor(GC/2);
-      // carousel (2x2) at center-1
-      const carBd=B["carousel"];
-      startGrid[cr][cc2-1]={type:"carousel",level:0,broken:false};
-      startGrid[cr+1][cc2-1]={type:"carousel",ref:[cr,cc2-1]};
-      startGrid[cr][cc2]={type:"carousel",ref:[cr,cc2-1]};
-      startGrid[cr+1][cc2]={type:"carousel",ref:[cr,cc2-1]};
-      // snack bar (1x1) at center+2
-      startGrid[cr][cc2+2]={type:"foodStall",level:0,broken:false};
+      // Find first free w×h block near a preferred position (spiral outward)
+      const findFree=(w,h,prefR,prefC)=>{
+        const ok=(r,c)=>{
+          if(r<2||r+h>GR-2||c<2||c+w>GC-2) return false;
+          for(let dr=0;dr<h;dr++) for(let dc=0;dc<w;dc++) if(startGrid[r+dr]?.[c+dc]) return false;
+          return true;
+        };
+        if(ok(prefR,prefC)) return [prefR,prefC];
+        for(let d=1;d<12;d++){
+          for(let dr=-d;dr<=d;dr++) for(let dc=-d;dc<=d;dc++){
+            if(Math.abs(dr)===d||Math.abs(dc)===d) if(ok(prefR+dr,prefC+dc)) return [prefR+dr,prefC+dc];
+          }
+        }
+        return null;
+      };
+      const carPos=findFree(2,2,cr,cc2-1);
+      if(carPos){
+        const [r,c]=carPos;
+        startGrid[r][c]={type:"carousel",level:0,broken:false};
+        startGrid[r+1][c]={type:"carousel",ref:[r,c]};
+        startGrid[r][c+1]={type:"carousel",ref:[r,c]};
+        startGrid[r+1][c+1]={type:"carousel",ref:[r,c]};
+        const fsPos=findFree(1,1,r,c+3);
+        if(fsPos) startGrid[fsPos[0]][fsPos[1]]={type:"foodStall",level:0,broken:false};
+      }
     }
 
     // lifetimeRP meta-progression bonus for campaign starts
