@@ -595,8 +595,7 @@ export default function ParkTycoon(){
   // 튜토리얼 스텝 진행 시 해당 탭 자동 오픈 (Two Point Hospital 스타일)
   useEffect(()=>{
     if(!tutorialStep) return;
-    if(tutorialStep===5) setTab("manage");
-    else if(tutorialStep===6) setTab("finance");
+    if(tutorialStep===5||tutorialStep===6) setTab("manage");
     else if(tutorialStep===7) setTab("marketing");
     else if(tutorialStep===8){ setTab("build"); setBuildMode("zone"); }
     else if(tutorialStep===9) setTab("research");
@@ -2747,6 +2746,12 @@ export default function ParkTycoon(){
                         {isBldHov&&<div style={{background:"#1A1A3A",borderRadius:"0 0 5px 5px",padding:"4px 6px",marginBottom:2,fontSize:10,color:"#C7B8EA",lineHeight:1.6,border:`1px solid ${bd.color}22`,borderTop:"none"}}>
                           {isLocked&&<div style={{color:"#FF9F43",fontWeight:700,marginBottom:2}}>🔒 {lang==="ko"?"연구 탭 → VIP 언락 (r4) 필요":"Research tab → VIP Unlock (r4) required"}</div>}
                           {bd.flavor&&<div style={{color:"#A29BFE",fontStyle:"italic",marginBottom:3,fontSize:9}}>✨ {bd.flavor[lang]||bd.flavor.ko}</div>}
+                          {bd.personality&&<div style={{display:"flex",gap:4,marginBottom:3,flexWrap:"wrap"}}>
+                            <span style={{fontSize:8,background:"rgba(255,107,157,0.15)",border:"1px solid rgba(255,107,157,0.35)",borderRadius:4,padding:"1px 5px",color:"#FF6B9D"}}>💥{"★".repeat(bd.personality.exc)}{"☆".repeat(5-bd.personality.exc)}</span>
+                            <span style={{fontSize:8,background:"rgba(95,39,205,0.15)",border:"1px solid rgba(95,39,205,0.35)",borderRadius:4,padding:"1px 5px",color:"#A29BFE"}}>👻{"★".repeat(bd.personality.fear)}{"☆".repeat(5-bd.personality.fear)}</span>
+                            <span style={{fontSize:8,background:"rgba(255,159,67,0.15)",border:"1px solid rgba(255,159,67,0.35)",borderRadius:4,padding:"1px 5px",color:"#FF9F43"}}>👨‍👩‍👧{"★".repeat(bd.personality.fam)}{"☆".repeat(5-bd.personality.fam)}</span>
+                            <span style={{fontSize:8,background:"rgba(100,181,246,0.12)",border:"1px solid rgba(100,181,246,0.3)",borderRadius:4,padding:"1px 5px",color:"#64B5F6"}}>🎯 {bd.personality.who[lang]||bd.personality.who.ko}</span>
+                          </div>}
                           {bd.stats(0).attraction>0&&<div>⭐ {lang==="ko"?"놀이기구":"Attraction"} +{bd.stats(0).attraction}</div>}
                           {bd.stats(0).maintenance>0&&<div>🔧 {lang==="ko"?"유지비":"Upkeep"} ${bd.stats(0).maintenance}/{lang==="ko"?"일":"day"}</div>}
                           {bd.stats(0).satBonus>0&&<div>😊 {lang==="ko"?"만족도":"Happiness"} +{bd.stats(0).satBonus}</div>}
@@ -2853,22 +2858,44 @@ export default function ParkTycoon(){
                 <div style={{flex:1,fontSize:10,color:"#00E5A0",lineHeight:1.6}}>{lang==="ko"?"직원 고용으로 청결도·만족도를 올리세요. 청소부→청결도, 정비공→고장예방, 퍼포머→방문객 보너스":"Hire staff to boost cleanliness & satisfaction. Janitor→cleanliness, Mechanic→prevent breakdowns, Entertainer→visitor bonus"}</div>
                 <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,"tab_manage"];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
               </div>}
-              <div style={{background:"#0C1128",border:"1px solid #FFD93D33",borderRadius:8,padding:8,marginBottom:8}}>
-                <div style={{fontSize:10,fontWeight:700,color:"#FFD93D",marginBottom:5}}>😊 {lang==="ko"?"만족도 영향 요인":"Satisfaction Factors"}</div>
-                {[
-                  {label:lang==="ko"?"🏗️ 시설 보너스":"🏗️ Attraction Bonus", val:+stats.satBonus.toFixed(1), pos:true},
-                  {label:lang==="ko"?"☀️ 날씨":"☀️ Weather", val:weather.satMod, pos:weather.satMod>=0},
-                  {label:lang==="ko"?"🔧 고장 시설":"🔧 Broken Rides", val:-(stats.brokenCount*5), pos:stats.brokenCount===0},
-                  {label:lang==="ko"?"💸 입장료":"💸 Admission Fee", val:fee>maxFee?-5:0, pos:fee<=maxFee},
-                  {label:lang==="ko"?"🚶 혼잡도":"🚶 Congestion", val:congestedCells.size>0?-8:0, pos:congestedCells.size===0},
-                  {label:lang==="ko"?"📉 자연 감소":"📉 Natural Decay", val:-0.18, pos:false},
-                ].map(({label,val,pos})=>(
-                  <div key={label} style={{display:"flex",justifyContent:"space-between",fontSize:10,padding:"2px 0",borderBottom:"1px solid #1A1A30"}}>
-                    <span style={{color:"#8888AA"}}>{label}</span>
-                    <span style={{color:pos?"#00E5A0":"#FF5757",fontWeight:700}}>{val>0?"+":""}{val}</span>
+              {(()=>{
+                const satFactors=[
+                  {label:lang==="ko"?"🏗️ 시설 보너스":"🏗️ Attraction",  val:+stats.satBonus.toFixed(1),     tip:lang==="ko"?"놀이기구·편의시설이 높을수록 증가":"Higher-rated rides boost satisfaction"},
+                  {label:lang==="ko"?"🧹 청소부":"🧹 Janitors",          val:hired.janitor>0?+(hired.janitor*4).toFixed(0):0, tip:lang==="ko"?"청소부 1명당 약 +4":"~+4 per janitor"},
+                  {label:lang==="ko"?"☀️ 날씨":"☀️ Weather",             val:weather.satMod,                 tip:weather.name?.[lang]||weather.name?.ko||""},
+                  {label:lang==="ko"?"🔧 고장":"🔧 Broken Rides",        val:-(stats.brokenCount*2),         tip:lang==="ko"?`고장 ${stats.brokenCount}개 — 정비공 고용 권장`:`${stats.brokenCount} broken — hire mechanic`},
+                  {label:lang==="ko"?"💸 입장료":"💸 Admission",          val:fee>maxFee?-6:0,                tip:lang==="ko"?fee>maxFee?`$${maxFee} 한도 초과!`:"적정 수준":"Fee within limit"},
+                  {label:lang==="ko"?"🚶 혼잡":"🚶 Congestion",          val:congestedCells.size>0?-5:0,     tip:lang==="ko"?congestedCells.size>0?"놀이기구 추가 필요":"쾌적함":"Comfortable"},
+                  {label:lang==="ko"?"🧹 청결도":"🧹 Cleanliness",        val:clean<40?-4:clean<60?-2:0,     tip:lang==="ko"?`청결도 ${Math.round(clean)}%`:`Cleanliness ${Math.round(clean)}%`},
+                  {label:lang==="ko"?"📉 자연 감소":"📉 Natural Decay",   val:-0.2,                           tip:lang==="ko"?"시간이 지나면 자연 감소":"Slowly decays over time"},
+                ];
+                const satTotal=satFactors.reduce((s,f)=>s+f.val,0);
+                const satTrend=dailyHistory.length>=3?(sat>dailyHistory[dailyHistory.length-3]?.sat?"▲":"sat<dailyHistory[dailyHistory.length-3]?.sat"?"▼":"→"):"→";
+                const trendColor=satTrend==="▲"?"#00E5A0":satTrend==="▼"?"#FF5757":"#FFD93D";
+                return(
+                <div style={{background:"#0C1128",border:"1px solid #FFD93D33",borderRadius:8,padding:8,marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                    <div style={{fontSize:10,fontWeight:700,color:"#FFD93D"}}>😊 {lang==="ko"?"만족도 분석":"Satisfaction Analysis"}</div>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <div style={{fontSize:18,fontWeight:900,color:sat>=70?"#00E5A0":sat>=45?"#FFD93D":"#FF5757",lineHeight:1}}>{Math.round(sat)}%</div>
+                      <span style={{fontSize:12,color:trendColor,fontWeight:700}}>{satTrend}</span>
+                    </div>
                   </div>
-                ))}
-              </div>
+                  {/* 만족도 바 */}
+                  <div style={{height:6,background:"#1A1A30",borderRadius:99,overflow:"hidden",marginBottom:6}}>
+                    <div style={{height:"100%",width:`${Math.min(100,sat)}%`,borderRadius:99,transition:"width 0.5s",background:sat>=70?"linear-gradient(90deg,#00E5A0,#5EF6A0)":sat>=45?"linear-gradient(90deg,#FFD93D,#FECA57)":"linear-gradient(90deg,#FF5757,#FF8888)"}}/>
+                  </div>
+                  {satFactors.filter(f=>f.val!==0).map(({label,val,tip})=>(
+                    <div key={label} style={{display:"flex",alignItems:"center",gap:4,fontSize:9,padding:"2px 0",borderBottom:"1px solid #1A1A3088"}}>
+                      <span style={{color:"#8888AA",flex:1}}>{label}</span>
+                      <div style={{height:4,width:Math.max(2,Math.min(40,Math.abs(val)*4)),borderRadius:99,background:val>0?"#00E5A088":"#FF575788",flexShrink:0}}/>
+                      <span style={{color:val>0?"#00E5A0":"#FF5757",fontWeight:700,minWidth:24,textAlign:"right"}}>{val>0?"+":""}{val>0?val.toFixed(0):val.toFixed(0)}</span>
+                    </div>
+                  ))}
+                  {satFactors.every(f=>f.val>=0)&&sat<50&&<div style={{fontSize:9,color:"#FF9F4388",marginTop:3,textAlign:"center"}}>⚠️ {lang==="ko"?"자연 감소보다 보너스가 부족합니다":"Bonuses not outpacing natural decay"}</div>}
+                </div>
+                );
+              })()}
               {tutorialStep===6&&!tutTabVisited&&(
                 <div style={{background:"rgba(255,217,61,0.10)",border:"2px solid rgba(255,217,61,0.5)",borderRadius:7,padding:"6px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"center",animation:"pulse 2s infinite"}}>
                   <span style={{fontSize:16}}>👆</span>
@@ -3687,6 +3714,29 @@ export default function ParkTycoon(){
               {lang==="ko"?"🔧 정비공 없음 — 고위험 놀이기구 고장 확률이 높습니다":"🔧 No mechanic — high-risk attractions have increased breakdown chance"}
             </div>
           )}
+          {/* 튜토리얼 완료 후 방향 허브 — day 7까지 표시 */}
+          {screen==="game"&&tutDone&&tutorialStep===0&&day<=7&&day>=1&&(()=>{
+            const nextGoals=[
+              visitors<50&&{emoji:"👥",text:lang==="ko"?"방문객 50명 달성 — 놀이기구 다양화":"Reach 50 visitors — add variety"},
+              sat<70&&{emoji:"😊",text:lang==="ko"?"만족도 70%+ — 청소부 고용 & 입장료 조정":"Satisfaction 70%+ — hire janitor & adjust fee"},
+              !hired.mechanic&&stats.brokenCount>0&&{emoji:"🔧",text:lang==="ko"?"고장 발생! 정비공 고용 필요":"Breakdown! Hire a mechanic"},
+              hired.janitor===0&&{emoji:"🧹",text:lang==="ko"?"청소부 없음 — 청결도 하락 중":"No janitor — cleanliness dropping"},
+              stats.attraction<30&&{emoji:"🎡",text:lang==="ko"?"놀이기구 추가로 매력도 올리기":"Add more rides to boost attraction"},
+              parkRating.stars<3&&{emoji:"⭐",text:lang==="ko"?"별점 3★ 달성 → 더 높은 입장료 가능":"Reach 3★ → unlock higher admission fee"},
+            ].filter(Boolean).slice(0,3);
+            if(!nextGoals.length) return null;
+            return(
+              <div style={{background:"rgba(0,229,160,0.06)",border:"1px solid rgba(0,229,160,0.25)",borderRadius:7,padding:"7px 10px",marginBottom:4,flexShrink:0}}>
+                <div style={{fontSize:9,color:"#00E5A088",fontWeight:700,letterSpacing:2,marginBottom:5,textTransform:"uppercase"}}>🎓 {lang==="ko"?"다음에 할 일":"What's Next"} (Day {day})</div>
+                {nextGoals.map(({emoji,text},i)=>(
+                  <div key={i} style={{display:"flex",gap:6,alignItems:"flex-start",padding:"2px 0",borderBottom:i<nextGoals.length-1?"1px solid rgba(0,229,160,0.08)":"none"}}>
+                    <span style={{fontSize:12,flexShrink:0}}>{emoji}</span>
+                    <span style={{fontSize:9,color:"#8899CC",lineHeight:1.5}}>{text}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
           {screen==="game"&&!ftueGoalDone&&tutorialStep===0&&stats.hasEntrance&&visitors===0&&(
             <div style={{background:"rgba(0,229,160,0.08)",border:"1px solid rgba(0,229,160,0.3)",borderRadius:6,padding:"5px 10px",color:"#00E5A0",fontSize:10,fontWeight:700,display:"flex",gap:8,alignItems:"center",marginBottom:4,flexShrink:0}}>
               <span style={{fontSize:14}}>🎯</span>
@@ -4302,8 +4352,8 @@ export default function ParkTycoon(){
                           desc:lang==="ko"?"왼쪽 ⚙️ 경영 탭에서 직원을 고용하세요.\n청소부: 청결도 유지 / 정비공: 놀이기구 수리\n직원 없이는 만족도가 급격히 떨어져요!":"Click ⚙️ Manage tab → Hire Staff.\nJanitor: keeps park clean.\nMechanic: fixes broken rides.\nWithout staff, satisfaction drops fast!"},
                         /* 6 */ {emoji:"💰",
                           title:lang==="ko"?"[6/9] 입장료 조정":"[6/9] Adjust Admission Fee",
-                          target:lang==="ko"?"← 💰 재무 탭 → ＋/－ 클릭":"← Finance tab → press ＋ or －",
-                          desc:lang==="ko"?"💰 재무 탭에서 입장료 ＋/－ 버튼을 눌러보세요!\n너무 높으면 방문객이 줄고, 적절하면 수익이 올라요.\n현재 입장료: $"+fee+" — 올리거나 내려보세요.":"In 💰 Finance tab, press ＋ or － on admission fee!\nToo high → fewer visitors. Just right → more profit.\nCurrent fee: $"+fee+" — try adjusting it."},
+                          target:lang==="ko"?"← ⚙️ 경영 탭 → 입장료 ＋/－":"← Manage tab → Admission ＋ or －",
+                          desc:lang==="ko"?"⚙️ 경영 탭 상단 입장료 ＋/－ 버튼을 눌러보세요!\n너무 높으면 방문객이 줄고, 적절하면 수익이 올라요.\n현재 입장료: $"+fee+" — 올리거나 내려보세요.":"In ⚙️ Manage tab, press ＋ or － on admission fee!\nToo high → fewer visitors. Just right → more profit.\nCurrent fee: $"+fee+" — try adjusting it."},
                         /* 7 */ {emoji:"📣",
                           title:lang==="ko"?"[7/9] 광고 캠페인 실행":"[7/9] Launch Ad Campaign",
                           target:lang==="ko"?"← 📣 마케팅 탭 → 실행 클릭":"← Marketing tab → click 실행",
@@ -4340,7 +4390,7 @@ export default function ParkTycoon(){
                           {needsTabVisit&&!tutTabVisited&&(
                             <div style={{background:"rgba(255,217,61,0.08)",border:"1px solid rgba(255,217,61,0.3)",borderRadius:6,padding:"5px 10px",marginBottom:8,fontSize:9,color:"#FFD93DAA",textAlign:"center",animation:"pulse 2s infinite"}}>
                               {tutorialStep===6
-                                ?(lang==="ko"?"💰 입장료를 ＋/－ 버튼으로 조정해야 다음으로 진행됩니다":"Adjust the fee with ＋/－ in Finance tab to continue")
+                                ?(lang==="ko"?"⚙️ 경영 탭 입장료 ＋/－ 버튼을 눌러야 다음으로 진행됩니다":"Press ＋/－ on admission fee in Manage tab to continue")
                                 :(lang==="ko"?"📣 캠페인 '실행' 버튼을 눌러야 다음으로 진행됩니다":"Click '실행' in Marketing tab to continue")}
                             </div>
                           )}
