@@ -640,6 +640,25 @@ export default function ParkTycoon(){
     return()=>window.removeEventListener('resize',handleResize);
   },[]);
 
+  // Phase 2-6: Zone Mastery calculation (must be before useEffect that depends on it)
+  const zoneMastery=useMemo(()=>{
+    const result={};
+    Object.entries(ZONE_MASTERY).forEach(([ztype,zm])=>{
+      let zoneTiles=0,matchBlds=0;
+      for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
+        if(zoneGrid[r][c]===ztype){
+          zoneTiles++;
+          const cell=grid[r][c];
+          if(cell&&!cell.ref&&!cell.broken&&B[cell.type]?.cat===zm.cat) matchBlds++;
+        }
+      }
+      const ratio=zoneTiles>0?matchBlds/zoneTiles:0;
+      const mastered=matchBlds>=zm.minBld&&ratio>=0.6;
+      result[ztype]={zoneTiles,matchBlds,ratio,mastered,bonus:zm.bonus,minBld:zm.minBld,cat:zm.cat};
+    });
+    return result;
+  },[grid,zoneGrid]);
+
   // 구역 보너스 활성화 시 floating text 연출
   useEffect(()=>{
     if(screen!=="game") return;
@@ -1794,25 +1813,6 @@ export default function ParkTycoon(){
   const prevDayNet=dailyHistory.length>=1?dailyHistory[dailyHistory.length-1].net:null;
   const netTrendArrow=prevDayNet===null?"":(estNet>prevDayNet?" ▲":estNet<prevDayNet?" ▼":"");
   const ownedCount=ownedGrid.reduce((t,row)=>t+row.filter(Boolean).length,0);
-
-  // Phase 2-6: Zone Mastery calculation
-  const zoneMastery=useMemo(()=>{
-    const result={};
-    Object.entries(ZONE_MASTERY).forEach(([ztype,zm])=>{
-      let zoneTiles=0,matchBlds=0;
-      for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
-        if(zoneGrid[r][c]===ztype){
-          zoneTiles++;
-          const cell=grid[r][c];
-          if(cell&&!cell.ref&&!cell.broken&&B[cell.type]?.cat===zm.cat) matchBlds++;
-        }
-      }
-      const ratio=zoneTiles>0?matchBlds/zoneTiles:0;
-      const mastered=matchBlds>=zm.minBld&&ratio>=0.6;
-      result[ztype]={zoneTiles,matchBlds,ratio,mastered,bonus:zm.bonus,minBld:zm.minBld,cat:zm.cat};
-    });
-    return result;
-  },[grid,zoneGrid]);
 
   // Phase 2-4: average visitor rating
   const avgVisitorRating=visitorRatings.length>0?visitorRatings.reduce((s,r)=>s+r,0)/visitorRatings.length:3;
