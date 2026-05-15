@@ -15,20 +15,36 @@ import {
   tFn, pickWeather, getReachablePaths, hasPath, hasBuildingPath, getZM, calcStats, calcSegs,
   segSatMod, checkVIPReq, bldCounts, calcParkRating, calcRideTicketRev, avgShopMult,
   calcStage, stageVisBonus, stageRevBonus, calcLeague, getRB,
-  loadSaveSlots, writeSaveSlots, mkGrid, mkOwned, timeAgoL, playSound,
+  loadSaveSlots, writeSaveSlots, mkGrid, mkOwned, timeAgoL, playSound, startDisasterDrum, startCrowdNoise,
 } from './gameLogic.js';
 
 // ── Background Music Engine ──────────────────────────────────────────────────
 const _BPM=110,_BEAT=60/_BPM,_N=_BEAT/2;
-const _HZ={F2:87.31,G2:98.00,A2:110.00,C3:130.81,E3:164.81,F3:174.61,G3:196.00,A3:220.00,B3:246.94,C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392.00,A4:440.00,B4:493.88,C5:523.25,D5:587.33,E5:659.25};
-const _CHORDS=[
+const _HZ={F2:87.31,G2:98.00,A2:110.00,C3:130.81,D3:146.83,E3:164.81,F3:174.61,G3:196.00,A3:220.00,B3:246.94,C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392.00,A4:440.00,B4:493.88,C5:523.25,D5:587.33,E5:659.25,G5:783.99};
+// Phase 0 — Early (days 1-20): light, cheerful
+const _CHORDS0=[
   {a:[_HZ.C4,_HZ.E4,_HZ.G4,_HZ.C5,_HZ.G4,_HZ.E4,_HZ.C4,_HZ.E4],b:_HZ.C3,m:[_HZ.E5,_HZ.D5,_HZ.C5,_HZ.G4]},
   {a:[_HZ.A3,_HZ.C4,_HZ.E4,_HZ.A4,_HZ.E4,_HZ.C4,_HZ.A3,_HZ.C4],b:_HZ.A2,m:[_HZ.A4,_HZ.A4,_HZ.G4,_HZ.A4]},
   {a:[_HZ.F3,_HZ.A3,_HZ.C4,_HZ.F4,_HZ.C4,_HZ.A3,_HZ.F3,_HZ.A3],b:_HZ.F2,m:[_HZ.C5,_HZ.A4,_HZ.G4,_HZ.F4]},
   {a:[_HZ.G3,_HZ.B3,_HZ.D4,_HZ.G4,_HZ.D4,_HZ.B3,_HZ.G3,_HZ.B3],b:_HZ.G2,m:[_HZ.G4,_HZ.A4,_HZ.B4,_HZ.C5]},
 ];
+// Phase 1 — Mid (days 21-60): energetic, syncopated
+const _CHORDS1=[
+  {a:[_HZ.C4,_HZ.G4,_HZ.C5,_HZ.E5,_HZ.C5,_HZ.G4,_HZ.E4,_HZ.G4],b:_HZ.C3,m:[_HZ.G5,_HZ.E5,_HZ.D5,_HZ.C5]},
+  {a:[_HZ.D4,_HZ.A4,_HZ.D5,_HZ.F4,_HZ.D4,_HZ.A3,_HZ.D4,_HZ.F4],b:_HZ.D3,m:[_HZ.A4,_HZ.D5,_HZ.A4,_HZ.F4]},
+  {a:[_HZ.A3,_HZ.E4,_HZ.A4,_HZ.C5,_HZ.A4,_HZ.E4,_HZ.C4,_HZ.E4],b:_HZ.A2,m:[_HZ.C5,_HZ.B4,_HZ.A4,_HZ.G4]},
+  {a:[_HZ.G3,_HZ.D4,_HZ.G4,_HZ.B4,_HZ.G4,_HZ.D4,_HZ.B3,_HZ.D4],b:_HZ.G2,m:[_HZ.D5,_HZ.B4,_HZ.G4,_HZ.D4]},
+];
+// Phase 2 — Late (days 60+): grand, layered
+const _CHORDS2=[
+  {a:[_HZ.C4,_HZ.E4,_HZ.G4,_HZ.C5,_HZ.E5,_HZ.C5,_HZ.G4,_HZ.E4],b:_HZ.C3,m:[_HZ.G5,_HZ.E5,_HZ.G5,_HZ.C5]},
+  {a:[_HZ.F3,_HZ.C4,_HZ.F4,_HZ.A4,_HZ.C5,_HZ.A4,_HZ.F4,_HZ.C4],b:_HZ.F2,m:[_HZ.C5,_HZ.A4,_HZ.C5,_HZ.F4]},
+  {a:[_HZ.G3,_HZ.B3,_HZ.D4,_HZ.G4,_HZ.B4,_HZ.G4,_HZ.D4,_HZ.B3],b:_HZ.G2,m:[_HZ.D5,_HZ.B4,_HZ.D5,_HZ.G4]},
+  {a:[_HZ.A3,_HZ.C4,_HZ.E4,_HZ.A4,_HZ.C5,_HZ.A4,_HZ.E4,_HZ.C4],b:_HZ.A2,m:[_HZ.E5,_HZ.C5,_HZ.E5,_HZ.A4]},
+];
+const _PHASE_CHORDS=[_CHORDS0,_CHORDS1,_CHORDS2];
 function _startMusicEngine(mg,ctx){
-  let ch=0,ni=0,next=ctx.currentTime+0.05;
+  let ch=0,ni=0,next=ctx.currentTime+0.05,phase=0;
   function osc(f,t,dur,type,vol){
     const o=ctx.createOscillator(),g=ctx.createGain();
     o.connect(g);g.connect(mg);o.type=type;o.frequency.value=f;
@@ -50,20 +66,39 @@ function _startMusicEngine(mg,ctx){
     g.gain.setValueAtTime(0.22,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
     o.start(t);o.stop(t+0.2);
   }
+  // Phase 2 extra: sustained pad for grandeur
+  function pad(f,t,vol){
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(mg);o.type='sine';o.frequency.value=f;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.3);
+    g.gain.setValueAtTime(vol,t+_N*6);g.gain.linearRampToValueAtTime(0,t+_N*8);
+    o.start(t);o.stop(t+_N*8+0.1);
+  }
   function tick(){
     while(next<ctx.currentTime+0.4){
-      const t=next,c=_CHORDS[ch];
-      osc(c.a[ni],t,_N*0.88,'triangle',0.13);
-      if(ni%2===0) osc(c.m[ni>>1],t,_N*1.9,'sine',0.09);
-      if(ni===0) osc(c.b,t,_N*7.8,'sine',0.17);
+      const t=next,chords=_PHASE_CHORDS[phase],c=chords[ch%chords.length];
+      const vol0=phase===0?0.13:phase===1?0.15:0.12;
+      const vol1=phase===0?0.09:phase===1?0.11:0.08;
+      const vol2=phase===0?0.17:phase===1?0.18:0.20;
+      osc(c.a[ni],t,_N*0.88,'triangle',vol0);
+      if(ni%2===0) osc(c.m[ni>>1],t,_N*1.9,'sine',vol1);
+      if(ni===0){
+        osc(c.b,t,_N*7.8,'sine',vol2);
+        if(phase===2) pad(c.b*2,t,0.06);
+      }
       hihat(t);
       if(ni===0||ni===4) kick(t);
+      // phase 1: extra off-beat kick for energy
+      if(phase===1&&ni===2) kick(t);
       next+=_N;
-      if(++ni>=8){ni=0;ch=(ch+1)%4;}
+      if(++ni>=8){ni=0;ch=(ch+1)%chords.length;}
     }
   }
   const id=setInterval(tick,80);tick();
-  return()=>clearInterval(id);
+  return {
+    cleanup:()=>clearInterval(id),
+    setPhase:(p)=>{phase=Math.max(0,Math.min(2,p));},
+  };
 }
 
 function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,bgMusicOn,setBgMusicOn,bgVolume,setBgVolume,onClose,lang}){
@@ -231,8 +266,9 @@ export default function ParkTycoon(){
   const [soundOn,setSoundOn]=useState(true);
   const [bgMusicOn,setBgMusicOn]=useState(()=>{try{return localStorage.getItem('pt_bgmusic')==='1';}catch{return false;}});
   const [bgVolume,setBgVolume]=useState(()=>{try{return parseFloat(localStorage.getItem('pt_bgvol'))||0.4;}catch{return 0.4;}});
-  const bgMusicRef=useRef(null); // {ctx, masterGain, cleanup}
+  const bgMusicRef=useRef(null); // {ctx, masterGain, cleanup, setPhase}
   const bgVolumeRef=useRef(bgVolume);
+  const disasterDrumRef=useRef(null); // cleanup fn for disaster bass drum
   const [uiSettings,setUiSettings]=useState(()=>{try{return JSON.parse(localStorage.getItem('uiSettings'))||{fontSize:'medium'};}catch{return{fontSize:'medium'};}});
   const [showSettings,setShowSettings]=useState(false);
   // Phase 3 new states
@@ -275,6 +311,7 @@ export default function ParkTycoon(){
   const addLog=msg=>setLogs(p=>[msg,...p.slice(0,9)]);
 
   const getFullState=useCallback(()=>({
+    version:"2.2",
     grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,scenarioTimeLimit,
     staffLevels,rivals,pressReviews,visitorRatings,
     activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,
@@ -324,8 +361,35 @@ export default function ParkTycoon(){
     }
   }, [getFullState, addLog, lang]);
 
+  const sharePark = useCallback(async () => {
+    const rating = calcParkRating(grid, zoneGrid, calcStats(grid, zoneGrid, hired, rb), sat, clean);
+    const stars = "⭐".repeat(rating.stars);
+    const text = lang === "ko"
+      ? `🎡 Parcadia — ${stars}\n방문객: ${visitors.toLocaleString()}명 | Day ${day} | 순이익: $${Math.max(0,dailyHistory[dailyHistory.length-1]?.net||0).toLocaleString()}\n`
+      : `🎡 Parcadia — ${stars}\nVisitors: ${visitors.toLocaleString()} | Day ${day} | Net: $${Math.max(0,dailyHistory[dailyHistory.length-1]?.net||0).toLocaleString()}\n`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Parcadia 🎡", text, url: window.location.href });
+        addLog(lang==="ko"?"📤 공유됨!":"📤 Shared!");
+      } else {
+        await navigator.clipboard.writeText(text + window.location.href);
+        addLog(lang==="ko"?"📋 공유 텍스트 복사됨!":"📋 Share text copied!");
+      }
+    } catch { addLog(lang==="ko"?"❌ 공유 실패":"❌ Share failed"); }
+  }, [grid, zoneGrid, hired, rb, sat, clean, visitors, day, dailyHistory, lang, addLog]);
+
   const loadFromSlot=useCallback((slotData)=>{
     if(!slotData) return;
+    // version migration
+    if(!slotData.version) {
+      // v1.x → v2.2: ensure staffLevels and other Phase-2+ fields exist
+      slotData = {...slotData, version:"2.2",
+        staffLevels: slotData.staffLevels||{janitor:1,mechanic:1,security:1,entertainer:1},
+        rivals: slotData.rivals||[], pressReviews: slotData.pressReviews||[],
+        earnedMedals: slotData.earnedMedals||[], lifetimeRP: slotData.lifetimeRP||0,
+        weeklyBadges: slotData.weeklyBadges||[],
+      };
+    }
     setGrid(slotData.grid||mkGrid());
     setZoneGrid(slotData.zoneGrid||Array(GR).fill(null).map(()=>Array(GC).fill(null)));
     setOwnedGrid(slotData.ownedGrid||mkOwned());
@@ -1147,8 +1211,8 @@ export default function ParkTycoon(){
         const masterGain=ctx.createGain();
         masterGain.gain.setValueAtTime(bgVolumeRef.current*0.5,ctx.currentTime);
         masterGain.connect(ctx.destination);
-        const cleanup=_startMusicEngine(masterGain,ctx);
-        bgMusicRef.current={ctx,masterGain,cleanup};
+        const engine=_startMusicEngine(masterGain,ctx);
+        bgMusicRef.current={ctx,masterGain,cleanup:engine.cleanup,setPhase:engine.setPhase};
       }catch{}
     } else {
       if(!bgMusicRef.current) return;
@@ -1158,6 +1222,41 @@ export default function ParkTycoon(){
       try{masterGain.gain.linearRampToValueAtTime(0,ctx.currentTime+0.3);setTimeout(()=>{try{ctx.close();}catch{}},400);}catch{}
     }
   },[bgMusicOn,screen]);
+
+  // Music phase: 0=early(day<21), 1=mid(day<61), 2=late(day>=61)
+  useEffect(()=>{
+    const phase=day<21?0:day<61?1:2;
+    bgMusicRef.current?.setPhase?.(phase);
+  },[day]);
+
+  // Crowd murmur — volume scales with visitors
+  const crowdRef=useRef(null);
+  useEffect(()=>{
+    if(screen!=='game'||!soundOn){crowdRef.current?.stop();crowdRef.current=null;return;}
+    if(!crowdRef.current) crowdRef.current=startCrowdNoise();
+    crowdRef.current.setVolume(Math.min(0.10, visitors*0.0003));
+  },[screen,soundOn,visitors]);
+
+  // Disaster drum — start low bass loop on warning, stop+fanfare on clear
+  useEffect(()=>{
+    if(disasterWarning&&soundOn){
+      if(!disasterDrumRef.current) disasterDrumRef.current=startDisasterDrum(0.14);
+    } else {
+      if(disasterDrumRef.current){disasterDrumRef.current();disasterDrumRef.current=null;}
+    }
+    return()=>{if(!disasterWarning&&disasterDrumRef.current){disasterDrumRef.current();disasterDrumRef.current=null;}};
+  },[disasterWarning,soundOn]);
+
+  // Tab visibility — pause tick when hidden
+  useEffect(()=>{
+    const prevSpeedRef={v:0};
+    const handler=()=>{
+      if(document.hidden){prevSpeedRef.v=ref.current.speed;setSpeed(0);}
+      else setSpeed(prevSpeedRef.v||0);
+    };
+    document.addEventListener('visibilitychange',handler);
+    return()=>document.removeEventListener('visibilitychange',handler);
+  },[]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1274,7 +1373,7 @@ export default function ParkTycoon(){
       }
       return n;
     });
-    setMoney(mo=>mo-bd.baseCost);setLastBuilt(selected);addLog(t("log.build",{name:t(`b.${selected}`)}));if(soundOn) playSound("build");
+    setMoney(mo=>mo-bd.baseCost);setLastBuilt(selected);addLog(t("log.build",{name:t(`b.${selected}`)}));if(soundOn) playSound("build",selected);
     const pId=Date.now();
     const pColor=B[selected]?.color||"#FFD93D";
     const particles=Array.from({length:8},(_,i)=>{
@@ -1321,14 +1420,14 @@ export default function ParkTycoon(){
   const buyParcel=p=>{if(currentScenarioData?.noParcels){addLog(lang==="ko"?"🚫 이 시나리오는 토지 매입 불가":"🚫 Land purchase not allowed in this scenario");return;}if(ref.current.money<p.cost){addLog(t("log.noMoney"));return;}if(p.req&&!parcels.includes(p.req)){addLog(t("log.needPrevParcel"));return;}setOwnedGrid(prev=>{const n=prev.map(r=>[...r]);for(let r=0;r<GR;r++) for(let co=p.cols[0];co<=p.cols[1];co++) n[r][co]=true;return n;});setParcels(prev=>[...prev,p.id]);setMoney(m=>m-p.cost);addLog(t("log.parcelBought",{name:p.label?.[lang]||p.label?.ko||p.label}));};
   const launchCampaign=key=>{const c=CAMPAIGNS_DATA[key];if(ref.current.money<c.cost){addLog(t("log.noMoney"));return;}setCampaigns(p=>[...p,{id:Date.now(),key,emoji:c.emoji,boost:c.boost,seg:c.seg,remaining:c.days,days:c.days}]);setMoney(m=>m-c.cost);addLog(t("log.campaignStart", {name: t(`camp.${key}`)}));};
   const acceptVIP=()=>{const evt=pendingVIP;const ok=checkVIPReq(ref.current.grid,evt.req);if(!ok){addLog(t("log.vipReqFail", {name: t(`vip.${evt.id}`)}));setPendingVIP(null);return;}setMoney(m=>m+evt.bonusRev);setPrestigeBonus(s=>s+evt.presBonus);setVipCount(v=>v+1);setPendingVIP(null);addLog(t("log.vipSuccess", {name: t(`vip.${evt.id}`)}));};
-  const resolveDisaster=()=>{if(!activeDisaster?.resolveCost) return;if(ref.current.money<activeDisaster.resolveCost){addLog(t("log.resolveNoMoney"));return;}setMoney(m=>m-activeDisaster.resolveCost);setActiveDisaster(null);addLog(t("log.disasterSolved"));};
+  const resolveDisaster=()=>{if(!activeDisaster?.resolveCost) return;if(ref.current.money<activeDisaster.resolveCost){addLog(t("log.resolveNoMoney"));return;}setMoney(m=>m-activeDisaster.resolveCost);setActiveDisaster(null);addLog(t("log.disasterSolved"));if(soundOn) playSound("fanfare");};
   const mitigateDisaster=()=>{
     const cost=800;
     if(money<cost){addLog(t("log.noMoney"));return;}
     setMoney(m=>m-cost);
     setDisasterWarning(null);
     addLog(`🛡️ ${lang==="ko"?"재난 대비 완료! 위험이 해소됐습니다.":"Disaster mitigated! Threat neutralized."}`);
-    if(soundOn) playSound("build");
+    if(soundOn) playSound("fanfare");
   };
   const takeSnapshot = () => {
     const CELL = 28;
@@ -2090,6 +2189,14 @@ export default function ParkTycoon(){
             style={{background:"rgba(100,120,255,0.08)",border:"1px solid rgba(100,120,255,0.2)",color:"#8899CC",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:11,fontFamily:"inherit",transition:"all 0.15s"}}
           >
             🔗
+          </button>
+          {/* Social Share */}
+          <button
+            onClick={sharePark}
+            title={lang==="ko"?"공원 소셜 공유":"Share park"}
+            style={{background:"rgba(0,229,160,0.08)",border:"1px solid rgba(0,229,160,0.2)",color:"#00D090",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:11,fontFamily:"inherit",transition:"all 0.15s"}}
+          >
+            📤
           </button>
           {/* 속도 */}
           <div style={{display:"flex",gap:2}}>

@@ -359,21 +359,87 @@ export function timeAgoL(ts, t) {
   return `${Math.floor(s / 86400)}${t("misc.daysAgo")}`;
 }
 
-export function playSound(type) {
+export function playSound(type, bldType) {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator(); const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
     const now = ctx.currentTime;
+    const note = (f, t, dur, wt, vol) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = wt; o.frequency.value = f;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.015);
+      g.gain.linearRampToValueAtTime(0, t + dur);
+      o.start(t); o.stop(t + dur + 0.01);
+    };
+    // determine building category for contextual build sound
+    const isShop = ["snackBar","iceCream","restaurant","giftShop","arcade"].includes(bldType);
+    const isRide = ["rollerCoaster","thrillRide","dropTower","carousel","miniTrain"].includes(bldType);
     switch (type) {
-      case "build": osc.type = "sine"; osc.frequency.setValueAtTime(523, now); osc.frequency.exponentialRampToValueAtTime(880, now + 0.12); gain.gain.setValueAtTime(0.18, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22); break;
-      case "demolish": osc.type = "sawtooth"; osc.frequency.setValueAtTime(220, now); osc.frequency.exponentialRampToValueAtTime(80, now + 0.15); gain.gain.setValueAtTime(0.22, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22); break;
-      case "upgrade": osc.type = "sine"; osc.frequency.setValueAtTime(440, now); osc.frequency.setValueAtTime(550, now + 0.08); osc.frequency.setValueAtTime(660, now + 0.16); gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3); break;
-      case "mission": osc.type = "sine"; osc.frequency.setValueAtTime(523, now); osc.frequency.setValueAtTime(659, now + 0.12); osc.frequency.setValueAtTime(784, now + 0.24); gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45); break;
-      case "disaster": osc.type = "square"; osc.frequency.setValueAtTime(160, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.3); gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35); break;
-      case "weather": osc.type = "sine"; osc.frequency.setValueAtTime(350, now); gain.gain.setValueAtTime(0.08, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15); break;
+      case "build":
+        if (isShop) {
+          // coin register: two quick high notes
+          note(1046, now, 0.08, "sine", 0.18); note(1318, now + 0.09, 0.08, "sine", 0.14);
+        } else if (isRide) {
+          // mechanical chug: low sawtooth ramp
+          note(110, now, 0.06, "sawtooth", 0.20); note(138, now + 0.06, 0.06, "sawtooth", 0.18); note(165, now + 0.12, 0.10, "sawtooth", 0.14);
+        } else {
+          // default: rising scale
+          note(523, now, 0.12, "sine", 0.18); note(659, now + 0.10, 0.10, "sine", 0.15); note(880, now + 0.20, 0.12, "sine", 0.12);
+        }
+        break;
+      case "demolish": note(220, now, 0.08, "sawtooth", 0.22); note(150, now+0.07, 0.08, "sawtooth", 0.18); note(80, now+0.15, 0.10, "sawtooth", 0.14); break;
+      case "upgrade": note(440, now, 0.08, "sine", 0.15); note(550, now+0.08, 0.08, "sine", 0.14); note(660, now+0.16, 0.10, "sine", 0.13); note(880, now+0.26, 0.12, "sine", 0.12); break;
+      case "mission": note(523, now, 0.12, "sine", 0.20); note(659, now+0.12, 0.12, "sine", 0.18); note(784, now+0.24, 0.18, "sine", 0.16); break;
+      case "disaster": note(160, now, 0.12, "square", 0.25); note(120, now+0.10, 0.14, "square", 0.22); note(80, now+0.22, 0.18, "square", 0.18); break;
+      case "weather": note(350, now, 0.15, "sine", 0.08); break;
+      case "fanfare":
+        // triumphant fanfare: C-E-G-C arpeggio
+        note(523, now,       0.15, "triangle", 0.22);
+        note(659, now+0.14,  0.15, "triangle", 0.22);
+        note(784, now+0.28,  0.15, "triangle", 0.22);
+        note(1046,now+0.42,  0.30, "triangle", 0.20);
+        note(523, now,       0.55, "sine",     0.10);
+        break;
       default: return;
     }
-    osc.start(now); osc.stop(now + 0.5);
   } catch (e) {}
+}
+
+export function startDisasterDrum(volume = 0.18) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const mg = ctx.createGain(); mg.gain.value = volume; mg.connect(ctx.destination);
+    let stopped = false;
+    const beat = () => {
+      if (stopped) return;
+      const t = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(mg); o.type = 'sine';
+      o.frequency.setValueAtTime(80, t); o.frequency.exponentialRampToValueAtTime(35, t + 0.2);
+      g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+      o.start(t); o.stop(t + 0.3);
+      setTimeout(beat, 1400);
+    };
+    beat();
+    return () => { stopped = true; try { mg.disconnect(); ctx.close(); } catch {} };
+  } catch { return () => {}; }
+}
+
+export function startCrowdNoise() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const bufLen = ctx.sampleRate * 2;
+    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const bpf = ctx.createBiquadFilter(); bpf.type = 'bandpass'; bpf.frequency.value = 800; bpf.Q.value = 0.5;
+    const gainNode = ctx.createGain(); gainNode.gain.value = 0;
+    src.connect(bpf); bpf.connect(gainNode); gainNode.connect(ctx.destination);
+    src.start();
+    return {
+      setVolume: v => { gainNode.gain.setTargetAtTime(Math.max(0, Math.min(0.12, v)), ctx.currentTime, 0.5); },
+      stop: () => { try { src.stop(); gainNode.disconnect(); ctx.close(); } catch {} },
+    };
+  } catch { return { setVolume: () => {}, stop: () => {} }; }
 }
