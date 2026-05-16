@@ -258,11 +258,13 @@ body {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   height: 56px;
-  background: linear-gradient(180deg, #080B1E, #060818);
+  background: linear-gradient(180deg, rgba(8,11,30,0.96), rgba(6,8,24,0.98));
   border-top: 1px solid rgba(120,140,255,0.2);
   display: flex;
   z-index: 210;
   box-shadow: 0 -4px 20px rgba(0,0,0,0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .mobile-bottom-nav button {
   flex: 1;

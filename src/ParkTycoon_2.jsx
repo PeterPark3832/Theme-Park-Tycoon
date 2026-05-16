@@ -2581,7 +2581,7 @@ export default function ParkTycoon(){
         )}
       </div>}
 
-      <div style={{display:"flex",flex:1,overflow:"hidden",paddingBottom:isMobile?56:0}}>
+      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
         {isMobile && bottomSheetOpen && (
           <div onClick={() => setBottomSheetOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:190}} />
         )}
@@ -4036,10 +4036,11 @@ export default function ParkTycoon(){
                     <span style={{fontSize:10,color:"#6B7CA1",marginLeft:2}}>D{day}</span>
                   </div>
                 </div>
-                {/* Bottom-right: minimap toggle + settings */}
+                {/* Bottom-right: minimap + settings + home */}
                 <div className="mobile-hud-br hud-chip-row" style={{alignItems:"flex-end"}}>
                   <button onClick={()=>setMinimapOpen(v=>!v)} className="hud-chip" style={{border:`1px solid ${minimapOpen?"rgba(0,229,160,0.4)":"rgba(120,140,255,0.18)"}`,color:minimapOpen?"#00E5A0":"#6B7CA1",cursor:"pointer",fontSize:12,background:"rgba(6,8,22,0.82)"}}>🗺️</button>
                   <button onClick={()=>setShowSettings(true)} className="hud-chip" style={{cursor:"pointer",fontSize:12,color:"#6B7CA1",background:"rgba(6,8,22,0.82)"}}>⚙️</button>
+                  <button onClick={()=>{setSpeed(0);setScreen("menu");}} className="hud-chip" style={{cursor:"pointer",fontSize:12,color:"#FF6B9D",background:"rgba(6,8,22,0.82)",border:"1px solid rgba(255,107,157,0.3)"}} title={lang==="ko"?"메인으로":"Main Menu"}>🏠</button>
                 </div>
               </div>
             )}
@@ -4880,6 +4881,16 @@ export default function ParkTycoon(){
             style={{background:"rgba(255,87,87,0.12)",border:"1px solid rgba(255,87,87,0.4)",color:"#FF5757",borderRadius:20,padding:"6px 14px",cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"inherit",minHeight:36}}>
             ❌
           </button>
+        </div>
+      )}
+
+      {/* Mobile: event log strip above bottom nav */}
+      {isMobile&&screen==="game"&&!bottomSheetOpen&&logs.length>0&&(
+        <div style={{position:"fixed",bottom:60,left:8,right:8,background:"rgba(4,5,16,0.88)",border:"1px solid rgba(100,120,255,0.12)",borderRadius:8,padding:"4px 10px",zIndex:195,backdropFilter:"blur(8px)",pointerEvents:"none"}}>
+          {logs.slice(0,2).map((l,i)=>{
+            const col=l.startsWith("🚨")||l.startsWith("⚠️")||l.startsWith("💸")?"#FF5757":l.startsWith("✅")||l.startsWith("🎊")||l.startsWith("📣")||l.startsWith("🏗️")?"#00E5A0":l.startsWith("🔬")||l.startsWith("💾")||l.startsWith("⬆️")?"#9B7FFF":l.startsWith("📊")?"#FFD93D":"#5566AA";
+            return <div key={i} style={{fontSize:9,color:col,opacity:i===0?0.9:0.5,lineHeight:1.5,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{l}</div>;
+          })}
         </div>
       )}
 
