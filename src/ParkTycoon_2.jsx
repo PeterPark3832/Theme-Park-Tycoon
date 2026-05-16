@@ -16,7 +16,7 @@ import {
   tFn, pickWeather, getReachablePaths, hasPath, hasBuildingPath, getZM, calcStats, calcSegs,
   segSatMod, checkVIPReq, bldCounts, calcParkRating, calcRideTicketRev, avgShopMult,
   calcStage, stageVisBonus, stageRevBonus, calcLeague, getRB,
-  loadSaveSlots, writeSaveSlots, mkGrid, mkOwned, timeAgoL, playSound, startDisasterDrum, startCrowdNoise,
+  loadSaveSlots, writeSaveSlots, mkGrid, mkOwned, timeAgoL, playSound, startDisasterDrum, startCrowdNoise, setSfxVolume,
 } from './gameLogic.js';
 
 // ── Background Music Engine ──────────────────────────────────────────────────
@@ -107,8 +107,8 @@ function _startMusicEngine(mg,ctx){
 function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,bgMusicOn,setBgMusicOn,bgVolume,setBgVolume,onClose,lang}){
   const fzLabel={small:lang==="ko"?"작게":"Small",medium:lang==="ko"?"보통":"Medium",large:lang==="ko"?"크게":"Large"};
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
-      <div style={{background:"#0C1128",border:"1px solid rgba(100,120,255,0.3)",borderRadius:12,padding:24,minWidth:280,maxWidth:360,boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}} onClick={e=>e.stopPropagation()}>
+    <div role="presentation" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
+      <div role="dialog" aria-modal={true} aria-label={lang==="ko"?"설정":"Settings"} style={{background:"#0C1128",border:"1px solid rgba(100,120,255,0.3)",borderRadius:12,padding:24,minWidth:280,maxWidth:360,boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
           <div style={{fontSize:16,fontWeight:700,letterSpacing:2,color:"#DDE2FF"}}>{lang==="ko"?"⚙️ 설정":"⚙️ Settings"}</div>
           <button style={{background:"none",border:"none",color:"#8899BB",cursor:"pointer",fontSize:16,fontFamily:"inherit"}} onClick={onClose}>✕</button>
@@ -137,6 +137,20 @@ function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,bgMusicOn,se
               style={{flex:1,accentColor:"#A88BFF",cursor:"pointer"}}/>
             <span style={{fontSize:10,color:"#6B7CA1",minWidth:28}}>{Math.round(bgVolume*100)}%</span>
           </div>}
+        </div>
+        {soundOn&&<div style={{marginBottom:16}}>
+          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"효과음 볼륨":"SFX Volume"}</div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:10,color:"#6B7CA1",minWidth:24}}>🔉</span>
+            <input type="range" min="0" max="100" value={Math.round((uiSettings.sfxVol??1)*100)} onChange={e=>setUiSettings(p=>({...p,sfxVol:Number(e.target.value)/100}))}
+              style={{flex:1,accentColor:"#00E5A0",cursor:"pointer"}}/>
+            <span style={{fontSize:10,color:"#6B7CA1",minWidth:28}}>{Math.round((uiSettings.sfxVol??1)*100)}%</span>
+          </div>
+        </div>}
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"색각 지원 모드":"Colorblind Mode"}</div>
+          <button style={{width:"100%",padding:"7px 0",background:uiSettings.colorBlind?"rgba(255,159,67,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${uiSettings.colorBlind?"rgba(255,159,67,0.5)":"rgba(255,255,255,0.10)"}`,color:uiSettings.colorBlind?"#FF9F43":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,transition:"all 0.15s"}}
+            onClick={()=>setUiSettings(p=>({...p,colorBlind:!p.colorBlind}))}>{uiSettings.colorBlind?(lang==="ko"?"🎨 색각 모드 켜짐":"🎨 Colorblind On"):(lang==="ko"?"🎨 색각 모드 꺼짐":"🎨 Colorblind Off")}</button>
         </div>
         <button style={{width:"100%",padding:"8px 0",background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.3)",color:"#8899CC",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,marginTop:4}} onClick={onClose}>{lang==="ko"?"닫기":"Close"}</button>
       </div>
@@ -231,7 +245,14 @@ export default function ParkTycoon(){
   const [langChosen,setLangChosen]=useState(()=>!!localStorage.getItem("pt_lang_chosen"));
   const t=useMemo(()=>tFn(lang),[lang]);
   const changeLang=useCallback(l=>{setLang(l);localStorage.setItem("pt_lang",l);},[]);
-  const chooseLang=useCallback(l=>{setLang(l);localStorage.setItem("pt_lang",l);localStorage.setItem("pt_lang_chosen","1");setLangChosen(true);},[]);
+  const chooseLang=useCallback(l=>{
+    setLang(l);
+    localStorage.setItem("pt_lang",l);
+    localStorage.setItem("pt_lang_chosen","1");
+    setLangChosen(true);
+    const isFirstRun=!localStorage.getItem("pt_first_run");
+    if(isFirstRun){localStorage.setItem("pt_first_run","1");setShowFtueModal(true);}
+  },[]);
 
   // Phase 2 states
   const [staffLevels,setStaffLevels]=useState({janitor:1,mechanic:1,security:1,entertainer:1});
@@ -314,7 +335,7 @@ export default function ParkTycoon(){
   const bgMusicRef=useRef(null); // {ctx, masterGain, cleanup, setPhase}
   const bgVolumeRef=useRef(bgVolume);
   const disasterDrumRef=useRef(null); // cleanup fn for disaster bass drum
-  const [uiSettings,setUiSettings]=useState(()=>{try{return JSON.parse(localStorage.getItem('uiSettings'))||{fontSize:'medium'};}catch{return{fontSize:'medium'};}});
+  const [uiSettings,setUiSettings]=useState(()=>{try{const s=JSON.parse(localStorage.getItem('uiSettings'));return s?{fontSize:'medium',colorBlind:false,sfxVol:1,...s}:{fontSize:'medium',colorBlind:false,sfxVol:1};}catch{return{fontSize:'medium',colorBlind:false,sfxVol:1};}});
   const [showSettings,setShowSettings]=useState(false);
   const [bottomSheetOpen,setBottomSheetOpen]=useState(false);
   const [placementPreview,setPlacementPreview]=useState(null);
@@ -353,9 +374,12 @@ export default function ParkTycoon(){
   const [hof,setHof]=useState(()=>{try{return JSON.parse(localStorage.getItem('pt_hof')||'{}');}catch{return{};}});
   const [speedrunRecords,setSpeedrunRecords]=useState(()=>{try{return JSON.parse(localStorage.getItem('pt_speedrun')||'{}');}catch{return{};}});
   const [saveQuotaWarning,setSaveQuotaWarning]=useState(false);
+  const [pendingBuild,setPendingBuild]=useState(null); // {r,c,selected,bd} for confirm
+  const [showFtueModal,setShowFtueModal]=useState(false);
   const prevEarnedMedalsLenRef=useRef(0);
   const prevStarsRef=useRef(0);
   const tickCountRef=useRef(0);
+  const visitorMilestonesHit=useRef(new Set());
 
   const ref=useRef();
   const diffSettings=DIFFICULTY_SETTINGS[difficulty]||DIFFICULTY_SETTINGS.normal;
@@ -372,8 +396,9 @@ export default function ParkTycoon(){
     activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,
     activeDailyChallenge,dailyChallengeHistory,profitStreakDays,startPerk,weeklyChallengeMod,
     lifetimeRP,weeklyBadges,
+    dotSnapshot:dots.map(d=>({r:d.r,c:d.c,seg:d.segType})),
     meta:{day,money,stars:calcParkRating(grid,zoneGrid,calcStats(grid,zoneGrid,hired,rb),sat,clean).stars,mode:gameMode,scenario:currentScenario,savedAt:Date.now()},
-  }),[grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,scenarioTimeLimit,rb,staffLevels,rivals,pressReviews,visitorRatings,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,activeDailyChallenge,dailyChallengeHistory,profitStreakDays,startPerk,weeklyChallengeMod,lifetimeRP,weeklyBadges]);
+  }),[grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,scenarioTimeLimit,rb,staffLevels,rivals,pressReviews,visitorRatings,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,activeDailyChallenge,dailyChallengeHistory,profitStreakDays,startPerk,weeklyChallengeMod,lifetimeRP,weeklyBadges,dots]);
 
   const saveToSlot=useCallback((slotIdx)=>{
     const state=getFullState();
@@ -502,6 +527,13 @@ export default function ParkTycoon(){
     if(slotData.weeklyBadges) setWeeklyBadges(slotData.weeklyBadges);
     setScenarioResult(null);
     setSpeed(0);
+    if(slotData.dotSnapshot?.length){
+      setDots(prev=>prev.map((d,i)=>{
+        const snap=slotData.dotSnapshot[i];
+        if(!snap) return d;
+        return{...d,r:snap.r,c:snap.c,state:'walking',prevR:null,prevC:null};
+      }));
+    }
     setScreen("game");
   },[]);
 
@@ -651,6 +683,8 @@ export default function ParkTycoon(){
   useEffect(()=>{
     const scale=uiSettings.fontSize==='small'?0.85:uiSettings.fontSize==='large'?1.2:1.0;
     document.body.style.zoom=scale;
+    document.body.classList.toggle('colorblind-mode',!!uiSettings.colorBlind);
+    setSfxVolume(uiSettings.sfxVol??1);
     try{localStorage.setItem('uiSettings',JSON.stringify(uiSettings));}catch{}
   },[uiSettings]);
 
@@ -943,7 +977,8 @@ export default function ParkTycoon(){
         if((day+1)%5===0&&!_adc){
           const _pool=DAILY_CHALLENGES.filter(dc=>!_hist.includes(dc.id));
           const _src=_pool.length>0?_pool:DAILY_CHALLENGES;
-          const _dc=_src[Math.floor(Math.random()*_src.length)];
+          const _dateSeed=Math.floor(Date.now()/(1000*60*60*24));
+          const _dc=_src[(_dateSeed+Math.floor(day/5))%_src.length];
           setActiveDailyChallenge({..._dc,startDay:day+1,claimed:false});
           addLog(`🎯 ${lang==="ko"?`새 챌린지: ${_dc.name.ko}`:`New challenge: ${_dc.name.en}`}`);
         }
@@ -1214,6 +1249,7 @@ export default function ParkTycoon(){
           if(earnedMedalsNow.length>0){
             const best=earnedMedalsNow[earnedMedalsNow.length-1];
             setScenarioResult({medal:best.medal,medalId:best.id,scenario:cs,day:day+1});
+            if(ref.current.soundOn) playSound("fanfare");
             setMedalFlash(best.medal);
             setTimeout(()=>setMedalFlash(null),3500);
             setSpeed(0);
@@ -1258,7 +1294,8 @@ export default function ParkTycoon(){
       if((day+1)%5===0&&!adc){
         const available=DAILY_CHALLENGES.filter(dc=>!adcHist.includes(dc.id));
         const dcPool=available.length>0?available:DAILY_CHALLENGES;
-        const dc=dcPool[Math.floor(Math.random()*dcPool.length)];
+        const dateSeed=Math.floor(Date.now()/(1000*60*60*24));
+        const dc=dcPool[(dateSeed+Math.floor(day/5))%dcPool.length];
         setActiveDailyChallenge({...dc,startDay:day+1,claimed:false});
         addLog(`🎯 ${lang==="ko"?`새 챌린지: ${dc.name.ko}`:`New challenge: ${dc.name.en}`}`);
       }
@@ -1422,7 +1459,25 @@ export default function ParkTycoon(){
       setGrid(newGrid);setSat(newSat);setClean(newClean);setSegData(segs);
       setMoney(m=>m+net+mM);setVisitors(vis);setLoans(newLoans);setCampaigns(newCamps);
       setPassHolders(newPH);setActiveDisaster(newDisaster);
-      setTotalRev(r=>{const nr=r+Math.max(0,totalRevDay);if(r===0&&nr>0) addLog(lang==="ko"?`💰 첫 수익 $${Math.floor(totalRevDay).toLocaleString()} 달성! 경영 탭에서 직원을 고용해보세요 🧹`:`💰 First revenue $${Math.floor(totalRevDay).toLocaleString()}! Head to Manage tab to hire staff 🧹`);return nr;});setTotalVis(t=>t+vis);setDay(d=>d+1);
+      setTotalRev(r=>{const nr=r+Math.max(0,totalRevDay);if(r===0&&nr>0) addLog(lang==="ko"?`💰 첫 수익 $${Math.floor(totalRevDay).toLocaleString()} 달성! 경영 탭에서 직원을 고용해보세요 🧹`:`💰 First revenue $${Math.floor(totalRevDay).toLocaleString()}! Head to Manage tab to hire staff 🧹`);return nr;});
+      setTotalVis(t=>{
+        const nv=t+vis;
+        const milestones=[100,500,1000,5000,10000];
+        milestones.forEach(m=>{
+          if(t<m&&nv>=m&&!visitorMilestonesHit.current.has(m)){
+            visitorMilestonesHit.current.add(m);
+            const labels={100:{ko:"🎉 방문객 100명 달성!",en:"🎉 100 Visitors reached!"},500:{ko:"🎊 방문객 500명 돌파!",en:"🎊 500 Visitors milestone!"},1000:{ko:"🏆 방문객 1,000명! 레전드의 시작!",en:"🏆 1,000 Visitors! You're legendary!"},5000:{ko:"👑 방문객 5,000명! 세계 최고 파크!",en:"👑 5,000 Visitors! World-class park!"},10000:{ko:"🌟 방문객 10,000명! 초전설!",en:"🌟 10,000 Visitors! Ultra legend!"}};
+            const lbl=labels[m]?.[lang]||labels[m]?.ko||`🎉 ${m} Visitors!`;
+            addLog(lbl);
+            setAchievementFlash({col:"#FFD93D",emoji:"🎉",name:{ko:lbl,en:lbl},desc:{ko:"",en:""}});
+            setTimeout(()=>setAchievementFlash(null),4000);
+            setShowFireworks(true);
+            setTimeout(()=>setShowFireworks(false),3000);
+          }
+        });
+        return nv;
+      });
+      setDay(d=>d+1);
       // RP: 기본 3/일 + 방문객 20명당 +1 (최대 +5) + 미션 보상 + perk 보너스
       const rpBase=Math.min(10,4+Math.floor(vis/20));
       const rpGain=(ref.current.startPerk==="rpBoost"?rpBase*2:ref.current.startPerk==="fastResearch"?Math.floor(rpBase*1.5):rpBase)+mR;
@@ -1460,6 +1515,10 @@ export default function ParkTycoon(){
         setSpeed(0);
         addLog(lang==="ko" ? "💸 파산! 5일 연속 적자로 공원이 폐쇄됐습니다." : "💸 Bankrupt! Park closed due to sustained losses.");
         return;
+      }
+      if (newBkDays >= 3 && ref.current.speed > 0) {
+        setSpeed(0);
+        addLog(lang==="ko" ? `⚠️ 파산 경고 (${newBkDays}/5일 연속 적자) — 게임이 일시정지됐습니다` : `⚠️ Bankruptcy warning (${newBkDays}/5 days) — game paused`);
       }
 
       // Revenue floating popup every 3 ticks
@@ -1542,7 +1601,7 @@ export default function ParkTycoon(){
   const lastAutoSaveDay=useRef(-1);
   useEffect(()=>{
     if(screen!=="game"||day<2) return;
-    if(day%2===0&&lastAutoSaveDay.current!==day){
+    if(lastAutoSaveDay.current!==day){
       lastAutoSaveDay.current=day;
       saveToSlot(0);
     }
@@ -2004,6 +2063,7 @@ export default function ParkTycoon(){
 
     const bd=B[selected];
     if(m<bd.baseCost){addLog(t("log.noMoney"));return;}
+    if(bd.baseCost>=10000&&!skipPreview){setPendingBuild({r,c,selected,bd});return;}
     if(bd.locked&&!researched.includes("r4")&&gameMode!=="sandbox"){addLog(t("log.locked"));return;}
     if(selected==="entrance"){for(const row of g) for(const cell of row) if(cell?.type==="entrance"){addLog(t("log.oneEntrance"));return;}}
 
@@ -2382,10 +2442,34 @@ export default function ParkTycoon(){
     );
   }
 
+  if(showFtueModal){
+    return(
+      <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%,#0D1535 0%,#020510 60%)",color:"#DDE2FF",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{textAlign:"center",maxWidth:400,background:"rgba(12,17,40,0.95)",border:"1px solid rgba(120,140,255,0.3)",borderRadius:16,padding:28,boxShadow:"0 12px 60px rgba(0,0,0,0.8)"}}>
+          <div style={{fontSize:44,marginBottom:10}}>🎡</div>
+          <div style={{fontSize:22,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:4,color:"#FFD93D",marginBottom:6}}>{lang==="ko"?"파르카디아에 오신 것을 환영합니다!":"Welcome to Parcadia!"}</div>
+          <div style={{fontSize:12,color:"#8899BB",lineHeight:1.8,marginBottom:20}}>
+            {lang==="ko"?"처음 하시는 분이라면 아카데미 튜토리얼을 추천합니다.\n5챕터 약 20분 분량으로 핵심 시스템을 모두 배울 수 있어요.":"New to the game? The Academy tutorial is highly recommended.\n5 chapters (~20 min) to learn all core systems."}
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <button style={{padding:"12px 0",background:"linear-gradient(135deg,rgba(155,127,255,0.2),rgba(77,159,255,0.1))",border:"2px solid rgba(155,127,255,0.5)",color:"#9B7FFF",borderRadius:10,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:700,letterSpacing:1}}
+              onClick={()=>{setShowFtueModal(false);startGame("tutorial",null,"normal",null,null);}}>
+              🎓 {lang==="ko"?"아카데미 시작 (추천)":"Start Academy (Recommended)"}
+            </button>
+            <button style={{padding:"10px 0",background:"rgba(0,229,160,0.08)",border:"1px solid rgba(0,229,160,0.3)",color:"#00E5A0",borderRadius:10,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600}}
+              onClick={()=>setShowFtueModal(false)}>
+              {lang==="ko"?"바로 플레이하기 →":"Skip to Menu →"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if(screen==="menu"){
     const slots=saveSlots;
     return(<>
-      <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%, #0D1535 0%, #020510 60%)",color:"var(--text-primary)",height:"100%",overflowY:"auto",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:20}}>
+      <div className="screen-enter" style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%, #0D1535 0%, #020510 60%)",color:"var(--text-primary)",height:"100%",overflowY:"auto",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:20}}>
         {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} bgMusicOn={bgMusicOn} setBgMusicOn={setBgMusicOn} bgVolume={bgVolume} setBgVolume={setBgVolume} onClose={()=>setShowSettings(false)} lang={lang}/>}
         <button onClick={()=>setShowSettings(true)} style={{position:"fixed",top:12,right:12,background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.3)",color:"#8899CC",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:16,fontFamily:"inherit",transition:"all 0.15s",zIndex:1000}} title={lang==="ko"?"설정":"Settings"}>⚙️</button>
         <div style={{width:"100%",maxWidth:680,margin:"auto"}}>
@@ -2441,7 +2525,7 @@ export default function ParkTycoon(){
             </div>
             {isMobile&&<div style={{textAlign:"center",fontSize:10,color:"#FF9F43",marginBottom:10,padding:"5px 10px",background:"rgba(255,159,67,0.06)",border:"1px solid rgba(255,159,67,0.2)",borderRadius:6}}>📱 {lang==="ko"?"PC·태블릿에서 플레이하면 더 좋은 경험을 즐기실 수 있어요":"Best experienced on PC or tablet"}</div>}
             <div style={{fontSize:10,color:"#7788BB",textAlign:"center",letterSpacing:3,textTransform:"uppercase",marginBottom:10}}>{t("menu.loadGame")}</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>
               {slots.map((slot,i)=>(
                 <div key={i} style={{background:"rgba(255,255,255,0.02)",border:`1px solid ${slot?"rgba(100,120,255,0.15)":"rgba(255,255,255,0.06)"}`,borderRadius:10,padding:12}}>
                   {slot?.meta?(
@@ -3885,6 +3969,58 @@ export default function ParkTycoon(){
                   })}
                 </div>);
               })}
+              {/* RP 코스메틱 섹션 */}
+              {researchPoints>=5&&researched.length>=Math.floor(RESEARCH.length/2)&&(()=>{
+                const RP_COSMETICS=[
+                  {id:"rpc_fancy_path",cost:20,emoji:"🟫",name:{ko:"황금 통로 테마",en:"Golden Path Theme"},desc:{ko:"통로가 황금빛으로 빛납니다",en:"Paths shimmer with golden hue"},apply:()=>addLog(lang==="ko"?"✨ 황금 통로 테마 적용! (장식 효과)":"✨ Golden Path Theme applied!")},
+                  {id:"rpc_confetti",cost:15,emoji:"🎊",name:{ko:"축제 폭죽 효과",en:"Festival Confetti"},desc:{ko:"방문객 도착시 폭죽 효과 강화",en:"Enhanced confetti on visitor arrival"},apply:()=>addLog(lang==="ko"?"🎊 축제 폭죽 효과 활성화!":"🎊 Festival Confetti enabled!")},
+                  {id:"rpc_neon",cost:25,emoji:"💜",name:{ko:"네온 건물 테두리",en:"Neon Building Borders"},desc:{ko:"건물에 네온 빛 테두리 효과",en:"Neon glow borders on buildings"},apply:()=>addLog(lang==="ko"?"💜 네온 테두리 효과 활성화!":"💜 Neon borders enabled!")},
+                ];
+                const unlockedCosmetics=(()=>{try{return JSON.parse(localStorage.getItem('pt_cosmetics')||'[]');}catch{return[];}})();
+                return(
+                  <div style={{marginTop:8,background:"rgba(255,217,61,0.04)",border:"1px solid rgba(255,217,61,0.2)",borderRadius:6,padding:"8px 8px 4px"}}>
+                    <div style={{fontSize:9,color:"#FFD93D",letterSpacing:2,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>✨ {lang==="ko"?"코스메틱 언락":"Cosmetic Unlocks"}</div>
+                    {RP_COSMETICS.map(c=>{
+                      const owned=unlockedCosmetics.includes(c.id);
+                      const canBuy=!owned&&researchPoints>=c.cost;
+                      return(<div key={c.id} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 4px",marginBottom:4,background:owned?"rgba(0,229,160,0.05)":"rgba(255,255,255,0.02)",border:`1px solid ${owned?"rgba(0,229,160,0.2)":"rgba(255,217,61,0.15)"}`,borderRadius:4}}>
+                        <span style={{fontSize:14}}>{c.emoji}</span>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:10,fontWeight:700,color:owned?"#00E5A0":"#FFD93D"}}>{c.name[lang]||c.name.ko}{owned?" ✅":""}</div>
+                          <div style={{fontSize:9,color:"#666688"}}>{c.desc[lang]||c.desc.ko}</div>
+                        </div>
+                        {!owned&&<button style={{background:canBuy?"rgba(255,217,61,0.15)":"transparent",border:`1px solid ${canBuy?"rgba(255,217,61,0.4)":"#2A2A4A"}`,color:canBuy?"#FFD93D":"#3A3A5A",borderRadius:3,padding:"2px 5px",cursor:canBuy?"pointer":"default",fontSize:10,fontFamily:"inherit",flexShrink:0}} onClick={()=>{if(!canBuy)return;setResearchPoints(p=>p-c.cost);const nc=[...unlockedCosmetics,c.id];try{localStorage.setItem('pt_cosmetics',JSON.stringify(nc));}catch{}c.apply();}}>{c.cost}RP</button>}
+                      </div>);
+                    })}
+                  </div>
+                );
+              })()}
+              {/* 프레스티지 재시작 */}
+              {(()=>{
+                const allResearched=researched.length>=RESEARCH.length;
+                const is5Star=parkRating.stars>=5;
+                if(!allResearched||!is5Star) return null;
+                return(
+                  <div style={{marginTop:10,background:"linear-gradient(135deg,rgba(255,217,61,0.08),rgba(155,127,255,0.08))",border:"2px solid rgba(255,217,61,0.4)",borderRadius:8,padding:10}}>
+                    <div style={{fontSize:10,color:"#FFD93D",fontWeight:800,letterSpacing:2,marginBottom:4}}>👑 {lang==="ko"?"프레스티지 재시작":"PRESTIGE RESTART"}</div>
+                    <div style={{fontSize:10,color:"#A29BFE",lineHeight:1.6,marginBottom:8}}>
+                      {lang==="ko"?"모든 연구를 완료하고 5성 공원을 달성했습니다! 프레스티지 재시작으로 영구 방문객 보너스 +20%를 얻고 새 게임을 시작할 수 있습니다.":"All research done & 5★ park achieved! Prestige restart grants a permanent +20% visitor bonus for your next run."}
+                    </div>
+                    <div style={{fontSize:10,color:"#FFD93D",background:"rgba(255,217,61,0.08)",borderRadius:4,padding:"3px 6px",marginBottom:8,display:"inline-block"}}>
+                      {lang==="ko"?"현재 프레스티지 보너스":"Current prestige bonus"}: +{Math.round(prestigeBonus)}pt
+                    </div>
+                    <button style={{width:"100%",background:"linear-gradient(135deg,rgba(255,217,61,0.25),rgba(155,127,255,0.15))",border:"1px solid rgba(255,217,61,0.6)",color:"#FFD93D",borderRadius:6,padding:"7px 0",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:800,letterSpacing:1}}
+                      onClick={()=>{
+                        const bonusToKeep=prestigeBonus+20;
+                        startGame(gameMode||"sandbox",currentScenario,difficulty,startPerk,null);
+                        setTimeout(()=>setPrestigeBonus(bonusToKeep),100);
+                        addLog(lang==="ko"?`👑 프레스티지 재시작! 영구 보너스 +${bonusToKeep}pt 유지됩니다`:`👑 Prestige restart! Permanent bonus +${bonusToKeep}pt carries over`);
+                      }}>
+                      👑 {lang==="ko"?"프레스티지 재시작":"Prestige Restart"} (+20pt)
+                    </button>
+                  </div>
+                );
+              })()}
             </>}
 
             {tab==="mission"&&<>
@@ -5616,6 +5752,20 @@ export default function ParkTycoon(){
           </div>
         </div>
       )}
+      {pendingBuild&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9998,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setPendingBuild(null)}>
+          <div role="dialog" aria-modal={true} style={{background:"#0C1128",border:"2px solid rgba(255,217,61,0.5)",borderRadius:14,padding:"24px 28px",maxWidth:340,boxShadow:"0 8px 40px rgba(0,0,0,0.8)",textAlign:"center",fontFamily:"'Rajdhani','Barlow Condensed',sans-serif"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:32,marginBottom:8}}>{pendingBuild.bd.emoji||"🏗️"}</div>
+            <div style={{fontSize:15,fontWeight:800,color:"#FFD93D",letterSpacing:1,marginBottom:6}}>{lang==="ko"?"대규모 건설 확인":"Confirm Large Purchase"}</div>
+            <div style={{fontSize:12,color:"#8899BB",marginBottom:4}}>{lang==="ko"?`${pendingBuild.bd.emoji||""} 이 건물을 건설하시겠습니까?`:`Build this structure?`}</div>
+            <div style={{fontSize:18,fontWeight:900,color:"#FF5757",marginBottom:16}}>${pendingBuild.bd.baseCost.toLocaleString()}</div>
+            <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+              <button style={{padding:"8px 20px",background:"rgba(255,87,87,0.12)",border:"2px solid rgba(255,87,87,0.4)",color:"#FF5757",borderRadius:8,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700}} onClick={()=>setPendingBuild(null)}>{lang==="ko"?"취소":"Cancel"}</button>
+              <button style={{padding:"8px 20px",background:"rgba(0,229,160,0.12)",border:"2px solid rgba(0,229,160,0.5)",color:"#00E5A0",borderRadius:8,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700}} onClick={()=>{const{r,c}=pendingBuild;setPendingBuild(null);handleGridClick(r,c,true);}}>{lang==="ko"?"건설":"Build"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {saveConfirm&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200}}>
           <div style={{background:"#0D1025",border:"2px solid rgba(255,217,61,0.4)",borderRadius:14,padding:"24px 32px",textAlign:"center",minWidth:260}}>
@@ -5787,10 +5937,23 @@ export default function ParkTycoon(){
                 </div>
               </>
             )}
-            <div style={{display:"flex",gap:10,justifyContent:"center"}}>
-              <button style={{background:"rgba(255,217,61,0.12)",border:"2px solid rgba(255,217,61,0.5)",color:"#FFD93D",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(0);setScreen("menu");}}>{t("res.backMenu")}</button>
-              <button style={{background:"rgba(0,229,160,0.12)",border:"2px solid rgba(0,229,160,0.4)",color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(1);}}>{t("res.continue")}</button>
-            </div>
+            {(()=>{
+              const allScenarios=SCENARIOS.filter(s=>s.id!=="s_sandbox");
+              const curIdx=allScenarios.findIndex(s=>s.id===scenarioResult?.scenario);
+              const nextScenario=curIdx>=0&&curIdx<allScenarios.length-1?allScenarios[curIdx+1]:null;
+              return(
+                <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                  <button style={{background:"rgba(255,217,61,0.12)",border:"2px solid rgba(255,217,61,0.5)",color:"#FFD93D",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(0);setScreen("menu");}}>{t("res.backMenu")}</button>
+                  {scenarioResult?.medal&&nextScenario&&(
+                    <button style={{background:"linear-gradient(135deg,rgba(0,229,160,0.2),rgba(77,159,255,0.1))",border:"2px solid rgba(0,229,160,0.7)",color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:800,fontFamily:"inherit",transition:"all 0.15s",letterSpacing:1}}
+                      onClick={()=>{setScenarioResult(null);startGame("campaign",nextScenario.id,difficulty,startPerk,null);}}>
+                      ▶ {lang==="ko"?`다음 시나리오: ${nextScenario.name?.ko||nextScenario.id}`:`Next: ${nextScenario.name?.en||nextScenario.id}`}
+                    </button>
+                  )}
+                  <button style={{background:"rgba(0,229,160,0.06)",border:"1px solid rgba(0,229,160,0.3)",color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(1);}}>{t("res.continue")}</button>
+                </div>
+              );
+            })()}
           </div>
         </div>
         );
