@@ -4959,9 +4959,11 @@ export default function ParkTycoon(){
               gridTemplateColumns:`repeat(${GC},1fr)`,
               gridTemplateRows:`repeat(${GR},1fr)`,
               gap:isMobile?1:2,width:"100%",height:"100%",
-              background:"#020408",borderRadius:isMobile?4:10,padding:isMobile?2:4,boxSizing:"border-box",
-              border:"1px solid rgba(100,120,255,0.08)",
-              boxShadow:"inset 0 0 40px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.6)",
+              background:`radial-gradient(circle, rgba(50,70,180,0.07) 1px, transparent 1px), linear-gradient(145deg,#010205 0%,#020810 55%,#010205 100%)`,
+              backgroundSize:`${isMobile?8:11}px ${isMobile?8:11}px, 100% 100%`,
+              borderRadius:isMobile?4:10,padding:isMobile?2:4,boxSizing:"border-box",
+              border:"1px solid rgba(100,130,255,0.13)",
+              boxShadow:"inset 0 0 60px rgba(0,0,0,0.95), inset 0 0 20px rgba(10,30,100,0.2), 0 0 40px rgba(0,0,0,0.7)",
               transform:`scale(${gridScale}) translate(${gridPan.x/gridScale}px,${gridPan.y/gridScale}px)`,
               transformOrigin:`${gridScaleOrigin.x}% ${gridScaleOrigin.y}%`,
               transition:'transform 0.05s linear',
@@ -5000,17 +5002,17 @@ export default function ParkTycoon(){
                 const comboCellColor=cell&&!broken&&!isPath?comboCellMap[`${r},${c}`]:null;
 
                 const OBS_STYLE={rock:{bg:"rgba(70,50,30,0.55)",bd:"rgba(120,90,55,0.6)",emoji:"🪨"},water:{bg:"rgba(10,70,180,0.40)",bd:"rgba(40,130,255,0.55)",emoji:"💧"},rubble:{bg:"rgba(90,80,60,0.50)",bd:"rgba(140,120,90,0.5)",emoji:"🧱"},deadtree:{bg:"rgba(25,55,15,0.50)",bd:"rgba(40,90,25,0.5)",emoji:"🌵"}};
-                let bg="linear-gradient(145deg,#0C1A10,#081208)";
-                if(!owned)                         bg="#040608";
+                let bg="linear-gradient(160deg,#142418 0%,#0D1C12 45%,#070E08 100%)";
+                if(!owned)                         bg="repeating-linear-gradient(-45deg,#020406 0px,#020406 5px,#030508 5px,#030508 6px)";
                 else if(obstacle)                  bg=OBS_STYLE[obstacle.type]?.bg||"rgba(60,60,40,0.4)";
-                else if(broken)                    bg="linear-gradient(135deg,rgba(255,87,87,0.28),rgba(255,87,87,0.08))";
-                else if(isPath)                    bg=isFancy?"linear-gradient(145deg,#3D2E0A,#2A1E05)":"linear-gradient(145deg,#1E1A12,#141008)";
-                else if(isEntrance)                bg="linear-gradient(135deg,rgba(255,217,61,0.18),rgba(255,159,67,0.10))";
-                else if(cell)                      bg=cell.level>=2?`linear-gradient(135deg,${bd.color}44,${bd.color}18)`:cell.level>=1?`linear-gradient(135deg,${bd.color}38,${bd.color}14)`:`linear-gradient(135deg,${bd.color}28,${bd.color}0E)`;
-                else if(zone)                      bg=ZONES[zone]?.bg||"#0C1410";
-                else if(isInFootprint&&selected)   bg=hovFootprintValid?"rgba(0,229,160,0.12)":"rgba(255,87,87,0.12)";
-                else                               bg="linear-gradient(145deg,#0C1A10,#081208)";
-                if(isMultiSelected)                bg="rgba(255,87,87,0.25)";
+                else if(broken)                    bg="linear-gradient(135deg,rgba(255,87,87,0.32),rgba(255,87,87,0.10))";
+                else if(isPath)                    bg=isFancy?"linear-gradient(160deg,#3F3008 0%,#2E2206 50%,#1E1604 100%)":"linear-gradient(160deg,#201C14 0%,#161209 50%,#0E0C06 100%)";
+                else if(isEntrance)                bg="linear-gradient(160deg,rgba(255,217,61,0.22) 0%,rgba(255,159,67,0.12) 60%,rgba(255,100,30,0.06) 100%)";
+                else if(cell)                      bg=cell.level>=2?`linear-gradient(160deg,${bd.color}58 0%,${bd.color}30 50%,${bd.color}14 100%)`:cell.level>=1?`linear-gradient(160deg,${bd.color}44 0%,${bd.color}22 50%,${bd.color}0E 100%)`:`linear-gradient(160deg,${bd.color}2E 0%,${bd.color}16 50%,${bd.color}08 100%)`;
+                else if(zone)                      bg=`linear-gradient(160deg,${ZONES[zone]?.color||"#1DD1A1"}28 0%,${ZONES[zone]?.color||"#1DD1A1"}10 60%,transparent 100%)`;
+                else if(isInFootprint&&selected)   bg=hovFootprintValid?"rgba(0,229,160,0.14)":"rgba(255,87,87,0.14)";
+                else                               bg="linear-gradient(160deg,#142418 0%,#0D1C12 45%,#070E08 100%)";
+                if(isMultiSelected)                bg="rgba(255,87,87,0.28)";
 
                 let borderCol="rgba(255,255,255,0.04)";
                 if(!owned)                         borderCol="rgba(255,255,255,0.02)";
@@ -5036,16 +5038,17 @@ export default function ParkTycoon(){
                     borderRadius:5,
                     display:"flex",alignItems:"center",justifyContent:"center",
                     cursor:owned?(obstacle&&selected?"not-allowed":buildMode==="demolish"&&cell?"crosshair":"pointer"):isNextBuyable?"pointer":"default",
-                    transition:"border-color 0.12s,background 0.12s",
+                    transition:"border-color 0.15s,background 0.15s,box-shadow 0.15s",
                     minHeight:0,overflow:"hidden",position:"relative",
-                    background:isNextBuyable?"rgba(77,159,255,0.04)":bg,
+                    background:isNextBuyable?"linear-gradient(160deg,rgba(77,159,255,0.13),rgba(77,159,255,0.05))":bg,
                     boxShadow:(()=>{
                       const popCount=bldPopMap[`${r},${c}`]||0;
                       const popGlow=cell&&!broken&&!isPath&&popCount>=3?`, 0 0 ${8+popCount*3}px rgba(255,200,80,${Math.min(0.7,0.3+popCount*0.07)})`:"";
-                      const base=isSel?`0 0 0 2px #FFD93D, 0 0 18px rgba(255,217,61,0.5), inset 0 0 10px rgba(255,217,61,0.1)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?`0 0 10px rgba(255,87,87,0.5), inset 0 0 6px rgba(255,87,87,0.15)`:isDemolishHov?"0 0 8px rgba(255,87,87,0.4)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 8px rgba(255,159,67,0.3)":isEntrance&&!broken?`0 0 14px rgba(255,217,61,0.3), inset 0 0 14px rgba(255,217,61,0.08)`:cell&&!broken&&!isPath?(comboCellColor?`0 0 0 2px ${comboCellColor}, 0 0 14px ${comboCellColor}AA, inset 0 0 10px ${comboCellColor}33`:isSel?`0 0 14px ${bd.color}88, inset 0 0 10px ${bd.color}22`:cell.level>=2?`0 0 6px ${bd.color}44, inset 0 0 6px ${bd.color}18`:cell.level>=1?`0 0 4px ${bd.color}33, inset 0 0 4px ${bd.color}10`:"none"):"none";
-                      return base+popGlow;
+                      const tileRaise=owned&&!broken?", inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,0,0,0.5), inset 1px 0 rgba(255,255,255,0.03)":"";
+                      const base=isSel?`0 0 0 2px #FFD93D, 0 0 20px rgba(255,217,61,0.55), inset 0 0 12px rgba(255,217,61,0.12)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?`0 0 12px rgba(255,87,87,0.55), inset 0 0 8px rgba(255,87,87,0.18)`:isDemolishHov?"0 0 10px rgba(255,87,87,0.45)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 10px rgba(255,159,67,0.35)":isEntrance&&!broken?`0 0 16px rgba(255,217,61,0.35), inset 0 0 16px rgba(255,217,61,0.10)`:cell&&!broken&&!isPath?(comboCellColor?`0 0 0 2px ${comboCellColor}, 0 0 16px ${comboCellColor}BB, inset 0 0 12px ${comboCellColor}40`:cell.level>=2?`0 0 8px ${bd.color}55, inset 0 0 8px ${bd.color}20`:cell.level>=1?`0 0 5px ${bd.color}44, inset 0 0 5px ${bd.color}14`:`0 0 3px ${bd.color}22`):isNextBuyable?"0 0 0 1px rgba(77,159,255,0.3), 0 0 10px rgba(77,159,255,0.15)":"none";
+                      return base+popGlow+tileRaise;
                     })(),
-                    opacity:!owned?0.12:1}}
+                    opacity:!owned?(isNextBuyable?0.75:0.18):1}}
                   onMouseDown={(e)=>{
                     if(e.button!==0) return;
                     const isSingle=(B[selected]?.size?.w||1)===1&&(B[selected]?.size?.h||1)===1;
@@ -5139,8 +5142,10 @@ export default function ParkTycoon(){
                               objectFit:"contain",pointerEvents:"none",zIndex:5,
                               opacity:broken?0.25:1,filter:broken?"grayscale(0.8)":"none"}}
                       onError={e=>{e.currentTarget.style.display="none";}}/>
+                    {/* 건물 타입 색상 상단 하이라이트 */}
+                    {!broken&&<div style={{position:"absolute",top:0,left:0,right:0,height:1,borderRadius:"4px 4px 0 0",background:`linear-gradient(90deg,transparent,${bd.color}55,transparent)`,zIndex:3}}/>}
                     {/* 건물 타입 색상 하단 바 */}
-                    {!broken&&<div style={{position:"absolute",bottom:0,left:"10%",right:"10%",height:2,borderRadius:"0 0 1px 1px",background:bd.color,opacity:cell.level>=2?0.85:cell.level>=1?0.65:0.45,zIndex:3}}/>}
+                    {!broken&&<div style={{position:"absolute",bottom:0,left:"8%",right:"8%",height:3,borderRadius:"0 0 2px 2px",background:`linear-gradient(90deg,transparent,${bd.color},transparent)`,opacity:cell.level>=2?0.95:cell.level>=1?0.75:0.55,zIndex:3,boxShadow:`0 0 6px ${bd.color}88`}}/>}
                     {cell.level>0&&!broken&&<div style={{position:"absolute",top:2,right:3,fontSize:11,color:"#FFD93D",lineHeight:1.2,fontWeight:900,zIndex:6,textShadow:"0 0 3px #000"}}>{cell.level===2?"★★":"★"}</div>}
                     {bw>=3&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:10,color:bd.color,opacity:0.7,fontWeight:700,zIndex:6,fontFamily:"'Barlow Condensed',monospace",lineHeight:1}}>{bw}×{bh}</div>}
                     {broken&&<>
