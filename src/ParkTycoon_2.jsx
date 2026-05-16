@@ -596,22 +596,11 @@ export default function ParkTycoon(){
     try{localStorage.setItem('uiSettings',JSON.stringify(uiSettings));}catch{}
   },[uiSettings]);
 
-  // 탭 방문 추적: 스텝이 바뀌면 리셋
-  useEffect(()=>{ setTutTabVisited(false); },[tutorialStep]);
   useEffect(()=>{ setTutCardOffsetY(0); },[tutorialStep]);
-  // 스텝별 액션 완료 감지: 6=입장료 변경, 7=캠페인 실행, 9=연구탭 방문
-  useEffect(()=>{
-    if(tutorialStep===6&&fee!==15) setTutTabVisited(true);
-    if(tutorialStep===7&&campaigns.length>0) setTutTabVisited(true);
-    if(tutorialStep===9&&tab==="research") setTutTabVisited(true);
-  },[fee,campaigns,tab,tutorialStep]);
-  // 튜토리얼 스텝 진행 시 해당 탭 자동 오픈 (Two Point Hospital 스타일)
+  // 5단계 튜토리얼: 스텝 5(직원 고용) 도달 시 경영 탭 자동 오픈
   useEffect(()=>{
     if(!tutorialStep) return;
-    if(tutorialStep===5||tutorialStep===6) setTab("manage");
-    else if(tutorialStep===7) setTab("marketing");
-    else if(tutorialStep===8){ setTab("build"); setBuildMode("zone"); }
-    else if(tutorialStep===9) setTab("research");
+    if(tutorialStep===5) setTab("manage");
   },[tutorialStep]);
 
   useEffect(()=>{
@@ -625,13 +614,10 @@ export default function ParkTycoon(){
     if(tutorialStep===1&&hasEntrance) advance(2);
     else if(tutorialStep===2&&hasPathTile) advance(3);
     else if(tutorialStep===3&&hasRide) advance(4);
-    // 스텝 4: 재생 + 첫 방문객 도착까지 대기 (경제 루프 체험)
+    // 스텝 4: 재생 + 첫 방문객 도착까지 대기
     else if(tutorialStep===4&&speed>0&&visitors>0) advance(5);
-    // 스텝 5: 직원 고용
+    // 스텝 5: 직원 고용 → 완료 (6)
     else if(tutorialStep===5&&(hired.janitor>0||hired.mechanic>0||hired.entertainer>0)) advance(6);
-    // 스텝 6,7,9: tutTabVisited로 별도 관리 (자동 진행 없음)
-    // 스텝 8: 구역 페인트 완료
-    else if(tutorialStep===8&&hasZone) advance(9);
   },[grid,speed,hired,tutorialStep,screen,zoneGrid,visitors]);
 
   useEffect(()=>{
@@ -1572,12 +1558,13 @@ export default function ParkTycoon(){
     setMoney(mo=>mo-bd.baseCost+(selected==="entrance"?500:0));setLastBuilt(selected);addLog(t("log.build",{name:t(`b.${selected}`)}));if(selected==="entrance") addLog(lang==="ko"?"🎪 개장 보너스 +$500!":"🎪 Grand Opening bonus +$500!");if(soundOn) playSound("build",selected);
     const pId=Date.now();
     const pColor=B[selected]?.color||"#FFD93D";
-    const particles=Array.from({length:8},(_,i)=>{
-      const angle=(i/8)*Math.PI*2; const dist=30+Math.random()*25;
-      return{tx:`${Math.cos(angle)*dist}px`,ty:`${Math.sin(angle)*dist}px`,col:pColor};
+    const particles=Array.from({length:12},(_,i)=>{
+      const angle=(i/12)*Math.PI*2; const dist=28+Math.random()*30;
+      return{tx:`${Math.cos(angle)*dist}px`,ty:`${Math.sin(angle)*dist}px`,col:i%3===0?"#FFD93D":pColor};
     });
-    setBuildParticles(prev=>[...prev,{id:pId,r,c,color:pColor,particles}]);
-    setTimeout(()=>setBuildParticles(prev=>prev.filter(p=>p.id!==pId)),700);
+    const satB=B[selected]?.stats?.(0)?.satBonus||0;
+    setBuildParticles(prev=>[...prev,{id:pId,r,c,color:pColor,particles,label:satB>0?`+${satB}😊`:null}]);
+    setTimeout(()=>setBuildParticles(prev=>prev.filter(p=>p.id!==pId)),800);
   };
   const upgradeBuilding=()=>{const{r,c,cell}=clickedTile;if(cell.level>=2||cell.broken) return;const cost=B[cell.type].upgradeCost[cell.level];if(!cost) return;if(ref.current.money<cost){addLog(t("log.noMoney"));return;}const lv=cell.level+1;setGrid(prev=>{const n=prev.map(r=>[...r]);n[r][c]={...cell,level:lv};return n;});setMoney(m=>m-cost);setClickedTile(p=>({...p,cell:{...p.cell,level:lv}}));addLog(t("log.upgrade", {name: t(`b.${cell.type}`), lv: lv+1}));if(soundOn) playSound("upgrade");};
   const repairBuilding=()=>{const{r,c,cell}=clickedTile;if(!cell.broken) return;const cost=Math.max(500,Math.floor(B[cell.type].baseCost*0.15));if(ref.current.money<cost){addLog(t("log.repairNoMoney"));return;}setGrid(prev=>{const n=prev.map(r=>[...r]);n[r][c]={...cell,broken:false};return n;});setMoney(m=>m-cost);setClickedTile(p=>({...p,cell:{...p.cell,broken:false}}));addLog(t("log.repair"));};
@@ -1936,8 +1923,11 @@ export default function ParkTycoon(){
               ))}
             </div>
             <div style={{fontSize:42,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:6,color:"#FFD93D",textShadow:"0 0 40px rgba(255,217,61,0.5), 0 0 80px rgba(255,159,67,0.3)",lineHeight:1}}>PARCADIA</div>
-            <div style={{fontSize:11,letterSpacing:4,color:"#7788BB",fontWeight:600,fontFamily:"'Barlow Condensed',sans-serif",marginTop:6,marginBottom:4}}>BUILD · MANAGE · THRIVE</div>
-            <div style={{fontSize:10,color:"#7788BB",letterSpacing:2}}>
+            <div style={{fontSize:14,letterSpacing:2,color:"#DDE2FF",fontWeight:700,fontFamily:"'Barlow Condensed',sans-serif",marginTop:8,marginBottom:3}}>
+              {lang==="ko"?"내 손으로 짓는 꿈의 테마파크":"Build Your Dream Park. One Ride at a Time."}
+            </div>
+            <div style={{fontSize:10,letterSpacing:3,color:"#5566AA",fontWeight:500,fontFamily:"'Barlow Condensed',sans-serif",marginBottom:5}}>BUILD · MANAGE · THRIVE</div>
+            <div style={{fontSize:10,color:"#6677AA",letterSpacing:1}}>
               {lang==="ko"?"🎯 8개 시나리오  🏗️ 27종 건물  ⚡ 무료 플레이":"🎯 8 Scenarios  🏗️ 27 Buildings  ⚡ Free to Play"}
             </div>
           </div>
@@ -4110,16 +4100,16 @@ export default function ParkTycoon(){
                 const isNextBuyable=!owned&&gameMode!=="sandbox"&&((c>0&&ownedGrid[r][c-1])||(c<GC-1&&ownedGrid[r][c+1]));
 
                 const OBS_STYLE={rock:{bg:"rgba(70,50,30,0.55)",bd:"rgba(120,90,55,0.6)",emoji:"🪨"},water:{bg:"rgba(10,70,180,0.40)",bd:"rgba(40,130,255,0.55)",emoji:"💧"},rubble:{bg:"rgba(90,80,60,0.50)",bd:"rgba(140,120,90,0.5)",emoji:"🧱"},deadtree:{bg:"rgba(25,55,15,0.50)",bd:"rgba(40,90,25,0.5)",emoji:"🌵"}};
-                let bg="#080B18";
-                if(!owned) bg="#04060E";
+                let bg="#0C1028";
+                if(!owned) bg="#050710";
                 else if(obstacle) bg=OBS_STYLE[obstacle.type]?.bg||"rgba(60,60,40,0.4)";
-                else if(broken) bg="linear-gradient(135deg,rgba(255,87,87,0.2),rgba(255,87,87,0.05))";
+                else if(broken) bg="linear-gradient(135deg,rgba(255,87,87,0.22),rgba(255,87,87,0.06))";
                 else if(isPath) bg=isFancy?"linear-gradient(135deg,#241C08,#1A1408)":"linear-gradient(135deg,#1A1208,#100C05)";
-                else if(isEntrance) bg="linear-gradient(135deg,rgba(255,217,61,0.15),rgba(255,159,67,0.08))";
-                else if(cell) bg=cell.level>=2?`linear-gradient(135deg,${bd.color}33,${bd.color}11)`:cell.level>=1?`linear-gradient(135deg,${bd.color}28,${bd.color}0A)`:`linear-gradient(135deg,${bd.color}18,${bd.color}06)`;
+                else if(isEntrance) bg="linear-gradient(135deg,rgba(255,217,61,0.18),rgba(255,159,67,0.10))";
+                else if(cell) bg=cell.level>=2?`linear-gradient(135deg,${bd.color}44,${bd.color}18)`:cell.level>=1?`linear-gradient(135deg,${bd.color}38,${bd.color}14)`:`linear-gradient(135deg,${bd.color}28,${bd.color}0E)`;
                 else if(zone) bg=ZONES[zone]?.bg||"#0C0F22";
-                else if(isInFootprint&&selected) bg=hovFootprintValid?"rgba(0,229,160,0.10)":"rgba(255,87,87,0.10)";
-                else bg="#080B18";
+                else if(isInFootprint&&selected) bg=hovFootprintValid?"rgba(0,229,160,0.12)":"rgba(255,87,87,0.12)";
+                else bg="#0C1028";
                 if(isMultiSelected) bg="rgba(255,87,87,0.25)";
 
                 let borderCol="rgba(255,255,255,0.04)";
@@ -4132,7 +4122,7 @@ export default function ParkTycoon(){
                 else if(isPath) borderCol=isFancy?"rgba(212,175,55,0.4)":"rgba(139,115,85,0.3)";
                 else if(isEntrance) borderCol="rgba(255,217,61,0.5)";
                 else if(isolated) borderCol="rgba(255,87,87,0.75)";
-                else if(cell) borderCol=cell.level>=2?bd.color+"88":cell.level>=1?bd.color+"55":bd.color+"44";
+                else if(cell) borderCol=cell.level>=2?bd.color+"AA":cell.level>=1?bd.color+"77":bd.color+"55";
                 else if(isInFootprint&&selected) borderCol=hovFootprintValid?"rgba(0,229,160,0.5)":"rgba(255,87,87,0.5)";
                 else borderCol="rgba(255,255,255,0.04)";
                 if(isMultiSelected) borderCol="rgba(255,87,87,0.8)";
@@ -4149,7 +4139,7 @@ export default function ParkTycoon(){
                     transition:"border-color 0.12s,background 0.12s",
                     minHeight:0,overflow:"hidden",position:"relative",
                     background:isNextBuyable?"rgba(77,159,255,0.04)":bg,
-                    boxShadow:isSel?`0 0 0 2px #FFD93D, 0 0 16px rgba(255,217,61,0.4)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?"0 0 8px rgba(255,87,87,0.3)":isDemolishHov?"0 0 8px rgba(255,87,87,0.4)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 8px rgba(255,159,67,0.3)":isEntrance&&!broken?"0 0 12px rgba(255,217,61,0.2), inset 0 0 12px rgba(255,217,61,0.05)":cell&&!broken&&!isPath?(cell.level>=2?`0 0 10px ${bd.color}66, inset 0 0 10px ${bd.color}22`:cell.level>=1?`0 0 5px ${bd.color}44, inset 0 0 8px ${bd.color}14`:`inset 0 0 8px ${bd.color}08`):"none",
+                    boxShadow:isSel?`0 0 0 2px #FFD93D, 0 0 16px rgba(255,217,61,0.4)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?"0 0 8px rgba(255,87,87,0.3)":isDemolishHov?"0 0 8px rgba(255,87,87,0.4)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 8px rgba(255,159,67,0.3)":isEntrance&&!broken?`0 0 14px rgba(255,217,61,0.3), inset 0 0 14px rgba(255,217,61,0.08)`:cell&&!broken&&!isPath?(cell.level>=2?`0 0 12px ${bd.color}77, inset 0 0 12px ${bd.color}33`:cell.level>=1?`0 0 7px ${bd.color}55, inset 0 0 10px ${bd.color}22`:`0 0 5px ${bd.color}33, inset 0 0 8px ${bd.color}14`):"none",
                     opacity:!owned?0.12:1}}
                   onMouseDown={(e)=>{
                     if(e.button!==0) return;
@@ -4223,9 +4213,11 @@ export default function ParkTycoon(){
                       animation:!broken?({carousel:"carousel-spin 4s linear infinite",fountain:"fountain-wave 1.8s ease-in-out infinite",rollerCoaster:"roller-shake 0.35s ease-in-out infinite"}[cell.type]||undefined):undefined,
                     }}>
                       {hasBuildingIcon(cell.type)
-                        ? getBuildingIcon(cell.type, bd.color, bw>=3?44:bw>=2?36:cell.level>=2?32:28)
-                        : <span style={{fontSize:bw>=3?32:bw>=2?26:cell.level>=2?22:20,lineHeight:1}}>{bd.levelEmoji?.[cell.level]??bd.emoji}</span>}
+                        ? getBuildingIcon(cell.type, bd.color, bw>=3?46:bw>=2?38:cell.level>=2?34:30)
+                        : <span style={{fontSize:bw>=3?34:bw>=2?28:cell.level>=2?24:22,lineHeight:1}}>{bd.levelEmoji?.[cell.level]??bd.emoji}</span>}
                     </div>
+                    {/* 건물 타입 색상 하단 바 */}
+                    {!broken&&<div style={{position:"absolute",bottom:0,left:"10%",right:"10%",height:2,borderRadius:"0 0 1px 1px",background:bd.color,opacity:cell.level>=2?0.85:cell.level>=1?0.65:0.45,zIndex:3}}/>}
                     {cell.level>0&&!broken&&<div style={{position:"absolute",top:2,right:3,fontSize:11,color:"#FFD93D",lineHeight:1.2,fontWeight:900,zIndex:3,textShadow:"0 0 3px #000"}}>{cell.level===2?"★★":"★"}</div>}
                     {bw>=3&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:8,color:bd.color,opacity:0.7,fontWeight:700,zIndex:3,fontFamily:"'Barlow Condensed',monospace",lineHeight:1}}>{bw}×{bh}</div>}
                     {broken&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:bw>=2?18:14,zIndex:3,background:"rgba(0,0,0,0.4)",borderRadius:4}}>🔧</div>}
@@ -4256,6 +4248,9 @@ export default function ParkTycoon(){
                         style={{'--tx':pt.tx,'--ty':pt.ty,background:pt.col,left:'50%',top:'50%',marginLeft:'-3px',marginTop:'-3px'}}/>
                     ))
                   )}
+                  {buildParticles.filter(p=>p.r===r&&p.c===c&&p.label).map(p=>(
+                    <div key={`lbl-${p.id}`} style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",fontSize:10,fontWeight:900,color:"#FFD93D",textShadow:"0 0 6px #000",whiteSpace:"nowrap",zIndex:35,animation:"float-up 0.8s ease-out forwards",pointerEvents:"none"}}>{p.label}</div>
+                  ))}
                 </div>);
               }))}
             </div>
@@ -4408,17 +4403,17 @@ export default function ParkTycoon(){
               ))}
             </div>}
 
-            {tutorialStep>0&&tutorialStep<=10&&screen==="game"&&(
+            {tutorialStep>0&&tutorialStep<=6&&screen==="game"&&(
               <>
                 {/* 배경 오버레이 */}
                 <div style={{position:isMobile?"fixed":"absolute",inset:0,zIndex:isMobile?240:25,pointerEvents:"none",
-                  background:tutorialStep===10?"rgba(0,0,0,0.75)":"rgba(0,0,0,0.38)",borderRadius:isMobile?0:6,transition:"background 0.5s"}}/>
+                  background:tutorialStep===6?"rgba(0,0,0,0.75)":"rgba(0,0,0,0.38)",borderRadius:isMobile?0:6,transition:"background 0.5s"}}/>
                 {/* 단계 완료 flash */}
                 {tutFlash&&<div style={{position:"absolute",inset:0,zIndex:26,pointerEvents:"none",borderRadius:6,
                   background:"rgba(0,229,160,0.20)",animation:"build-flash 0.5s ease-out forwards"}}/>}
 
-                {/* ── 완료 화면 (step 10) ── */}
-                {tutorialStep===10?(
+                {/* ── 완료 화면 (step 6) ── */}
+                {tutorialStep===6?(
                   <div style={{position:isMobile?"fixed":"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
                     background:"linear-gradient(135deg,#0D1535,#080B20)",border:"2px solid #00E5A088",
                     borderRadius:18,padding:isMobile?"20px 20px 16px":"28px 28px 22px",zIndex:isMobile?250:30,
@@ -4429,15 +4424,18 @@ export default function ParkTycoon(){
                     <div style={{fontSize:17,fontWeight:900,color:"#00E5A0",marginBottom:6}}>
                       {lang==="ko"?"튜토리얼 완료!":"Tutorial Complete!"}
                     </div>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 8px",marginBottom:14,textAlign:"left"}}>
-                      {["🎪 입구","🛤️ 통로","🎡 놀이기구","▶ 재생","🧹 직원","💰 재무","📣 마케팅","🎨 구역","🔬 연구"].map(s=>(
-                        <div key={s} style={{fontSize:9,color:"#00E5A0",display:"flex",alignItems:"center",gap:4}}>
-                          <span style={{color:"#00E5A0",fontSize:8}}>✓</span>{s}
+                    <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:14,textAlign:"left"}}>
+                      {(lang==="ko"
+                        ?["🎪 입구 게이트 배치","🛤️ 통로 연결","🎡 놀이기구 건설","▶ 첫 방문객 입장","🧹 직원 고용"]
+                        :["🎪 Placed Entrance","🛤️ Connected Paths","🎡 Built a Ride","▶ First Visitor!","🧹 Hired Staff"]
+                      ).map(s=>(
+                        <div key={s} style={{fontSize:10,color:"#00E5A0",display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{fontSize:12}}>✓</span>{s}
                         </div>
                       ))}
                     </div>
                     <div style={{fontSize:10,color:"#7788BB",lineHeight:1.6,marginBottom:16}}>
-                      {lang==="ko"?"시나리오 모드에서 실제 목표에 도전해보세요! 🏆\n미션 탭에서 달성 과제도 확인하세요.":"Try Scenario mode for real challenges! 🏆\nCheck the Mission tab for objectives."}
+                      {lang==="ko"?"이제 시나리오 모드에서 실전 목표에 도전해보세요! 🏆\n더 많은 기능은 직접 탐험하며 발견하세요.":"Now try Scenario mode for real challenges! 🏆\nExplore the rest — research, zones, marketing — on your own."}
                     </div>
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
                       <button onClick={()=>{try{localStorage.setItem('pt_tut_done','1');}catch{}setTutDone(true);setMoney(m=>m+1000);addLog(lang==="ko"?"🎓 튜토리얼 완료 보너스 +$1,000!":"🎓 Tutorial bonus +$1,000!");setTutorialStep(0);}}
@@ -4453,10 +4451,12 @@ export default function ParkTycoon(){
                     </div>
                   </div>
                 ):(
-                  /* ── 일반 단계 카드 (steps 1-9) ── */
+                  /* ── 일반 단계 카드 (steps 1-5) ── */
                   <div style={{
                     position:isMobile?"fixed":"absolute",
-                    bottom:isMobile?64+tutCardOffsetY:16,
+                    ...(isMobile
+                      ? (bottomSheetOpen ? {top:68} : {bottom:64+tutCardOffsetY})
+                      : {bottom:16}),
                     left:"50%",transform:"translateX(-50%)",
                     background:"linear-gradient(135deg,#0D1535,#080B20)",border:"2px solid #FFD93D88",
                     borderRadius:14,padding:isMobile?"10px 14px":"14px 20px",
@@ -4485,10 +4485,9 @@ export default function ParkTycoon(){
                     <div style={{marginBottom:10}}>
                       {(()=>{
                         const phases=[
-                          {label:lang==="ko"?"🏗️ 기초":"🏗️ Build",steps:[1,2,3],color:"#64B5F6"},
+                          {label:lang==="ko"?"🏗️ 건설":"🏗️ Build",steps:[1,2,3],color:"#64B5F6"},
                           {label:lang==="ko"?"🎪 개장":"🎪 Open",steps:[4],color:"#FFD93D"},
-                          {label:lang==="ko"?"⚙️ 운영":"⚙️ Ops",steps:[5,6,7],color:"#00E5A0"},
-                          {label:lang==="ko"?"📈 성장":"📈 Growth",steps:[8,9],color:"#FF9F43"},
+                          {label:lang==="ko"?"⚙️ 운영":"⚙️ Ops",steps:[5],color:"#00E5A0"},
                         ];
                         const curPhase=phases.find(p=>p.steps.includes(tutorialStep));
                         return(
@@ -4503,71 +4502,55 @@ export default function ParkTycoon(){
                       })()}
                       <div style={{display:"flex",alignItems:"center",gap:5}}>
                         <div style={{display:"flex",gap:3,flex:1}}>
-                          {[1,2,3,4,5,6,7,8,9].map(i=>(
+                          {[1,2,3,4,5].map(i=>(
                             <div key={i} style={{flex:i===tutorialStep?2:1,height:5,borderRadius:99,
                               background:i<tutorialStep?"#00E5A0":i===tutorialStep?"#FFD93D":"#1A2040",
                               transition:"all 0.3s",
                               boxShadow:i===tutorialStep?"0 0 5px #FFD93D":i<tutorialStep?"0 0 3px #00E5A0":"none"}}/>
                           ))}
                         </div>
-                        <span style={{fontSize:9,color:"#7788BB",flexShrink:0}}>{tutorialStep}/9</span>
+                        <span style={{fontSize:9,color:"#7788BB",flexShrink:0}}>{tutorialStep}/5</span>
                       </div>
                     </div>
 
                     {/* 단계 내용 */}
                     {(()=>{
-                      const needsTabVisit=tutorialStep===6||tutorialStep===7;
-                      const canNext=!needsTabVisit||tutTabVisited;
+                      const needsTabVisit=false;
+                      const canNext=true;
 
                       const step4Obj=(()=>{
                         if(speed===0) return {emoji:"▶",
-                          title:lang==="ko"?"[4/9] 시간 시작":"[4/9] Start Time",
+                          title:lang==="ko"?"[4/5] 시간 시작":"[4/5] Start Time",
                           target:lang==="ko"?"↗ 우상단 ▶ 버튼 클릭":"↗ Click ▶ button (top right)",
-                          desc:lang==="ko"?"우상단 ▶ 버튼을 눌러 시간을 시작하세요!\n⏩ 빨리감기, ⚡ 매우 빨리감기도 활용하세요.\n방문객이 들어오면 자동으로 다음 단계로 넘어가요!":"Click ▶ at the top right to start time!\nUse ⏩ Fast or ⚡ Very Fast to speed up.\nWhen visitors arrive, next step starts automatically!"};
+                          desc:lang==="ko"?"우상단 ▶ 버튼을 눌러 시간을 시작하세요!\n⏩ 빨리감기로 속도를 높일 수 있어요.\n방문객이 들어오면 자동으로 다음 단계!":"Click ▶ at the top right to start time!\nUse ⏩ to speed things up.\nVisitors arriving = next step auto-starts!"};
                         if(visitors===0) return {emoji:"⏩",
-                          title:lang==="ko"?"[4/9] 첫 방문객 기다리는 중":"[4/9] Waiting for Visitors",
+                          title:lang==="ko"?"[4/5] 첫 방문객 기다리는 중":"[4/5] Waiting for Visitors",
                           target:lang==="ko"?"↗ ⏩ 버튼으로 빨리감기":"↗ Use ⏩ to fast-forward",
-                          desc:lang==="ko"?"시간이 흐르고 있어요! ⏩ 빨리감기를 써보세요.\n방문객이 입장하는 순간 자동으로 다음 단계!\n수익이 발생하는 경제 사이클을 확인하세요 📈":"Time is running! Try ⏩ to speed things up.\nThe moment a visitor enters, next step starts!\nWatch the economic cycle begin 📈"};
+                          desc:lang==="ko"?"시간이 흐르고 있어요! ⏩ 빨리감기를 써보세요.\n방문객이 입장하는 순간 자동으로 다음 단계!\n수익 사이클이 시작됩니다 📈":"Time is running! Try ⏩ to speed up.\nThe moment a visitor enters, next step starts!\nWatch the revenue cycle begin 📈"};
                         return {emoji:"🎉",
-                          title:lang==="ko"?"[4/9] 방문객 입장!":"[4/9] Visitors Arriving!",
+                          title:lang==="ko"?"[4/5] 방문객 입장!":"[4/5] Visitors Arriving!",
                           target:lang==="ko"?"자동 진행 중…":"Auto-advancing…",
-                          desc:lang==="ko"?"방문객이 들어왔어요! 수익이 발생 중입니다 💰\n잠시 후 자동으로 다음 단계로 넘어갑니다.":"Visitors are here! Revenue is flowing 💰\nNext step will begin in a moment."};
+                          desc:lang==="ko"?"방문객이 들어왔어요! 수익이 발생 중입니다 💰\n잠시 후 자동으로 다음 단계로 넘어갑니다.":"Visitors are here! Revenue is flowing 💰\nNext step begins shortly."};
                       })();
 
                       const allSteps=[
                         /* 1 */ {emoji:"🎪",
-                          title:lang==="ko"?"[1/9] 입구 게이트 배치":"[1/9] Place Entrance Gate",
-                          target:lang==="ko"?"← 건설 탭 선택 후 배치":"← Select in Build tab, then place",
+                          title:lang==="ko"?"[1/5] 입구 게이트 배치":"[1/5] Place Entrance Gate",
+                          target:lang==="ko"?"← 건설 탭 선택 후 배치":"← Build tab → place on grid",
                           desc:lang==="ko"?"🎪 입구 게이트를 선택해 노란 칸에 배치하세요.\n입구가 없으면 방문객이 들어올 수 없어요!":"Select 🎪 Entrance Gate and click a highlighted cell.\nNo entrance = no visitors!"},
                         /* 2 */ {emoji:"🛤️",
-                          title:lang==="ko"?"[2/9] 통로 연결":"[2/9] Connect with Paths",
+                          title:lang==="ko"?"[2/5] 통로 연결":"[2/5] Connect with Paths",
                           target:lang==="ko"?"← 건설 탭 → 통로 선택":"← Build tab → select Path",
-                          desc:lang==="ko"?"입구 옆 노란 칸에 통로를 놓으세요.\n통로 없이는 방문객이 놀이기구에 못 가요.\n여러 개 연속으로 배치하면 더 좋아요!":"Place paths next to the entrance on highlighted cells.\nVisitors need paths to reach rides.\nPlace several in a row!"},
+                          desc:lang==="ko"?"입구 옆 칸에 통로를 놓으세요.\n통로 없이는 방문객이 놀이기구에 못 가요.\n드래그하면 여러 개를 한 번에 놓을 수 있어요!":"Place paths next to the entrance.\nVisitors need paths to reach rides.\nDrag to place multiple at once!"},
                         /* 3 */ {emoji:"🎡",
-                          title:lang==="ko"?"[3/9] 놀이기구 배치":"[3/9] Add Rides",
+                          title:lang==="ko"?"[3/5] 놀이기구 배치":"[3/5] Add a Ride",
                           target:lang==="ko"?"← 건설 탭 → 관람차/회전목마":"← Build tab → Ferris Wheel / Carousel",
-                          desc:lang==="ko"?"통로 옆에 놀이기구를 배치하세요.\n관람차·회전목마부터 시작하고,\n다양한 종류일수록 방문객이 많아져요!":"Place a ride next to a path.\nStart with the Ferris Wheel or Carousel.\nVariety attracts more visitor types!"},
+                          desc:lang==="ko"?"통로 옆에 놀이기구를 배치하세요.\n관람차·회전목마부터 시작해보세요.\n다양한 종류일수록 더 많은 방문객이 와요!":"Place a ride next to a path.\nStart with the Ferris Wheel or Carousel.\nVariety attracts more visitor types!"},
                         /* 4 */ step4Obj,
                         /* 5 */ {emoji:"🧹",
-                          title:lang==="ko"?"[5/9] 직원 고용":"[5/9] Hire Staff",
+                          title:lang==="ko"?"[5/5] 직원 고용":"[5/5] Hire Staff",
                           target:lang==="ko"?"← ⚙️ 경영 탭 클릭":"← Click ⚙️ Manage tab",
-                          desc:lang==="ko"?"왼쪽 ⚙️ 경영 탭에서 직원을 고용하세요.\n청소부: 청결도 유지 / 정비공: 놀이기구 수리\n직원 없이는 만족도가 급격히 떨어져요!":"Click ⚙️ Manage tab → Hire Staff.\nJanitor: keeps park clean.\nMechanic: fixes broken rides.\nWithout staff, satisfaction drops fast!"},
-                        /* 6 */ {emoji:"💰",
-                          title:lang==="ko"?"[6/9] 입장료 조정":"[6/9] Adjust Admission Fee",
-                          target:lang==="ko"?"← ⚙️ 경영 탭 → 입장료 ＋/－":"← Manage tab → Admission ＋ or －",
-                          desc:lang==="ko"?"⚙️ 경영 탭 상단 입장료 ＋/－ 버튼을 눌러보세요!\n너무 높으면 방문객이 줄고, 적절하면 수익이 올라요.\n현재 입장료: $"+fee+" — 올리거나 내려보세요.":"In ⚙️ Manage tab, press ＋ or － on admission fee!\nToo high → fewer visitors. Just right → more profit.\nCurrent fee: $"+fee+" — try adjusting it."},
-                        /* 7 */ {emoji:"📣",
-                          title:lang==="ko"?"[7/9] 광고 캠페인 실행":"[7/9] Launch Ad Campaign",
-                          target:lang==="ko"?"← 📣 마케팅 탭 → 실행 클릭":"← Marketing tab → click 실행",
-                          desc:lang==="ko"?"📣 마케팅 탭에서 광고 캠페인을 실행하세요!\n가족·어드벤처·VIP 등 타겟 광고로 방문객을 늘려요.\n'실행' 버튼을 클릭하면 즉시 효과가 나타납니다!":"In 📣 Marketing tab, launch an ad campaign!\nTarget families, thrill-seekers, or VIPs.\nClick '실행' and watch visitor numbers rise!"},
-                        /* 8 */ {emoji:"🎨",
-                          title:lang==="ko"?"[8/9] 구역(Zone) 지정":"[8/9] Paint Zones",
-                          target:lang==="ko"?"← 건설 탭 → 🎨 구역 클릭":"← Build tab → click 🎨 Zone",
-                          desc:lang==="ko"?"건설 탭 → 🎨 구역을 선택 후 노란 칸에 칠하세요.\n🎠 놀이 / 🍔 음식 / 🌿 자연 등 테마 구역을\n3칸 이상 연결하면 보너스 효과가 발동해요!":"Build tab → 🎨 Zone, then paint highlighted cells.\nTheme areas: 🎠 Fun, 🍔 Food, 🌿 Nature.\n3+ connected cells activate a bonus!"},
-                        /* 9 */ {emoji:"🔬",
-                          title:lang==="ko"?"[9/9] 연구 탭 탐색":"[9/9] Explore Research",
-                          target:lang==="ko"?"← 🔬 연구 탭 클릭":"← Click 🔬 Research tab",
-                          desc:lang==="ko"?"🔬 연구 탭에서 업그레이드 항목들을 살펴보세요!\n놀이기구 강화, 비용 절감, VIP 언락 등 다양해요.\n샌드박스에서는 모두 미리 해금되어 있어요 🎉":"Check out upgrades in the 🔬 Research tab!\nBoost rides, cut costs, unlock VIPs, and more.\nIn sandbox mode, everything is pre-unlocked 🎉"},
+                          desc:lang==="ko"?"⚙️ 경영 탭에서 직원을 고용하세요.\n🧹 청소부: 청결도 유지\n🔧 정비공: 놀이기구 수리\n직원 없이는 만족도가 떨어져요!":"⚙️ Manage tab → Hire Staff.\n🧹 Janitor keeps the park clean.\n🔧 Mechanic fixes broken rides.\nNo staff = dropping satisfaction!"},
                       ];
 
                       const steps=allSteps[Math.min(tutorialStep-1, allSteps.length-1)];
@@ -4604,7 +4587,7 @@ export default function ParkTycoon(){
                             </button>
                             <button
                               disabled={!canNext}
-                              onClick={()=>{if(canNext) setTutorialStep(s=>Math.min(s+1,10));}}
+                              onClick={()=>{if(canNext) setTutorialStep(s=>Math.min(s+1,6));}}
                               style={{background:canNext?"rgba(255,217,61,0.15)":"rgba(255,255,255,0.04)",
                                 border:`1px solid ${canNext?"rgba(255,217,61,0.5)":"rgba(255,255,255,0.12)"}`,
                                 color:canNext?"#FFD93D":"#3A4A6A",borderRadius:8,padding:"5px 16px",
