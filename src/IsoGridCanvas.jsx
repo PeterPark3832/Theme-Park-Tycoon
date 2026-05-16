@@ -21,6 +21,25 @@ import {
 import { GR, GC, B, ZONES } from './gameData.js';
 import { getSprite } from './spriteLoader.js';
 
+// ── Tile texture cache ───────────────────────────────────────────────────────
+
+const TILE_TEX = {};
+function loadTileTex(key, path) {
+  if (TILE_TEX[key]) return;
+  const img = new Image();
+  img.src = path;
+  TILE_TEX[key] = img;
+}
+// Pre-load all tile textures
+loadTileTex('empty',      '/sprites/ground_empty.jpg');
+loadTileTex('owned',      '/sprites/ground_owned.jpg');
+loadTileTex('path',       '/sprites/ground_path.jpg');
+loadTileTex('pathFancy',  '/sprites/ground_path_fancy.jpg');
+loadTileTex('zone_thrill','/sprites/zone_thrill.jpg');
+loadTileTex('zone_family','/sprites/zone_family.jpg');
+loadTileTex('zone_food',  '/sprites/zone_food.jpg');
+loadTileTex('zone_nature','/sprites/zone_nature.jpg');
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const SEG_COLORS = {
@@ -65,18 +84,31 @@ function shade(hex, f) {
 
 // ── Draw primitives ──────────────────────────────────────────────────────────
 
-function drawDiamond(ctx, row, col, cam, fill, stroke, lineW = 0.5) {
-  const { x, y } = isoToScreen(row, col, cam);
-  const hw = (TILE_W / 2) * cam.zoom;
-  const hh = (TILE_H / 2) * cam.zoom;
+function diamondPath(ctx, x, hw, y, hh) {
   ctx.beginPath();
   ctx.moveTo(x,      y);
   ctx.lineTo(x + hw, y + hh);
   ctx.lineTo(x,      y + 2 * hh);
   ctx.lineTo(x - hw, y + hh);
   ctx.closePath();
-  ctx.fillStyle = fill;
-  ctx.fill();
+}
+
+function drawDiamond(ctx, row, col, cam, fill, stroke, lineW = 0.5, texKey = null) {
+  const { x, y } = isoToScreen(row, col, cam);
+  const hw = (TILE_W / 2) * cam.zoom;
+  const hh = (TILE_H / 2) * cam.zoom;
+  diamondPath(ctx, x, hw, y, hh);
+  const tex = texKey && TILE_TEX[texKey];
+  if (tex?.complete && tex.naturalWidth > 0) {
+    ctx.save();
+    ctx.clip();
+    ctx.drawImage(tex, x - hw, y, hw * 2, hh * 2);
+    ctx.restore();
+    diamondPath(ctx, x, hw, y, hh);
+  } else {
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineW; ctx.stroke(); }
 }
 
@@ -280,13 +312,19 @@ export default function IsoGridCanvas({
     for (const { row, col, cell, zone, owned } of items) {
       const isPath  = cell?.type === '_path' || cell?.type === '_pathFancy';
       const isFancy = cell?.type === '_pathFancy';
-      const g = !owned
-        ? GROUND.empty
-        : isPath ? (isFancy ? GROUND.pathFancy : GROUND.path)
-        : GROUND.owned;
-      drawDiamond(ctx, row, col, cam, g.fill, g.stroke, 0.5);
-      if (zone && ZONE_TINT[zone]) {
-        drawDiamond(ctx, row, col, cam, ZONE_TINT[zone], null);
+      let texKey, g;
+      if (!owned)        { texKey = 'empty';     g = GROUND.empty; }
+      else if (isFancy)  { texKey = 'pathFancy';  g = GROUND.pathFancy; }
+      else if (isPath)   { texKey = 'path';       g = GROUND.path; }
+      else               { texKey = 'owned';      g = GROUND.owned; }
+      drawDiamond(ctx, row, col, cam, g.fill, g.stroke, 0.5, texKey);
+      if (zone) {
+        const zoneTex = `zone_${zone}`;
+        if (TILE_TEX[zoneTex]) {
+          drawDiamond(ctx, row, col, cam, ZONE_TINT[zone] || 'rgba(255,255,255,0.15)', null, 0, zoneTex);
+        } else if (ZONE_TINT[zone]) {
+          drawDiamond(ctx, row, col, cam, ZONE_TINT[zone], null);
+        }
       }
     }
 
