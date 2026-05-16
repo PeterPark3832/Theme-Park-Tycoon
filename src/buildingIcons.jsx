@@ -616,6 +616,129 @@ I.parkSign = (c, s) => (
 );
 
 /* ═══════════════════════════════
+   🆕 PHASE 4 BUILDINGS
+═══════════════════════════════ */
+
+// 원형극장 — 반원형 객석 + 무대
+I.amphitheater = (c, s) => (
+  <svg viewBox="0 0 24 24" width={s} height={s} fill="none">
+    {/* 무대 */}
+    <rect x="4" y="19" width="16" height="3.5" rx="0.8" fill={c}/>
+    <rect x="2" y="21" width="20" height="2" rx="0.5" fill={c} opacity="0.6"/>
+    {/* 공연자 */}
+    <circle cx="12" cy="18" r="1.8" fill={c}/>
+    {/* 객석 호 (3단) */}
+    <path d="M5 18.5 Q12 15 19 18.5" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+    <path d="M3 15.5 Q12 10.5 21 15.5" stroke={c} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.8"/>
+    <path d="M1.5 12 Q12 5.5 22.5 12" stroke={c} strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.6"/>
+    {/* 관객 점 */}
+    {[[7,18],[12,17.5],[17,18],[5.5,15],[12,14],[18.5,15]].map(([x,y],i)=>(
+      <circle key={i} cx={x} cy={y} r="0.9" fill={c} opacity={0.5+i*0.05}/>
+    ))}
+    {/* 기둥 */}
+    <rect x="4.5" y="13" width="1.2" height="6" rx="0.4" fill={c} opacity="0.45"/>
+    <rect x="18.3" y="13" width="1.2" height="6" rx="0.4" fill={c} opacity="0.45"/>
+    {/* 조명 효과 */}
+    <path d="M10 2 L11 8" stroke={c} strokeWidth="0.8" opacity="0.3"/>
+    <path d="M14 2 L13 8" stroke={c} strokeWidth="0.8" opacity="0.3"/>
+  </svg>
+);
+
+// 커피숍 — 컵 + 스팀
+I.coffeeCafe = (c, s) => (
+  <svg viewBox="0 0 24 24" width={s} height={s} fill="none">
+    {/* 스팀 */}
+    <path d="M8 8 Q9.5 6 8 4"  stroke={c} strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.55"/>
+    <path d="M12 7 Q13.5 5 12 3" stroke={c} strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.7"/>
+    <path d="M16 8 Q17.5 6 16 4" stroke={c} strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.55"/>
+    {/* 컵 몸통 */}
+    <path d="M5 10 L6.5 21 L17.5 21 L19 10 Z" fill={c} opacity="0.8"/>
+    {/* 커피 표면 */}
+    <ellipse cx="12" cy="10" rx="7" ry="2" fill={c}/>
+    <ellipse cx="12" cy="10" rx="4.5" ry="1.2" fill="white" opacity="0.12"/>
+    {/* 컵 장식 띠 */}
+    <path d="M5.8 14.5 L18.2 14.5" stroke="white" strokeWidth="0.7" opacity="0.15"/>
+    {/* 핸들 */}
+    <path d="M19 12 C22.5 12 22.5 19 19 19" stroke={c} strokeWidth="2.2" fill="none" strokeLinecap="round"/>
+    {/* 받침대 */}
+    <ellipse cx="12" cy="21.5" rx="8.5" ry="1.5" fill={c} opacity="0.35"/>
+  </svg>
+);
+
+// 포토부스 — 카메라 + 사진 스트립
+I.photoBooth = (c, s) => (
+  <svg viewBox="0 0 24 24" width={s} height={s} fill="none">
+    {/* 부스 몸체 */}
+    <rect x="4" y="5" width="14" height="14" rx="2" fill={c} opacity="0.7"/>
+    {/* 부스 지붕 */}
+    <rect x="3" y="3" width="16" height="3.5" rx="1.5" fill={c}/>
+    {/* 렌즈 외부링 */}
+    <circle cx="12" cy="12" r="4.5" stroke={c} strokeWidth="2" fill={c+"18"}/>
+    {/* 렌즈 내부 */}
+    <circle cx="12" cy="12" r="2.8" fill={c} opacity="0.9"/>
+    <circle cx="12" cy="12" r="1.4" fill="white" opacity="0.2"/>
+    <circle cx="10.8" cy="10.8" r="0.7" fill="white" opacity="0.4"/>
+    {/* 플래시 */}
+    <polygon points="16.5,4.5 18.5,6 16.5,7.5 17.5,6" fill={c} opacity="0.9"/>
+    {/* 사진 스트립 (하단) */}
+    {[0,1,2].map(i=>(
+      <rect key={i} x={5+i*5} y="20" width="4" height="3" rx="0.5" fill={c} opacity={0.7-i*0.15}/>
+    ))}
+    {/* 셔터 버튼 */}
+    <circle cx="6.5" cy="12" r="1.2" fill={c} opacity="0.85"/>
+    <circle cx="6.5" cy="12" r="0.5" fill="white" opacity="0.4"/>
+  </svg>
+);
+
+// 응급처치소 — 십자가 + 의료 건물
+I.firstAid = (c, s) => (
+  <svg viewBox="0 0 24 24" width={s} height={s} fill="none">
+    {/* 건물 */}
+    <rect x="3" y="10" width="18" height="13" rx="1.2" fill={c} opacity="0.5" stroke={c} strokeWidth="1.3"/>
+    {/* 지붕 삼각형 */}
+    <polygon points="12,2 1,11 23,11" fill={c} opacity="0.8"/>
+    {/* 십자가 */}
+    <rect x="9.5" y="14" width="5" height="1.8" rx="0.5" fill="white" opacity="0.85"/>
+    <rect x="10.6" y="12.5" width="2.8" height="5.5" rx="0.5" fill="white" opacity="0.85"/>
+    {/* 문 */}
+    <rect x="10.5" y="18.5" width="3" height="4.5" rx="0.5" fill={c} opacity="0.8"/>
+    {/* 창문 */}
+    <rect x="5" y="14" width="3" height="3" rx="0.5" fill={c} opacity="0.7"/>
+    <rect x="16" y="14" width="3" height="3" rx="0.5" fill={c} opacity="0.7"/>
+    {/* 빛나는 십자가 후광 */}
+    <circle cx="12" cy="15.5" r="4" fill={c} opacity="0.08"/>
+  </svg>
+);
+
+// 어린이 놀이터 — 미끄럼틀 + 그네
+I.kidsPlayground = (c, s) => (
+  <svg viewBox="0 0 24 24" width={s} height={s} fill="none">
+    {/* 그네 A프레임 */}
+    <line x1="1.5" y1="21" x2="8"   y2="5"  stroke={c} strokeWidth="1.8" strokeLinecap="round"/>
+    <line x1="14.5" y1="21" x2="8"  y2="5"  stroke={c} strokeWidth="1.8" strokeLinecap="round"/>
+    {/* 그네 상단 바 */}
+    <line x1="1.5" y1="21" x2="14.5" y2="21" stroke={c} strokeWidth="1.2" opacity="0.4"/>
+    {/* 그네 줄 */}
+    <line x1="5"  y1="5.5" x2="5.5"  y2="14" stroke={c} strokeWidth="1" opacity="0.7"/>
+    <line x1="11" y1="5.5" x2="10.5" y2="14" stroke={c} strokeWidth="1" opacity="0.7"/>
+    {/* 그네 시트 */}
+    <rect x="4.5" y="14" width="7" height="2" rx="1" fill={c}/>
+    {/* 미끄럼틀 플랫폼 */}
+    <rect x="16" y="7" width="5" height="2" rx="0.8" fill={c}/>
+    {/* 미끄럼틀 계단 기둥 */}
+    <rect x="20" y="9" width="1.5" height="12" rx="0.5" fill={c} opacity="0.6"/>
+    {/* 미끄럼틀 */}
+    <path d="M16 9 L17.5 21" stroke={c} strokeWidth="2.5" strokeLinecap="round"/>
+    {/* 미끄럼틀 가드 */}
+    <line x1="15.5" y1="8" x2="16.5" y2="8" stroke={c} strokeWidth="1.5" opacity="0.6"/>
+    {/* 바닥 */}
+    <line x1="0.5" y1="22" x2="23.5" y2="22" stroke={c} strokeWidth="1.2" opacity="0.35"/>
+    {/* 어린이 */}
+    <circle cx="8" cy="12" r="1.5" fill={c} opacity="0.8"/>
+  </svg>
+);
+
+/* ═══════════════════════════════
    Export
 ═══════════════════════════════ */
 
