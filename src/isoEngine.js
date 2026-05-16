@@ -80,6 +80,7 @@ export function clampCameraPan(cam, canvasW, canvasH, margin = 120) {
   const gridPixelW = (GR + GC) * (TILE_W / 2) * cam.zoom;
   const gridPixelH = (GR + GC) * (TILE_H / 2) * cam.zoom;
   return {
+    ...cam,
     panX: Math.max(-(gridPixelW - margin), Math.min(gridPixelW - margin, cam.panX)),
     panY: Math.max(-(gridPixelH - margin), Math.min(gridPixelH - margin, cam.panY)),
   };
