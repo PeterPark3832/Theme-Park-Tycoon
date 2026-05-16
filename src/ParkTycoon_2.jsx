@@ -374,6 +374,7 @@ export default function ParkTycoon(){
   const [hof,setHof]=useState(()=>{try{return JSON.parse(localStorage.getItem('pt_hof')||'{}');}catch{return{};}});
   const [speedrunRecords,setSpeedrunRecords]=useState(()=>{try{return JSON.parse(localStorage.getItem('pt_speedrun')||'{}');}catch{return{};}});
   const [saveQuotaWarning,setSaveQuotaWarning]=useState(false);
+  const [pendingBuild,setPendingBuild]=useState(null); // {r,c,selected,bd} for confirm
   const [showFtueModal,setShowFtueModal]=useState(false);
   const prevEarnedMedalsLenRef=useRef(0);
   const prevStarsRef=useRef(0);
@@ -395,8 +396,9 @@ export default function ParkTycoon(){
     activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,
     activeDailyChallenge,dailyChallengeHistory,profitStreakDays,startPerk,weeklyChallengeMod,
     lifetimeRP,weeklyBadges,
+    dotSnapshot:dots.map(d=>({r:d.r,c:d.c,seg:d.segType})),
     meta:{day,money,stars:calcParkRating(grid,zoneGrid,calcStats(grid,zoneGrid,hired,rb),sat,clean).stars,mode:gameMode,scenario:currentScenario,savedAt:Date.now()},
-  }),[grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,scenarioTimeLimit,rb,staffLevels,rivals,pressReviews,visitorRatings,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,activeDailyChallenge,dailyChallengeHistory,profitStreakDays,startPerk,weeklyChallengeMod,lifetimeRP,weeklyBadges]);
+  }),[grid,zoneGrid,ownedGrid,parcels,money,day,visitors,sat,clean,fee,hired,totalRev,totalVis,loans,campaigns,passOn,passPrice,passHolders,prestigeBonus,vipCount,researched,researchPoints,activeMissions,completedMissions,ridePrices,shopMults,pricingMode,dailyHistory,gameMode,currentScenario,difficulty,scenarioTimeLimit,rb,staffLevels,rivals,pressReviews,visitorRatings,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,activeDailyChallenge,dailyChallengeHistory,profitStreakDays,startPerk,weeklyChallengeMod,lifetimeRP,weeklyBadges,dots]);
 
   const saveToSlot=useCallback((slotIdx)=>{
     const state=getFullState();
@@ -525,6 +527,13 @@ export default function ParkTycoon(){
     if(slotData.weeklyBadges) setWeeklyBadges(slotData.weeklyBadges);
     setScenarioResult(null);
     setSpeed(0);
+    if(slotData.dotSnapshot?.length){
+      setDots(prev=>prev.map((d,i)=>{
+        const snap=slotData.dotSnapshot[i];
+        if(!snap) return d;
+        return{...d,r:snap.r,c:snap.c,state:'walking',prevR:null,prevC:null};
+      }));
+    }
     setScreen("game");
   },[]);
 
@@ -1240,6 +1249,7 @@ export default function ParkTycoon(){
           if(earnedMedalsNow.length>0){
             const best=earnedMedalsNow[earnedMedalsNow.length-1];
             setScenarioResult({medal:best.medal,medalId:best.id,scenario:cs,day:day+1});
+            if(ref.current.soundOn) playSound("fanfare");
             setMedalFlash(best.medal);
             setTimeout(()=>setMedalFlash(null),3500);
             setSpeed(0);
@@ -1459,7 +1469,8 @@ export default function ParkTycoon(){
             const labels={100:{ko:"🎉 방문객 100명 달성!",en:"🎉 100 Visitors reached!"},500:{ko:"🎊 방문객 500명 돌파!",en:"🎊 500 Visitors milestone!"},1000:{ko:"🏆 방문객 1,000명! 레전드의 시작!",en:"🏆 1,000 Visitors! You're legendary!"},5000:{ko:"👑 방문객 5,000명! 세계 최고 파크!",en:"👑 5,000 Visitors! World-class park!"},10000:{ko:"🌟 방문객 10,000명! 초전설!",en:"🌟 10,000 Visitors! Ultra legend!"}};
             const lbl=labels[m]?.[lang]||labels[m]?.ko||`🎉 ${m} Visitors!`;
             addLog(lbl);
-            setAchievementFlash({msg:lbl,color:"#FFD93D"});
+            setAchievementFlash({col:"#FFD93D",emoji:"🎉",name:{ko:lbl,en:lbl},desc:{ko:"",en:""}});
+            setTimeout(()=>setAchievementFlash(null),4000);
             setShowFireworks(true);
             setTimeout(()=>setShowFireworks(false),3000);
           }
@@ -1504,6 +1515,10 @@ export default function ParkTycoon(){
         setSpeed(0);
         addLog(lang==="ko" ? "💸 파산! 5일 연속 적자로 공원이 폐쇄됐습니다." : "💸 Bankrupt! Park closed due to sustained losses.");
         return;
+      }
+      if (newBkDays >= 3 && ref.current.speed > 0) {
+        setSpeed(0);
+        addLog(lang==="ko" ? `⚠️ 파산 경고 (${newBkDays}/5일 연속 적자) — 게임이 일시정지됐습니다` : `⚠️ Bankruptcy warning (${newBkDays}/5 days) — game paused`);
       }
 
       // Revenue floating popup every 3 ticks
@@ -1586,7 +1601,7 @@ export default function ParkTycoon(){
   const lastAutoSaveDay=useRef(-1);
   useEffect(()=>{
     if(screen!=="game"||day<2) return;
-    if(day%2===0&&lastAutoSaveDay.current!==day){
+    if(lastAutoSaveDay.current!==day){
       lastAutoSaveDay.current=day;
       saveToSlot(0);
     }
@@ -2048,6 +2063,7 @@ export default function ParkTycoon(){
 
     const bd=B[selected];
     if(m<bd.baseCost){addLog(t("log.noMoney"));return;}
+    if(bd.baseCost>=10000&&!skipPreview){setPendingBuild({r,c,selected,bd});return;}
     if(bd.locked&&!researched.includes("r4")&&gameMode!=="sandbox"){addLog(t("log.locked"));return;}
     if(selected==="entrance"){for(const row of g) for(const cell of row) if(cell?.type==="entrance"){addLog(t("log.oneEntrance"));return;}}
 
@@ -2453,7 +2469,7 @@ export default function ParkTycoon(){
   if(screen==="menu"){
     const slots=saveSlots;
     return(<>
-      <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%, #0D1535 0%, #020510 60%)",color:"var(--text-primary)",height:"100%",overflowY:"auto",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:20}}>
+      <div className="screen-enter" style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%, #0D1535 0%, #020510 60%)",color:"var(--text-primary)",height:"100%",overflowY:"auto",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:20}}>
         {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} bgMusicOn={bgMusicOn} setBgMusicOn={setBgMusicOn} bgVolume={bgVolume} setBgVolume={setBgVolume} onClose={()=>setShowSettings(false)} lang={lang}/>}
         <button onClick={()=>setShowSettings(true)} style={{position:"fixed",top:12,right:12,background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.3)",color:"#8899CC",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:16,fontFamily:"inherit",transition:"all 0.15s",zIndex:1000}} title={lang==="ko"?"설정":"Settings"}>⚙️</button>
         <div style={{width:"100%",maxWidth:680,margin:"auto"}}>
@@ -5736,6 +5752,20 @@ export default function ParkTycoon(){
           </div>
         </div>
       )}
+      {pendingBuild&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9998,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setPendingBuild(null)}>
+          <div role="dialog" aria-modal={true} style={{background:"#0C1128",border:"2px solid rgba(255,217,61,0.5)",borderRadius:14,padding:"24px 28px",maxWidth:340,boxShadow:"0 8px 40px rgba(0,0,0,0.8)",textAlign:"center",fontFamily:"'Rajdhani','Barlow Condensed',sans-serif"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:32,marginBottom:8}}>{pendingBuild.bd.emoji||"🏗️"}</div>
+            <div style={{fontSize:15,fontWeight:800,color:"#FFD93D",letterSpacing:1,marginBottom:6}}>{lang==="ko"?"대규모 건설 확인":"Confirm Large Purchase"}</div>
+            <div style={{fontSize:12,color:"#8899BB",marginBottom:4}}>{lang==="ko"?`${pendingBuild.bd.emoji||""} 이 건물을 건설하시겠습니까?`:`Build this structure?`}</div>
+            <div style={{fontSize:18,fontWeight:900,color:"#FF5757",marginBottom:16}}>${pendingBuild.bd.baseCost.toLocaleString()}</div>
+            <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+              <button style={{padding:"8px 20px",background:"rgba(255,87,87,0.12)",border:"2px solid rgba(255,87,87,0.4)",color:"#FF5757",borderRadius:8,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700}} onClick={()=>setPendingBuild(null)}>{lang==="ko"?"취소":"Cancel"}</button>
+              <button style={{padding:"8px 20px",background:"rgba(0,229,160,0.12)",border:"2px solid rgba(0,229,160,0.5)",color:"#00E5A0",borderRadius:8,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700}} onClick={()=>{const{r,c}=pendingBuild;setPendingBuild(null);handleGridClick(r,c,true);}}>{lang==="ko"?"건설":"Build"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {saveConfirm&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200}}>
           <div style={{background:"#0D1025",border:"2px solid rgba(255,217,61,0.4)",borderRadius:14,padding:"24px 32px",textAlign:"center",minWidth:260}}>
@@ -5907,10 +5937,23 @@ export default function ParkTycoon(){
                 </div>
               </>
             )}
-            <div style={{display:"flex",gap:10,justifyContent:"center"}}>
-              <button style={{background:"rgba(255,217,61,0.12)",border:"2px solid rgba(255,217,61,0.5)",color:"#FFD93D",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(0);setScreen("menu");}}>{t("res.backMenu")}</button>
-              <button style={{background:"rgba(0,229,160,0.12)",border:"2px solid rgba(0,229,160,0.4)",color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(1);}}>{t("res.continue")}</button>
-            </div>
+            {(()=>{
+              const allScenarios=SCENARIOS.filter(s=>s.id!=="s_sandbox");
+              const curIdx=allScenarios.findIndex(s=>s.id===scenarioResult?.scenario);
+              const nextScenario=curIdx>=0&&curIdx<allScenarios.length-1?allScenarios[curIdx+1]:null;
+              return(
+                <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                  <button style={{background:"rgba(255,217,61,0.12)",border:"2px solid rgba(255,217,61,0.5)",color:"#FFD93D",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(0);setScreen("menu");}}>{t("res.backMenu")}</button>
+                  {scenarioResult?.medal&&nextScenario&&(
+                    <button style={{background:"linear-gradient(135deg,rgba(0,229,160,0.2),rgba(77,159,255,0.1))",border:"2px solid rgba(0,229,160,0.7)",color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:800,fontFamily:"inherit",transition:"all 0.15s",letterSpacing:1}}
+                      onClick={()=>{setScenarioResult(null);startGame("campaign",nextScenario.id,difficulty,startPerk,null);}}>
+                      ▶ {lang==="ko"?`다음 시나리오: ${nextScenario.name?.ko||nextScenario.id}`:`Next: ${nextScenario.name?.en||nextScenario.id}`}
+                    </button>
+                  )}
+                  <button style={{background:"rgba(0,229,160,0.06)",border:"1px solid rgba(0,229,160,0.3)",color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(1);}}>{t("res.continue")}</button>
+                </div>
+              );
+            })()}
           </div>
         </div>
         );
