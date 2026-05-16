@@ -14,7 +14,7 @@
 import { useRef, useEffect } from 'react';
 import {
   isoToScreen, pickCell, inBounds,
-  getBuildingDepth, getDotScreenPos,
+  getBuildingDepth, getDotScreenPos, getBuildingAnchorScreen,
   calcCameraOrigin, zoomAtPoint, clampCameraPan,
   TILE_W, TILE_H,
 } from './isoEngine.js';
@@ -332,8 +332,25 @@ export default function IsoGridCanvas({
 
       const sprite = getSprite(cell.type, level);
       if (sprite) {
-        // Phase 2: will compute proper anchor; placeholder fallback
-        drawBuildingBox(ctx, row, col, size, bd.color || '#4D9FFF', level, !!cell.broken, cam);
+        // Anchor at south (front-bottom) corner of footprint
+        const anchor = getBuildingAnchorScreen(row, col, size, cam);
+        // Scale sprite so its width fits the footprint's screen-space diagonal
+        const fW = (size.w + size.h) * (TILE_W / 2) * cam.zoom;
+        const sW = fW * 2.0; // 2× footprint width gives natural visual height
+        const sH = (sprite.naturalHeight / sprite.naturalWidth) * sW;
+        ctx.drawImage(sprite, anchor.x - sW / 2, anchor.y - sH, sW, sH);
+        // Broken overlay
+        if (cell.broken) {
+          ctx.save();
+          ctx.globalAlpha = 0.45;
+          ctx.fillStyle = '#FF4757';
+          ctx.fillRect(anchor.x - sW / 2, anchor.y - sH, sW, sH);
+          ctx.restore();
+          const mx = anchor.x, my = anchor.y - sH * 0.55;
+          ctx.font = `${Math.max(12, 16 * cam.zoom)}px sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('🔧', mx, my);
+        }
       } else {
         drawBuildingBox(ctx, row, col, size, bd.color || '#4D9FFF', level, !!cell.broken, cam);
       }
