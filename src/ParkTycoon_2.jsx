@@ -287,6 +287,7 @@ export default function ParkTycoon(){
   const prevAcademyDisasterRef=useRef(null);
   const academyDisasterTriggeredRef=useRef(false);
   const academyPrevBrokenRef=useRef(0);
+  const stepJustAdvancedRef=useRef(false);
 
   // UI-only states (not saved)
   const [bp,setBp]=useState(()=>window.innerWidth<600?"mobile":window.innerWidth<1024?"tablet":"pc");
@@ -675,6 +676,7 @@ export default function ParkTycoon(){
     academyDisasterResolvedRef.current=false;
     prevAcademyDisasterRef.current=null;
     academyDisasterTriggeredRef.current=false;
+    stepJustAdvancedRef.current=false;
     academyPrevBrokenRef.current=mode==="tutorial"?1:0; // 1 pre-broken carousel
     setDots(mkDots());
     setVisParticles([]);
@@ -837,6 +839,8 @@ export default function ParkTycoon(){
   // Main academy action gate: check current step, advance or graduate
   useEffect(()=>{
     if(academyStep===0||academyStep>ACADEMY_STEPS.length||screen!=="game") return;
+    // Skip one render after advancing so the new step card is shown before its check is evaluated
+    if(stepJustAdvancedRef.current){stepJustAdvancedRef.current=false;return;}
     const step=ACADEMY_STEPS[academyStep-1];
     const flat=grid.flat();
     const pathCount=flat.filter(c=>c?.type==="_path"||c?.type==="_pathFancy").length;
@@ -853,6 +857,7 @@ export default function ParkTycoon(){
     };
     if(!step.check(s)) return;
     if(academyStep<ACADEMY_STEPS.length){
+      stepJustAdvancedRef.current=true;
       setAcademyStep(prev=>prev+1);
     } else {
       // Graduation!
