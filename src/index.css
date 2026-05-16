@@ -75,12 +75,19 @@ html {
 }
 
 body {
-  font-family: 'Rajdhani', 'Nunito', 'Arial Rounded MT Bold', sans-serif;
+  font-family: 'Rajdhani', 'Noto Sans KR', 'Nunito', 'Arial Rounded MT Bold', sans-serif;
   background: var(--bg-deep);
   margin: 0;
   height: 100%;
   overflow: hidden;
 }
+/* 색각 지원 모드 */
+body.colorblind-mode {
+  filter: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'><filter id='cb'><feColorMatrix type='matrix' values='0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0'/></filter></svg>#cb");
+}
+/* 색각 모드에서 핵심 상태는 모양/라벨로 구분 */
+body.colorblind-mode .cb-good { outline: 2px solid #4D9FFF !important; }
+body.colorblind-mode .cb-bad  { outline: 2px dashed #FF9F43 !important; }
 
 #root {
   width: 100%;

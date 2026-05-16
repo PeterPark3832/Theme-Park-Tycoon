@@ -322,22 +322,18 @@ export function getRB(r) {
 }
 
 export function loadSaveSlots() {
+  const pad=(arr)=>Array.isArray(arr)&&arr.length<5?[...arr,...Array(5-arr.length).fill(null)]:arr||[null,null,null,null,null];
   try {
-    // v2 먼저 시도
     const v2 = localStorage.getItem("parktycoon_v2_saves");
-    if (v2) return JSON.parse(v2);
-
-    // v1 마이그레이션
+    if (v2) return pad(JSON.parse(v2));
     const v1 = localStorage.getItem("parktycoon_v1_saves");
     if (v1) {
-      // v2로 저장 (자동 마이그레이션)
       localStorage.setItem("parktycoon_v2_saves", v1);
-      return JSON.parse(v1);
+      return pad(JSON.parse(v1));
     }
-
-    return [null, null, null];
+    return [null, null, null, null, null];
   } catch {
-    return [null, null, null];
+    return [null, null, null, null, null];
   }
 }
 
