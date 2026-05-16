@@ -8,7 +8,7 @@ import {
   WEATHERS, WEATHER_WEIGHTS, DEFAULT_RIDE_PRICES, DEFAULT_SHOP_MULTS, MAX_FEE_BY_STARS,
   LANG_FLAGS, TR, SCENARIOS, DIFFICULTY_SETTINGS, STAGES, B, STARTING_PERKS, WEEKLY_CHALLENGES,
   STAFF, STAFF_UPGRADES, RIVAL_PARKS, FRANCHISES, ZONE_MASTERY, LOAN_OPTS, DOTS, TUTORIAL_STEPS, DAILY_CHALLENGES, SCENARIO_CLEAR_REWARDS, SCENARIO_DIFFICULTY,
-  RIVAL_EVENTS, ACHIEVEMENTS, BONUS_EVENTS, SCENARIO_CLEAR_FLAVOR, BUILDING_EVENTS,
+  RIVAL_EVENTS, ACHIEVEMENTS, BONUS_EVENTS, SCENARIO_CLEAR_FLAVOR, BUILDING_EVENTS, SCENARIO_STORIES,
 } from './gameData.js';
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
 import {
@@ -158,6 +158,8 @@ export default function ParkTycoon(){
   const [difficulty,setDifficulty]=useState("normal");
   const [tutorialStep,setTutorialStep]=useState(0);
   const [tutDone,setTutDone]=useState(()=>!!localStorage.getItem('pt_tut_done'));
+  const [storyCard,setStoryCard]=useState(null); // 현재 표시 중인 스토리 카드
+  const shownStoryRef=useRef(new Set()); // 이미 표시한 스토리 ID (중복 방지)
   const [tutFlash,setTutFlash]=useState(false);
   const [tutTabVisited,setTutTabVisited]=useState(false);
   const [saveSlots,setSaveSlots]=useState(loadSaveSlots);
@@ -597,6 +599,31 @@ export default function ParkTycoon(){
   },[uiSettings]);
 
   useEffect(()=>{ setTutCardOffsetY(0); },[tutorialStep]);
+
+  // ── 스토리 드라이브 시스템 ──────────────────────────────────────────
+  const tryShowStory=useCallback((card)=>{
+    if(!card?.id||shownStoryRef.current.has(card.id)) return;
+    shownStoryRef.current.add(card.id);
+    setStoryCard(card);
+  },[]);
+
+  // 오프닝: 시나리오 게임 시작 시
+  useEffect(()=>{
+    if(screen!=="game"||!currentScenario||gameMode==="sandbox"||tutorialStep>0) return;
+    const story=SCENARIO_STORIES[currentScenario];
+    if(!story?.opening) return;
+    const timer=setTimeout(()=>tryShowStory({...story.opening,id:`${currentScenario}_opening`}),900);
+    return()=>clearTimeout(timer);
+  },[screen,currentScenario]); // eslint-disable-line
+
+  // 일별 이벤트: 해당 day 도달 시 트리거
+  useEffect(()=>{
+    if(screen!=="game"||!currentScenario||gameMode==="sandbox"||day<1) return;
+    const story=SCENARIO_STORIES[currentScenario];
+    const evt=story?.events?.find(e=>e.day===day);
+    if(evt) setTimeout(()=>tryShowStory({...evt,id:`${currentScenario}_${evt.id}`}),400);
+  },[day]); // eslint-disable-line
+
   // 5단계 튜토리얼: 스텝 5(직원 고용) 도달 시 경영 탭 자동 오픈
   useEffect(()=>{
     if(!tutorialStep) return;
@@ -967,6 +994,15 @@ export default function ParkTycoon(){
             setScenarioResult({medal:null,scenario:cs,day:day+1});
             setSpeed(0);
             addLog(t("log.timeout"));
+            // 실패 스토리 카드 표시
+            const failStory=SCENARIO_STORIES[cs]?.fail;
+            if(failStory){
+              const failId=`${cs}_fail`;
+              if(!shownStoryRef.current.has(failId)){
+                shownStoryRef.current.add(failId);
+                setTimeout(()=>setStoryCard({...failStory,id:failId,speaker:{emoji:"⏰",name:{ko:"시간 종료",en:"Time's Up"}}}),800);
+              }
+            }
           }
         }
       }
@@ -4402,6 +4438,81 @@ export default function ParkTycoon(){
                 </div>
               ))}
             </div>}
+
+            {/* ── 스토리 카드 오버레이 ── */}
+            {storyCard&&screen==="game"&&(()=>{
+              const scData=SCENARIOS.find(s=>s.id===currentScenario);
+              const scColor=scData?.color||"#FFD93D";
+              const dismiss=()=>setStoryCard(null);
+              return(
+                <div style={{position:isMobile?"fixed":"absolute",inset:0,zIndex:isMobile?310:80,
+                  display:"flex",alignItems:"center",justifyContent:"center",padding:isMobile?12:24,
+                  background:"rgba(0,0,0,0.82)",backdropFilter:"blur(6px)",
+                  animation:"slide-in 0.25s ease"}}
+                  onClick={dismiss}>
+                  <div style={{
+                    background:"linear-gradient(145deg,#0D1535 0%,#08091E 100%)",
+                    border:`2px solid ${scColor}55`,
+                    borderRadius:20,
+                    padding:isMobile?"20px 20px 18px":"28px 32px 24px",
+                    maxWidth:isMobile?Math.min(window.innerWidth-24,400):460,
+                    width:"100%",
+                    boxShadow:`0 24px 80px rgba(0,0,0,0.95),0 0 0 1px ${scColor}22,0 0 40px ${scColor}11`,
+                    animation:"building-appear 0.35s cubic-bezier(0.32,0.72,0,1)",
+                    position:"relative",
+                  }} onClick={e=>e.stopPropagation()}>
+                    {/* Day 배지 */}
+                    <div style={{fontSize:9,color:"#5566AA",letterSpacing:3,textTransform:"uppercase",marginBottom:14}}>
+                      📅 {lang==="ko"?"DAY":"DAY"} {day} · {lang==="ko"?"스토리":"STORY EVENT"}
+                    </div>
+                    {/* 스피커 + 제목 */}
+                    <div style={{display:"flex",gap:14,marginBottom:16,alignItems:"flex-start"}}>
+                      <div style={{
+                        width:56,height:56,borderRadius:14,flexShrink:0,
+                        background:`${scColor}14`,border:`1px solid ${scColor}40`,
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:30,
+                      }}>{storyCard.speaker?.emoji}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:9,color:"#7788BB",marginBottom:4,letterSpacing:1}}>
+                          {storyCard.speaker?.name?.[lang]||storyCard.speaker?.name?.ko}
+                        </div>
+                        <div style={{fontSize:isMobile?13:15,fontWeight:900,color:scColor,lineHeight:1.25,
+                          fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>
+                          {storyCard.title?.[lang]||storyCard.title?.ko}
+                        </div>
+                      </div>
+                    </div>
+                    {/* 구분선 */}
+                    <div style={{height:1,background:`linear-gradient(90deg,${scColor}50,${scColor}10,transparent)`,marginBottom:16}}/>
+                    {/* 본문 */}
+                    <div style={{fontSize:isMobile?12:13,color:"#C8D0E8",lineHeight:1.9,
+                      whiteSpace:"pre-line",marginBottom:20,fontStyle:"italic",
+                      paddingLeft:8,borderLeft:`2px solid ${scColor}33`}}>
+                      {storyCard.text?.[lang]||storyCard.text?.ko}
+                    </div>
+                    {/* 버튼 */}
+                    <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+                      <button onClick={dismiss} style={{
+                        background:`${scColor}18`,border:`1px solid ${scColor}55`,color:scColor,
+                        borderRadius:10,padding:"8px 22px",cursor:"pointer",
+                        fontSize:12,fontWeight:700,fontFamily:"inherit",
+                        transition:"all 0.15s",letterSpacing:1,
+                      }}
+                        onMouseEnter={e=>{e.currentTarget.style.background=`${scColor}30`;}}
+                        onMouseLeave={e=>{e.currentTarget.style.background=`${scColor}18`;}}>
+                        {lang==="ko"?"계속하기 →":"Continue →"}
+                      </button>
+                    </div>
+                    {/* 클릭해서 닫기 힌트 */}
+                    <div style={{position:"absolute",bottom:-20,left:"50%",transform:"translateX(-50%)",
+                      fontSize:9,color:"#3A4A6A",whiteSpace:"nowrap"}}>
+                      {lang==="ko"?"배경 클릭으로 닫기":"click backdrop to close"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {tutorialStep>0&&tutorialStep<=6&&screen==="game"&&(
               <>

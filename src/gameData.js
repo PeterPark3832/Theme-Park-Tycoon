@@ -363,6 +363,226 @@ export const SCENARIOS = [
     {id:"platinum",medal:"🏅",desc:{ko:"5성 + 방문객 300명 + 순이익 $10k",en:"5 stars + 300 visitors + $10k profit"},check:s=>s.pres>=5&&s.vis>=300&&s.net>=10000}]},
 ];
 
+// ─── 시나리오 스토리 레이어 ────────────────────────────────────────────────
+// opening: 게임 시작 직후 표시 / events: day 도달 시 트리거 / fail: 시간 초과 시
+export const SCENARIO_STORIES = {
+  s1: {
+    opening:{
+      speaker:{emoji:"🌱",name:{ko:"당신",en:"You"}},
+      title:{ko:"빈 땅의 시작",en:"A Dream Takes Root"},
+      text:{ko:"텅 빈 땅을 내려다봅니다.\n\"여기에 사람들이 사랑하는 공원을 만들겠다.\"\n자본금 $40,000. 꿈은 지금 이 순간 시작됩니다.",
+            en:"You look out over an empty plot of land.\n\"I'll build a park people will truly love.\"\n$40,000 in hand. The dream starts right now."}
+    },
+    events:[
+      {id:"first_guest",day:8,
+        speaker:{emoji:"😇",name:{ko:"엔젤 투자자",en:"Angel Investor"}},
+        title:{ko:"가능성이 보입니다",en:"I See Potential"},
+        text:{ko:"\"방문객이 생기기 시작했군요.\n아직 보잘것없어도, 성장하는 공원에는 가능성이 있습니다.\n이 속도를 유지한다면 다시 연락드리겠습니다.\"",
+              en:"\"Visitors are starting to show up.\nIt's humble, but a growing park has potential.\nKeep this pace and I'll be in touch.\""}},
+      {id:"rival_opens",day:28,
+        speaker:{emoji:"😤",name:{ko:"라이벌 공원 대표",en:"Rival Park CEO"}},
+        title:{ko:"경쟁자의 등장",en:"A Challenger Appears"},
+        text:{ko:"\"저희 MegaFun이 3km 거리에 오픈했습니다.\n입장료는 더 낮고, 놀이기구는 더 많죠.\n당신의 공원만이 줄 수 있는 것이 무엇인지 보여주세요.\"",
+              en:"\"MegaFun Park just opened 3km away.\nLower prices. More rides. More options.\nShow me what only YOUR park can offer.\""}},
+    ],
+    fail:{
+      title:{ko:"꿈은 계속됩니다",en:"The Dream Continues"},
+      text:{ko:"60일이 지났습니다. 충분한 방문객의 마음을 얻지 못했습니다.\n하지만 빈 땅이었던 이곳에 발자국이 생겼습니다.\n그것이 다음 도전의 시작입니다.",
+            en:"60 days passed. Not enough hearts were won.\nBut footprints now mark this once-empty land.\nThat's the start of the next attempt."}
+    }
+  },
+  s2: {
+    opening:{
+      speaker:{emoji:"💑",name:{ko:"도시의 연인들",en:"The City's Couples"}},
+      title:{ko:"사랑할 장소가 필요합니다",en:"The City Needs Romance"},
+      text:{ko:"\"이 도시에는 커플들이 갈 곳이 없어요.\n카페, 영화관, 번화가... 다 식상합니다.\n우리만의 낭만적인 장소를 만들어주세요.\"",
+            en:"\"This city has nowhere for couples to go.\nCafés, cinemas, shopping streets — all ordinary.\nCreate the romantic place this city is begging for.\""}
+    },
+    events:[
+      {id:"blogger_visit",day:10,
+        speaker:{emoji:"📸",name:{ko:"데이트 블로거 하나",en:"Date Blogger Hana"}},
+        title:{ko:"아직 뭔가 부족해요",en:"Something's Still Missing"},
+        text:{ko:"\"오늘 공원을 방문해봤어요.\n분위기는 나쁘지 않은데... 아직 뭔가 부족한 느낌.\n커플들이 '여기서 프로포즈하고 싶다'는 생각이 들려면 더 필요해요.\"",
+              en:"\"I visited your park today.\nThe vibe isn't bad... but something's still missing.\nFor couples to think 'I want to propose here,' you'll need more.\""}},
+      {id:"valentine_alert",day:28,
+        speaker:{emoji:"💌",name:{ko:"시즌 알림",en:"Season Alert"}},
+        title:{ko:"발렌타인 시즌이 다가옵니다",en:"Valentine's Season Approaches"},
+        text:{ko:"커플들의 데이트 문의가 급증하고 있습니다.\n이번 시즌이 당신 공원의 운명을 결정할 수도 있어요.\n지금이 결정적인 순간입니다. 준비됐나요?",
+              en:"Couple inquiries are pouring in from across the city.\nThis season could define your park's reputation.\nThis is the moment. Are you ready?"}},
+    ],
+    fail:{
+      title:{ko:"로맨스는 아직 피지 않았습니다",en:"The Romance Never Bloomed"},
+      text:{ko:"커플들은 여전히 다른 곳을 찾았습니다.\n사랑을 담기엔 이 공원이 아직 조금 부족했나봅니다.\n하지만 시도했다는 것 자체가 시작입니다.",
+            en:"Couples still looked elsewhere for their romantic evenings.\nPerhaps this park wasn't quite ready to hold love yet.\nBut the attempt itself is already a beginning."}
+    }
+  },
+  s3: {
+    opening:{
+      speaker:{emoji:"📜",name:{ko:"할아버지의 편지",en:"Grandfather's Letter"}},
+      title:{ko:"유산을 맡아주겠니",en:"A Legacy Left to You"},
+      text:{ko:"\"이 공원을 네게 남긴다.\n예전엔 아이들의 웃음이 가득했단다.\n다시 그 소리를 들려줄 수 있겠니?\" — 할아버지의 마지막 편지",
+            en:"\"I'm leaving this park to you.\nIt used to be full of children's laughter.\nCan you bring that sound back?\" — Grandfather's final letter"}
+    },
+    events:[
+      {id:"old_mechanic",day:6,
+        speaker:{emoji:"🔧",name:{ko:"노 정비사 김씨",en:"Old Mechanic Kim"}},
+        title:{ko:"30년을 여기서 일했습니다",en:"Thirty Years Here"},
+        text:{ko:"\"할아버지가 기다리시던 사람이 왔군요.\n고장난 시설들, 제가 하나씩 봐드릴게요.\n같이 이 공원을 살려봅시다.\"",
+              en:"\"So you're the one your grandfather was waiting for.\nLet me take a look at those broken rides one by one.\nLet's bring this place back to life together.\""}},
+      {id:"first_repair_emotion",day:22,
+        speaker:{emoji:"🎡",name:{ko:"공원의 기억",en:"The Park's Memory"}},
+        title:{ko:"다시 돌아가기 시작했습니다",en:"It Turns Again"},
+        text:{ko:"관람차가 다시 돌아갑니다.\n처음 돌아가는 그 소리에... 김씨 정비사의 눈가가 촉촉해집니다.\n\"할아버지도 좋아하셨을 거야.\"",
+              en:"The ferris wheel turns again.\nAt the sound of it moving for the first time in years...\nOld Mechanic Kim wipes his eyes. \"Your grandfather would've loved this.\""}},
+      {id:"local_news",day:38,
+        speaker:{emoji:"📰",name:{ko:"지역 신문 기자",en:"Local Reporter"}},
+        title:{ko:"폐공원이 살아나고 있습니다",en:"The Abandoned Park Lives Again"},
+        text:{ko:"\"이 공원이 다시 살아난다는 소식이 퍼졌습니다.\n지역 주민들이 관심을 갖기 시작했어요.\n이 이야기, 기사로 써도 될까요?\"",
+              en:"\"Word is spreading that this park is coming back to life.\nLocals are starting to take interest.\nMind if I write a story about this?\""}},
+    ],
+    fail:{
+      title:{ko:"유산은 계속됩니다",en:"The Legacy Lives On"},
+      text:{ko:"폐허를 완전히 살리지 못했습니다.\n하지만 할아버지의 공원에 다시 발자국이 생겼습니다.\n그것만으로도 이미 충분한 의미가 있습니다.",
+            en:"The ruins couldn't be fully revived this time.\nBut footsteps returned to your grandfather's park.\nThat alone already means everything."}
+    }
+  },
+  s4: {
+    opening:{
+      speaker:{emoji:"👔",name:{ko:"CFO 박 이사",en:"CFO Director Park"}},
+      title:{ko:"숫자로 증명하세요",en:"Prove It in Numbers"},
+      text:{ko:"\"도심 부지를 확보했습니다. 60일 안에 수익을 증명하지 못하면 철수입니다.\n저는 감성이 아닌 숫자만 봅니다.\n실패는 용납되지 않습니다.\"",
+            en:"\"We've secured an urban lot. Prove profitability in 60 days or we pull out.\nI look at numbers only. Leave the sentiment at the door.\nFailure is not an option.\""}
+    },
+    events:[
+      {id:"cfo_midcheck",day:15,
+        speaker:{emoji:"👔",name:{ko:"CFO 박 이사",en:"CFO Director Park"}},
+        title:{ko:"중간 점검",en:"Mid-Point Check"},
+        text:{ko:"\"현재 수치가... 나쁘지는 않군요.\n하지만 도심 방문객은 기대치가 높습니다.\n더 짜내세요.\"",
+              en:"\"Current numbers are... acceptable.\nBut urban visitors have high expectations.\nSqueeze out more.\""}},
+      {id:"city_regulation",day:35,
+        speaker:{emoji:"🏛️",name:{ko:"시청 담당자",en:"City Planning Office"}},
+        title:{ko:"소음 민원 접수",en:"Noise Complaint Filed"},
+        text:{ko:"\"민원이 접수됐습니다. 소음 문제입니다.\n대형 어트랙션이 규제 대상이 될 수 있어요.\n조용하지만 수익성 높은 방향으로 전략을 바꾸는 게 좋을 겁니다.\"",
+              en:"\"A noise complaint has been filed.\nLarge attractions could face restrictions.\nYou'd be wise to pivot toward quieter, high-margin facilities.\""}},
+    ],
+    fail:{
+      title:{ko:"도심 수익의 꿈",en:"The Urban Dream Falls Short"},
+      text:{ko:"도심 부지의 가능성을 입증하지 못했습니다.\nCFO 박 이사의 시선이 차갑습니다.\n\"다음 기회는 없습니다.\"",
+            en:"The urban lot's potential couldn't be proven.\nCFO Park's expression is cold.\n\"There won't be a next chance.\""}
+    }
+  },
+  s5: {
+    opening:{
+      speaker:{emoji:"👦",name:{ko:"동네 아이 민준",en:"Local Kid Minjun"}},
+      title:{ko:"언제 고쳐요?",en:"When Will It Be Fixed?"},
+      text:{ko:"\"아저씨, 여기 공원 언제 고쳐요?\n놀이기구 다 망가졌어요. 친구들이랑 올 수가 없어요.\"\n— 공원 앞 울타리에 매달린 아이의 말",
+            en:"\"Mister, when are you going to fix this park?\nAll the rides are broken. We can't come here with friends anymore.\"\n— A kid hanging on the fence outside"}
+    },
+    events:[
+      {id:"school_trip",day:8,
+        speaker:{emoji:"👩‍🏫",name:{ko:"이 선생님",en:"Teacher Lee"}},
+        title:{ko:"학급 소풍을 여기서 하고 싶어요",en:"We Want Our Field Trip Here"},
+        text:{ko:"\"안녕하세요, 초등학교 선생님입니다.\n2주 후에 학급 소풍을 여기서 하고 싶은데요.\n아이들이 안전하게 즐길 수 있는 환경이 될까요?\"",
+              en:"\"Hello, I'm an elementary school teacher.\nWe'd love to have our class outing here in two weeks.\nWill it be safe and fun enough for the children?\""}},
+      {id:"birthday_party",day:22,
+        speaker:{emoji:"🎂",name:{ko:"민준",en:"Minjun"}},
+        title:{ko:"생일파티 해도 돼요?",en:"Can I Have My Party Here?"},
+        text:{ko:"\"아저씨! 제 생일이 다음 주예요.\n여기서 생일파티 해도 되나요?\n친구들 다 같이 오고 싶다고 했어요!\"",
+              en:"\"Mister! My birthday is next week.\nCan I have my birthday party here?\nAll my friends said they want to come together!\""}},
+    ],
+    fail:{
+      title:{ko:"웃음소리가 돌아오지 않았습니다",en:"The Laughter Didn't Return"},
+      text:{ko:"아이들의 웃음소리를 충분히 되찾지 못했습니다.\n민준이가 울타리 앞에 서서 공원을 조용히 바라봅니다.\n\"다음엔 될 거야...\"",
+            en:"Not enough of the children's laughter came back.\nMinjun stands at the fence, looking in silently.\n\"Maybe next time...\""}
+    }
+  },
+  s6: {
+    opening:{
+      speaker:{emoji:"🏖️",name:{ko:"해변 마을 관광청",en:"Beach Town Tourism Board"}},
+      title:{ko:"사랑 이야기를 만들어주세요",en:"Create a Love Story Here"},
+      text:{ko:"\"이 해변 마을에 오는 커플들이 실망하고 갑니다.\n'뭔가 특별한 게 없다'고요.\n당신이 이 해변에 낭만의 이야기를 써주세요.\"",
+            en:"\"Couples who visit this beach town leave disappointed.\nThey say there's nothing special here.\nWrite a story of romance on this beach for us.\""}
+    },
+    events:[
+      {id:"water_ride_urgent",day:12,
+        speaker:{emoji:"🌊",name:{ko:"정비 팀장",en:"Maintenance Chief"}},
+        title:{ko:"워터슬라이드가 아직 고장 중",en:"Water Slide Still Down"},
+        text:{ko:"\"해변 공원의 핵심 어트랙션이 아직 고장 상태입니다.\n커플들이 '이게 다야?'라며 떠나고 있어요.\n이걸 고치지 않으면 다른 모든 노력이 무의미합니다.\"",
+              en:"\"The centerpiece attraction of any beach park is still down.\nCouples are leaving saying 'is this it?'\nWithout fixing this, everything else is pointless.\""}},
+      {id:"celebrity_couple",day:32,
+        speaker:{emoji:"🌟",name:{ko:"연예 매니저",en:"Celebrity Manager"}},
+        title:{ko:"유명 커플이 관심을 보입니다",en:"A Famous Couple Is Interested"},
+        text:{ko:"\"유명 커플이 해변 데이트 장소를 찾고 있습니다.\n공원이 충분히 인상적이라면 방문 의향이 있다고 해요.\n그들이 오면... SNS 파급력은 상상을 초월할 겁니다.\"",
+              en:"\"A well-known couple is looking for a romantic beach experience.\nIf your park is impressive enough, they're interested in visiting.\nIf they come... the social media impact will be enormous.\""}},
+    ],
+    fail:{
+      title:{ko:"파도는 여전히 치지만",en:"The Waves Still Roll In"},
+      text:{ko:"해변 공원에 로맨스를 심지 못했습니다.\n파도는 여전히 치지만, 커플들의 발길은 닿지 않았습니다.\n사랑은 만들어지는 것이 아니라 느껴지는 것인가봅니다.",
+            en:"Romance couldn't take root in this beach park.\nThe waves still roll in, but couples' footsteps didn't follow.\nPerhaps love can't be built — only felt."}
+    }
+  },
+  s7: {
+    opening:{
+      speaker:{emoji:"👻",name:{ko:"전설의 공원 창시자",en:"The Park's Founder"}},
+      title:{ko:"진짜 공포를 되살려라",en:"Resurrect True Fear"},
+      text:{ko:"\"이 공원은 한때 공포의 성지였습니다.\n이제는 방치된 채 귀신의 집 하나가 고장나 있죠.\n스릴 방문객들이 기다리고 있습니다. 진짜 공포를 되살릴 수 있겠습니까?\"",
+            en:"\"This park was once a sacred ground of horror.\nNow it sits abandoned, its haunted house broken.\nThrill-seekers are waiting. Can you resurrect true fear?\""}
+    },
+    events:[
+      {id:"malfunction_scare",day:7,
+        speaker:{emoji:"😱",name:{ko:"겁먹은 방문객",en:"Frightened Visitor"}},
+        title:{ko:"나쁜 방향으로 무서웠어요",en:"Scary in the Wrong Way"},
+        text:{ko:"\"귀신의 집 들어갔는데... 조명이 꺼지면서 연기가 쏟아졌어요.\n무서워서가 아니라 진짜 위험할 것 같아서 도망쳤어요!\"\n고장난 시설이 잘못된 방향으로 작동 중입니다.",
+              en:"\"I went into the haunted house... the lights cut out and smoke poured in.\nI ran not because I was scared, but because it felt genuinely dangerous!\"\nThe broken ride is malfunctioning in the wrong way."}},
+      {id:"halloween_season",day:20,
+        speaker:{emoji:"🎃",name:{ko:"시즌 알림",en:"Season Alert"}},
+        title:{ko:"할로윈 시즌이 다가옵니다",en:"Halloween Season Is Near"},
+        text:{ko:"스릴 방문객들이 전국에서 몰려올 준비를 하고 있습니다.\n이 기회를 잡지 못하면 1년을 기다려야 합니다.\n지금 공원이 그들을 받아들일 준비가 됐나요?",
+              en:"Thrill-seekers across the country are planning their visits.\nMiss this window and you wait a full year.\nIs your park ready to receive them?"}},
+      {id:"urban_legend",day:36,
+        speaker:{emoji:"🗞️",name:{ko:"공포 커뮤니티",en:"Horror Community"}},
+        title:{ko:"도시 전설이 퍼지기 시작했습니다",en:"An Urban Legend Spreads"},
+        text:{ko:"\"이 공원에 대한 이야기가 온라인에서 퍼지고 있습니다.\n'실제로 가봤는데 소름 돋는다'는 후기가 넘쳐납니다.\n이제 스스로 전설이 되고 있군요.\"",
+              en:"\"Stories about this park are spreading online.\nReviews say 'it genuinely gave me chills.' \nYou're becoming a legend in your own right.\""}},
+    ],
+    fail:{
+      title:{ko:"밤은 여전히 고요합니다",en:"The Night Stays Silent"},
+      text:{ko:"공포의 밤을 되살리지 못했습니다.\n귀신의 집 앞에는 잡초만 자라고 있습니다.\n하지만 어둠 속에서도 가능성은 남아 있습니다.",
+            en:"The Night of Fear couldn't be revived.\nWeeds grow taller outside the haunted house.\nBut even in darkness, possibility remains."}
+    }
+  },
+  s8: {
+    opening:{
+      speaker:{emoji:"👑",name:{ko:"왕실 비서 최 경",en:"Royal Secretary Choi"}},
+      title:{ko:"왕실의 명을 받들어",en:"By Royal Command"},
+      text:{ko:"\"폐하께서 왕실 공원의 복원을 명하셨습니다.\n한때 이 나라 최고의 공원이었습니다.\n82일 안에 5성 공원으로 복원하지 못하면... 책임을 피하기 어려울 것입니다.\"",
+            en:"\"His Majesty has ordered the restoration of this royal park.\nIt was once the finest park in the land.\nFail to restore it to 5-star glory within 82 days... and consequences will follow.\""}
+    },
+    events:[
+      {id:"royal_inspector",day:12,
+        speaker:{emoji:"🎩",name:{ko:"왕실 감사관",en:"Royal Inspector"}},
+        title:{ko:"중간 점검 방문",en:"Inspection Visit"},
+        text:{ko:"\"현재 진행 상황이 기대에 미치지 못합니다.\n3성 이상은 유지하셔야 폐하의 실망을 막을 수 있습니다.\n서두르시기 바랍니다.\"",
+              en:"\"Current progress falls short of expectations.\nMaintain at least 3 stars or His Majesty will be disappointed.\nI strongly suggest you hurry.\""}},
+      {id:"archaeological_find",day:34,
+        speaker:{emoji:"🏛️",name:{ko:"왕실 역사학자",en:"Royal Historian"}},
+        title:{ko:"17세기 유물이 발견됐습니다",en:"A 17th-Century Artifact Found"},
+        text:{ko:"\"공사 중 왕실 유물이 발견됐습니다!\n이 사실이 알려지면 방문객들의 관심이 폭발할 겁니다.\n일시적으로 공사를 조정해야 할 수도 있지만 — 이건 기회입니다.\"",
+              en:"\"A royal artifact was uncovered during construction!\nWhen this goes public, visitor interest will surge.\nConstruction may need a brief adjustment — but this is an opportunity.\""}},
+      {id:"royal_visit_announced",day:55,
+        speaker:{emoji:"👑",name:{ko:"왕실 비서 최 경",en:"Royal Secretary Choi"}},
+        title:{ko:"폐하께서 방문하십니다",en:"His Majesty Will Visit"},
+        text:{ko:"\"폐하께서 Day 70에 왕실 공원을 공식 방문하실 예정입니다.\n그날까지 5성 공원의 위엄을 갖춰야 합니다.\n이것이 당신의 마지막 기회입니다.\"",
+              en:"\"His Majesty will make an official visit on Day 70.\nThe park must reflect 5-star royal dignity by then.\nThis is your final and only opportunity.\""}},
+    ],
+    fail:{
+      title:{ko:"왕실의 기대를 져버렸습니다",en:"The Royal Trust Is Broken"},
+      text:{ko:"왕실 공원을 충분히 복원하지 못했습니다.\n왕실 비서 최 경이 조용히 고개를 숙입니다.\n\"폐하께 어떻게 전해야 할지...\"",
+            en:"The royal park could not be fully restored.\nRoyal Secretary Choi bows silently.\n\"I don't know how to inform His Majesty...\""}
+    }
+  },
+};
+
 export const SCENARIO_CLEAR_FLAVOR = {
   s1:{ko:"빈 땅에 세운 공원이 사람들의 마음을 사로잡았습니다. 꿈이 현실이 됐습니다.",en:"The park you built from nothing captured every heart. Dreams became reality."},
   s2:{ko:"로맨틱한 분위기가 커플들을 사로잡았습니다. 이곳은 사랑의 명소가 됩니다.",en:"Your romantic vibe won every couple's heart. This place becomes a landmark of love."},
