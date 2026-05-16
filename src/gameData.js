@@ -742,6 +742,142 @@ export const TUTORIAL_STEPS = [
   {title:"🧹 직원 고용",text:"⚙️ 경영 탭에서 청소부와 정비공을 고용하세요. 직원 없이는 청결도가 떨어지고 시설이 고장나 만족도가 급락해요!"},
 ];
 
+// ── 파르카디아 아카데미 튜토리얼 시나리오 ──
+// check(s) receives: {grid, visitors, sat, hired, fee, speed, tab, activeDisaster, researched, campaigns, day, money, net, tabChangedAfterActivation, disasterResolved, pathCount, rideCount, restroomCount, foodStallCount, mechanicFixed}
+export const ACADEMY_STEPS = [
+  // ── Chapter 1: 건설의 기초 ──
+  {id:1, chapter:1,
+   title:{ko:"🎪 입구 게이트 배치",en:"🎪 Place Entrance Gate"},
+   instruction:{ko:"건설 탭 → 놀이기구 카테고리 → 🎪 입구 게이트 선택\n그리드 중앙 빛나는 셀에 클릭해서 배치하세요",en:"Build tab → Rides → 🎪 Entrance Gate\nClick the glowing cell in the center of the grid"},
+   why:{ko:"입구 없이는 방문객이 공원에 들어올 수 없어요!",en:"Without an entrance, no visitors can enter the park!"},
+   highlightTab:"build",
+   highlightButton:null,
+   check:s=>s.grid.flat().some(c=>c&&!c.ref&&c.type==="entrance")},
+
+  {id:2, chapter:1,
+   title:{ko:"🛤️ 통로 5개 이상 연결",en:"🛤️ Connect 5+ Path Tiles"},
+   instruction:{ko:"건설 탭 → 🛤️ 통로 선택 → 그리드에 드래그로 5개 이상 배치\n입구에서 빈 공간으로 이어지게 연결하세요",en:"Build → 🛤️ Path → drag on grid to place 5+ tiles\nConnect from the entrance outward"},
+   why:{ko:"통로 미연결 시설은 수익이 -40%! 반드시 연결해야 해요",en:"Unconnected rides earn -40%! Always connect paths"},
+   highlightTab:"build",
+   check:s=>s.pathCount>=5},
+
+  {id:3, chapter:1,
+   title:{ko:"🎠 놀이기구 1개 배치",en:"🎠 Build 1 Attraction"},
+   instruction:{ko:"건설 탭 → 놀이기구 → 회전목마나 관람차를 통로 옆에 배치하세요\n통로 옆에 붙여야 연결 보너스를 받아요",en:"Build → Rides → Place a Carousel or Ferris Wheel next to a path\nBuild adjacent to paths for the connection bonus"},
+   why:{ko:"놀이기구가 방문객을 끌어들이는 핵심입니다. 다양할수록 좋아요!",en:"Attractions draw visitors. More variety = more visitors!"},
+   highlightTab:"build",
+   check:s=>s.rideCount>=1},
+
+  {id:4, chapter:1,
+   title:{ko:"🚻 화장실 배치",en:"🚻 Build a Restroom"},
+   instruction:{ko:"건설 탭 → 🌿 편의시설 → 화장실을 배치하세요\n통로에 연결된 위치에 놓으세요",en:"Build → 🌿 Facilities → Place a Restroom\nPut it near a path"},
+   why:{ko:"화장실이 없으면 가족 방문객 만족도가 크게 떨어져요!",en:"No restroom = big family visitor satisfaction penalty!"},
+   highlightTab:"build",
+   check:s=>s.restroomCount>=1},
+
+  // ── Chapter 2: 공원 개장 ──
+  {id:5, chapter:2,
+   title:{ko:"💰 재무 탭에서 공원 평점 확인",en:"💰 Check Park Rating in Finance"},
+   instruction:{ko:"상단 탭에서 💰 재무 탭을 클릭하세요\n공원 평점(별점)이 입장료 한도를 결정합니다",en:"Click the 💰 Finance tab at the top\nYour park rating determines the max admission fee"},
+   why:{ko:"별점이 낮으면 입장료를 높게 받을 수 없어요. 시설을 늘려야 별점이 올라요!",en:"Low star rating = low max fee. Build more to raise your rating!"},
+   highlightTab:"finance",
+   check:s=>s.tabChangedAfterActivation&&s.tab==="finance"},
+
+  {id:6, chapter:2,
+   title:{ko:"🎫 입장료 설정 (5~15 사이)",en:"🎫 Set Admission Fee (5–15)"},
+   instruction:{ko:"재무 탭 상단의 입장료 슬라이더를 드래그해서\n5~15 사이로 설정하세요",en:"Drag the admission fee slider in the Finance tab\nSet it between 5 and 15"},
+   why:{ko:"너무 높으면 방문객이 오지 않아요. 별점에 맞는 금액이 최적!",en:"Too high = visitors stay home. Match the fee to your star rating!"},
+   highlightTab:"finance",
+   highlightButton:"fee_slider",
+   check:s=>s.fee>=5&&s.fee<=15},
+
+  {id:7, chapter:2,
+   title:{ko:"▶ 시간을 시작하세요!",en:"▶ Start Time!"},
+   instruction:{ko:"화면 상단의 ▶ 버튼을 클릭해 공원을 개장하세요\n⏩ 빨리감기로 첫 방문객을 빠르게 만나보세요",en:"Click the ▶ button at the top to open the park!\nUse ⏩ fast-forward to quickly greet your first visitors"},
+   why:{ko:"시간이 멈춰있으면 방문객도 수익도 모두 없어요!",en:"Time stopped = no visitors, no revenue!"},
+   highlightButton:"speed_play",
+   check:s=>s.speed>0},
+
+  // ── Chapter 3: 운영 관리 ──
+  {id:8, chapter:3,
+   title:{ko:"👋 첫 방문객 10명 도달",en:"👋 Reach 10 Visitors"},
+   instruction:{ko:"방문객들이 입장하고 있어요! ⏩ 빨리감기로\n10명이 도달할 때까지 기다리세요",en:"Visitors are arriving! Use ⏩ fast-forward\nuntil you reach 10 visitors"},
+   why:{ko:"방문객이 늘면 청결도 감소가 빨라지고 시설 고장이 생겨요",en:"More visitors = faster cleanliness drop and ride breakdowns"},
+   check:s=>s.visitors>=10},
+
+  {id:9, chapter:3,
+   title:{ko:"🧹 청소부 고용",en:"🧹 Hire a Janitor"},
+   instruction:{ko:"⚙️ 경영 탭 → 직원 섹션 → 청소부 고용 버튼\n청결도가 떨어지기 전에 미리 고용하세요",en:"⚙️ Manage tab → Staff section → Hire Janitor\nHire before cleanliness drops too low"},
+   why:{ko:"청결도 50% 이하면 만족도가 내려가요. 청소부가 매일 자동으로 청소합니다",en:"Below 50% cleanliness = satisfaction drop. Janitors clean automatically daily"},
+   highlightTab:"manage",
+   highlightButton:"hire_janitor",
+   check:s=>s.hired.janitor>=1},
+
+  {id:10, chapter:3,
+   title:{ko:"🔧 정비공 고용",en:"🔧 Hire a Mechanic"},
+   instruction:{ko:"⚙️ 경영 탭 → 직원 섹션 → 정비공 고용\n정비공이 없으면 고장난 시설을 직접 수리해야 해요",en:"⚙️ Manage tab → Staff → Hire Mechanic\nWithout mechanics you must repair everything manually"},
+   why:{ko:"정비공은 고장을 자동 수리하고 고장 확률도 낮춰줍니다",en:"Mechanics auto-repair rides and reduce breakdown chance"},
+   highlightTab:"manage",
+   highlightButton:"hire_mechanic",
+   check:s=>s.hired.mechanic>=1},
+
+  {id:11, chapter:3,
+   title:{ko:"🔧 고장난 회전목마 수리",en:"🔧 Repair the Broken Carousel"},
+   instruction:{ko:"그리드에서 🔧 표시된 고장 시설을 클릭 → 수리 버튼 클릭\n또는 경영 탭에서 수리해도 됩니다",en:"Click the broken 🔧 ride on the grid → click Repair\nOr repair from the Manage tab"},
+   why:{ko:"고장난 시설은 만족도를 계속 깎아요. 빠를수록 좋아요!",en:"Broken rides drain satisfaction every day. Fix fast!"},
+   check:s=>s.mechanicFixed},
+
+  {id:12, chapter:3,
+   title:{ko:"🔬 연구 항목 1개 완료",en:"🔬 Complete 1 Research"},
+   instruction:{ko:"🔬 연구 탭으로 이동 → 아무 연구 항목을 클릭해서 완료하세요\nRP(연구 포인트)는 매일 자동으로 쌓여요",en:"Go to 🔬 Research tab → click any research item\nRP accumulates automatically every day"},
+   why:{ko:"연구는 무료 영구 업그레이드! 항상 연구 중이어야 효율적이에요",en:"Research = free permanent upgrades! Always have one active"},
+   highlightTab:"research",
+   check:s=>s.researched.length>=1},
+
+  // ── Chapter 4: 수익 극대화 ──
+  {id:13, chapter:4,
+   title:{ko:"🍔 음식점 건설",en:"🍔 Build a Food Stall"},
+   instruction:{ko:"건설 탭 → 🍔 상업 카테고리 → 푸드코트 배치\n통로에 연결된 위치에 놓으세요",en:"Build → 🍔 Shops → Place a Food Court\nConnect it to a path"},
+   why:{ko:"상업시설이 있으면 방문객 1인당 수익이 올라가요. 입장료 외 수익!",en:"Shops increase revenue per visitor — income beyond admission fees!"},
+   highlightTab:"build",
+   check:s=>s.foodStallCount>=1},
+
+  {id:14, chapter:4,
+   title:{ko:"📊 재무 탭 → 수익 구성 확인",en:"📊 Check Revenue Breakdown"},
+   instruction:{ko:"💰 재무 탭으로 이동해서\n수익 구성 파이차트를 확인하세요",en:"Go to 💰 Finance tab\nand check the Revenue Breakdown chart"},
+   why:{ko:"어디서 돈이 오는지 알아야 어디를 강화할지 결정할 수 있어요",en:"Know your revenue sources to decide where to invest next"},
+   highlightTab:"finance",
+   check:s=>s.tabChangedAfterActivation&&s.tab==="finance"},
+
+  {id:15, chapter:4,
+   title:{ko:"📣 마케팅 캠페인 실행",en:"📣 Launch a Marketing Campaign"},
+   instruction:{ko:"📣 마케팅 탭 → 캠페인 목록에서 하나 선택 → 실행\nSNS 캠페인이 가성비가 좋아요",en:"📣 Marketing tab → choose a campaign → Launch\nSNS Campaign offers the best value"},
+   why:{ko:"캠페인이 없으면 방문객 성장이 느려요. 정기적으로 실행하세요!",en:"No campaigns = slow visitor growth. Run them regularly!"},
+   highlightTab:"marketing",
+   check:s=>s.campaigns.length>=1},
+
+  // ── Chapter 5: 위기 대응 & 졸업 ──
+  {id:16, chapter:5,
+   title:{ko:"🚨 재난 발생! 즉시 해결하세요",en:"🚨 Disaster! Resolve It Now"},
+   instruction:{ko:"재난이 발생했습니다! 화면에 표시된\n즉시 해결 버튼을 클릭하세요",en:"A disaster struck! Click the\nResolve button that appeared on screen"},
+   why:{ko:"재난을 방치하면 방문객이 급감하고 만족도가 폭락해요!",en:"Ignoring disasters = visitor drop + satisfaction crash!"},
+   check:s=>s.disasterResolved},
+
+  {id:17, chapter:5,
+   title:{ko:"😊 만족도 65% 달성!",en:"😊 Reach 65% Satisfaction!"},
+   instruction:{ko:"지금까지 배운 모든 것을 활용해서\n만족도를 65% 이상으로 올리세요",en:"Use everything you learned to\nraise satisfaction above 65%"},
+   why:{ko:"만족도가 높으면 더 많은 방문객, 더 높은 별점, 더 많은 수익!",en:"High satisfaction = more visitors, higher rating, more revenue!"},
+   check:s=>s.sat>=65},
+];
+
+export const ACADEMY_CHAPTERS={
+  1:{name:{ko:"건설의 기초",en:"Building Basics"},   emoji:"🏗️", steps:[1,2,3,4]},
+  2:{name:{ko:"공원 개장",    en:"Park Opening"},     emoji:"🎫", steps:[5,6,7]},
+  3:{name:{ko:"운영 관리",    en:"Operations"},       emoji:"👷", steps:[8,9,10,11,12]},
+  4:{name:{ko:"수익 극대화",  en:"Revenue Growth"},   emoji:"💰", steps:[13,14,15]},
+  5:{name:{ko:"위기 대응",    en:"Crisis & Grad"},    emoji:"🎓", steps:[16,17]},
+};
+
 export const SCENARIO_CLEAR_REWARDS = {
   bronze: { rp: 5,  bonus: { ko: "+5 RP 보너스!", en: "+5 RP Bonus!" } },
   silver: { rp: 12, bonus: { ko: "+12 RP + 특별 연구 포인트!", en: "+12 RP + Special Research Points!" } },

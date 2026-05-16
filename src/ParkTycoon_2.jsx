@@ -9,6 +9,7 @@ import {
   LANG_FLAGS, TR, SCENARIOS, DIFFICULTY_SETTINGS, STAGES, B, STARTING_PERKS, WEEKLY_CHALLENGES,
   STAFF, STAFF_UPGRADES, RIVAL_PARKS, FRANCHISES, ZONE_MASTERY, LOAN_OPTS, DOTS, TUTORIAL_STEPS, DAILY_CHALLENGES, SCENARIO_CLEAR_REWARDS, SCENARIO_DIFFICULTY,
   RIVAL_EVENTS, ACHIEVEMENTS, BONUS_EVENTS, SCENARIO_CLEAR_FLAVOR, BUILDING_EVENTS, SCENARIO_STORIES, COMBOS,
+  ACADEMY_STEPS, ACADEMY_CHAPTERS,
 } from './gameData.js';
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
 import {
@@ -245,6 +246,16 @@ export default function ParkTycoon(){
   const discoveredCombosRef=useRef(new Set());
   const [comboToast,setComboToast]=useState(null); // {combo, timeoutId}
 
+  // Academy tutorial state
+  const [academyStep,setAcademyStep]=useState(0); // 0=inactive, 1-17=active
+  const academyTabChangedRef=useRef(false);
+  const academyTabAtActivationRef=useRef(null);
+  const academyMechanicFixedRef=useRef(false);
+  const academyDisasterResolvedRef=useRef(false);
+  const prevAcademyDisasterRef=useRef(null);
+  const academyDisasterTriggeredRef=useRef(false);
+  const academyPrevBrokenRef=useRef(0);
+
   // UI-only states (not saved)
   const [bp,setBp]=useState(()=>window.innerWidth<600?"mobile":window.innerWidth<1024?"tablet":"pc");
   const isMobile=bp==="mobile";
@@ -337,7 +348,7 @@ export default function ParkTycoon(){
 
   const ref=useRef();
   const diffSettings=DIFFICULTY_SETTINGS[difficulty]||DIFFICULTY_SETTINGS.normal;
-  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,profitStreakDays,soundOn,ftueGoalDone,scenarioTimeLimit,rivalEventActive,lang,lastBuilt,startPerk,weeklyChallengeMod,sandboxGoal,segArrivalShown,activeCombos};
+  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,profitStreakDays,soundOn,ftueGoalDone,scenarioTimeLimit,rivalEventActive,lang,lastBuilt,startPerk,weeklyChallengeMod,sandboxGoal,segArrivalShown,activeCombos,academyStep};
 
   const season=SEASONS[Math.floor(((day-1)%120)/SL)];
   const rb=getRB(researched);
@@ -495,7 +506,19 @@ export default function ParkTycoon(){
     let startOwned=mkOwned();
     let startFee=10;
 
-    if(mode==="sandbox"){
+    if(mode==="tutorial"){
+      startMoney=99999;startFee=10;
+      // Pre-built tutorial park: entrance + 2 paths + 1 broken carousel
+      const tr=Math.floor(GR/2),tc=Math.floor(GC/2)-4;
+      startGrid[tr][tc]={type:"entrance",level:0,broken:false};
+      startGrid[tr][tc+1]={type:"entrance",ref:[tr,tc]};
+      startGrid[tr][tc+2]={type:"_path",level:0,broken:false};
+      startGrid[tr][tc+3]={type:"_path",level:0,broken:false};
+      startGrid[tr-1][tc+4]={type:"carousel",level:0,broken:true};
+      startGrid[tr-1][tc+5]={type:"carousel",ref:[tr-1,tc+4]};
+      startGrid[tr][tc+4]={type:"carousel",ref:[tr-1,tc+4]};
+      startGrid[tr][tc+5]={type:"carousel",ref:[tr-1,tc+4]};
+    } else if(mode==="sandbox"){
       startMoney=999999;startRes=RESEARCH.map(r=>r.id);startFee=15;
       startOwned=Array(GR).fill(null).map(()=>Array(GC).fill(true));
     } else if(mode==="campaign"&&scenarioId){
@@ -584,22 +607,33 @@ export default function ParkTycoon(){
     setFirstVisitorCelebration(false);firstVisitorRef.current=false;
     // Reset session-specific states
     setSegArrivalShown(false);setZoneFtueShown(false);setShowZoneFtue(false);setSandboxGoal(null);setShowFireworks(false);tickCountRef.current=0;
-    const newMapType=mode==="sandbox"?"default":mode==="campaign"?({s2:"beach",s3:"default",s5:"forest"}[scenarioId]||"default"):MAP_TYPES[Math.floor(Math.random()*MAP_TYPES.length)].id;
+    const newMapType=(mode==="sandbox"||mode==="tutorial")?"default":mode==="campaign"?({s2:"beach",s3:"default",s5:"forest"}[scenarioId]||"default"):MAP_TYPES[Math.floor(Math.random()*MAP_TYPES.length)].id;
     setMapType(newMapType);
     setSelected(null);setClickedTile(null);setBuildMode("build");setZonePaint(null);setSaveConfirm(null);setStageUpFlash(false);prevStageRef.current=1;setBankruptcyDays(0);setProfitStreakDays(0);setPendingSeasonalAction(null);setPendingStartParams(null);
     setTab("build");
 
     setTutorialStep(0);
+    // Academy tutorial reset
+    setAcademyStep(mode==="tutorial"?1:0);
+    academyTabChangedRef.current=false;
+    academyTabAtActivationRef.current="build";
+    academyMechanicFixedRef.current=false;
+    academyDisasterResolvedRef.current=false;
+    prevAcademyDisasterRef.current=null;
+    academyDisasterTriggeredRef.current=false;
+    academyPrevBrokenRef.current=mode==="tutorial"?1:0; // 1 pre-broken carousel
     setDots(Array(60).fill(null).map((_,i)=>({
       id:i, segType:['couple','family','thrill','child','general'][i%5],
       r:Math.floor(Math.random()*GR), c:Math.floor(Math.random()*GC),
       state:'entering', targetR:null, targetC:null, targetBld:null, dwellLeft:0,
     })));
 
-    const startLog = mode === "sandbox" 
+    const startLog = mode === "tutorial"
+      ? (lang==="ko"?"🎓 파르카디아 아카데미 시작! 단계를 따라해보세요":"🎓 Parcadia Academy started! Follow the steps")
+      : mode === "sandbox"
       ? t("log.startSandbox")
-      : mode === "campaign" 
-      ? t("log.startCampaign", { name: t(`scn.${scenarioId}`), desc: t(`scn.${scenarioId}.desc`) }) 
+      : mode === "campaign"
+      ? t("log.startCampaign", { name: t(`scn.${scenarioId}`), desc: t(`scn.${scenarioId}.desc`) })
       : t("log.startChallenge", { name: t(`diff.${diff}`), money: startMoney.toLocaleString() });
     
     setLogs([startLog]);
@@ -700,6 +734,80 @@ export default function ParkTycoon(){
     // 스텝 5: 직원 고용 → 완료 (6)
     else if(tutorialStep===5&&(hired.janitor>0||hired.mechanic>0||hired.entertainer>0)) advance(6);
   },[grid,speed,hired,tutorialStep,screen,zoneGrid,visitors]);
+
+  // ── Academy Tutorial Effects ────────────────────────────────────────────────
+
+  // Reset per-step tracking when academyStep changes
+  useEffect(()=>{
+    if(academyStep===0) return;
+    academyTabChangedRef.current=false;
+    academyTabAtActivationRef.current=tab;
+    // Don't reset mechanicFixed — it accumulates across steps but only checked on step 11
+  },[academyStep]); // eslint-disable-line
+
+  // Track tab changes for tab-visit-gated steps
+  useEffect(()=>{
+    if(academyStep===0) return;
+    if(academyTabAtActivationRef.current!==null&&tab!==academyTabAtActivationRef.current){
+      academyTabChangedRef.current=true;
+    }
+  },[tab,academyStep]);
+
+  // Track mechanic fix (broken→fixed transition)
+  useEffect(()=>{
+    if(academyStep===0) return;
+    const brokenNow=grid.flat().filter(c=>c&&!c.ref&&c.broken).length;
+    if(brokenNow<academyPrevBrokenRef.current) academyMechanicFixedRef.current=true;
+    academyPrevBrokenRef.current=brokenNow;
+  },[grid,academyStep]); // eslint-disable-line
+
+  // Track disaster resolution
+  useEffect(()=>{
+    if(academyStep!==16) return;
+    if(prevAcademyDisasterRef.current&&!activeDisaster){
+      academyDisasterResolvedRef.current=true;
+    }
+    prevAcademyDisasterRef.current=activeDisaster;
+  },[activeDisaster,academyStep]);
+
+  // Scripted disaster trigger for step 16
+  useEffect(()=>{
+    if(academyStep!==16||academyDisasterTriggeredRef.current) return;
+    academyDisasterTriggeredRef.current=true;
+    const fire=DISASTERS.find(d=>d.id==="fire")||DISASTERS.find(d=>d.id==="breakdown")||DISASTERS[0];
+    setActiveDisaster({...fire});
+    addLog(lang==="ko"?"🚨 아카데미 훈련: 재난 발생! 즉시 해결하세요":"🚨 Academy: Disaster event! Resolve it now");
+  },[academyStep]); // eslint-disable-line
+
+  // Main academy action gate: check current step, advance or graduate
+  useEffect(()=>{
+    if(academyStep===0||academyStep>ACADEMY_STEPS.length||screen!=="game") return;
+    const step=ACADEMY_STEPS[academyStep-1];
+    const flat=grid.flat();
+    const pathCount=flat.filter(c=>c?.type==="_path"||c?.type==="_pathFancy").length;
+    const rideCount=flat.filter(c=>c&&!c.ref&&B[c.type]?.cat==="ride"&&c.type!=="entrance").length;
+    const restroomCount=flat.filter(c=>c&&!c.ref&&c.type==="restroom").length;
+    const foodStallCount=flat.filter(c=>c&&!c.ref&&B[c.type]?.cat==="shop").length;
+    const lastNet=dailyHistory.length>0?(dailyHistory[dailyHistory.length-1]?.net||0):0;
+    const s={
+      grid,visitors,sat,hired,fee,speed,tab,activeDisaster,researched,campaigns,day,money,net:lastNet,
+      tabChangedAfterActivation:academyTabChangedRef.current,
+      disasterResolved:academyDisasterResolvedRef.current,
+      pathCount,rideCount,restroomCount,foodStallCount,
+      mechanicFixed:academyMechanicFixedRef.current,
+    };
+    if(!step.check(s)) return;
+    if(academyStep<ACADEMY_STEPS.length){
+      setAcademyStep(prev=>prev+1);
+    } else {
+      // Graduation!
+      try{localStorage.setItem('pt_academy_done','1');}catch{}
+      setMoney(m=>m+5000);
+      addLog(lang==="ko"?"🎓 아카데미 졸업! 보너스 +$5,000":"🎓 Academy Graduation! Bonus +$5,000");
+      setAcademyStep(0);
+      setScreen("menu");
+    }
+  },[grid,visitors,sat,hired,fee,speed,tab,activeDisaster,researched,campaigns,day,academyStep,screen,dailyHistory,money]); // eslint-disable-line
 
   useEffect(()=>{
     const handleResize=()=>{
@@ -980,7 +1088,9 @@ export default function ParkTycoon(){
       const disasterGuardActive=ref.current.startPerk==="disasterGuard"&&day<10;
       const wcDisasterMult=ref.current.weeklyChallengeMod?.disasterMult||1;
       const fastResearchDisMult=ref.current.startPerk==="fastResearch"?1.5:1;
-      if(!newDisaster&&!dWarn&&gm!=="sandbox"&&!disasterGuardActive&&day>=10&&Math.random()<0.015*diffConf.disasterMult*disasterPen*wcDisasterMult*fastResearchDisMult+(newSat<40?0.01:0)){
+      // Academy: suppress random disasters until step 16
+      const academyDisasterBlock=gm==="tutorial"&&ref.current.academyStep<16;
+      if(!newDisaster&&!dWarn&&gm!=="sandbox"&&!academyDisasterBlock&&!disasterGuardActive&&day>=10&&Math.random()<0.015*diffConf.disasterMult*disasterPen*wcDisasterMult*fastResearchDisMult+(newSat<40?0.01:0)){
         const d=DISASTERS[Math.floor(Math.random()*DISASTERS.length)];
         if(Math.random()<0.6){
           // 60%는 경고 먼저
@@ -1313,7 +1423,7 @@ export default function ParkTycoon(){
       setInvestmentHistory(newInvHist);
       // 파산 체크
       const projMoney = ref.current.money + net;
-      const isBankrupt = projMoney < -2000 && gm !== "sandbox";
+      const isBankrupt = projMoney < -2000 && gm !== "sandbox" && gm !== "tutorial";
       const curBkDays = ref.current.bankruptcyDays || 0;
       const newBkDays = isBankrupt ? curBkDays + 1 : 0;
       setBankruptcyDays(newBkDays);
@@ -2242,16 +2352,16 @@ export default function ParkTycoon(){
 
           {!menuSubScreen&&<>
             <div style={{fontSize:10,color:"#7788BB",textAlign:"center",letterSpacing:3,textTransform:"uppercase",marginBottom:12}}>{t("menu.newGame")}</div>
-            {!tutDone&&<div style={{background:"rgba(155,127,255,0.08)",border:"1px solid rgba(155,127,255,0.35)",borderRadius:8,padding:"8px 12px",marginBottom:10,display:"flex",gap:8,alignItems:"center",animation:"slide-in 0.3s ease"}}>
+            {!(()=>{try{return!!localStorage.getItem('pt_academy_done');}catch{return false;}})()&&<div style={{background:"rgba(155,127,255,0.08)",border:"1px solid rgba(155,127,255,0.35)",borderRadius:8,padding:"8px 12px",marginBottom:10,display:"flex",gap:8,alignItems:"center",animation:"slide-in 0.3s ease"}}>
               <span style={{fontSize:16}}>🎓</span>
-              <div style={{fontSize:10,color:"#9B7FFF",lineHeight:1.5,flex:1}}>{lang==="ko"?"처음 플레이하시나요? 아래 튜토리얼 버튼으로 8단계 가이드를 시작해보세요!":"First time? Hit Tutorial below for a guided 8-step walkthrough!"}</div>
+              <div style={{fontSize:10,color:"#9B7FFF",lineHeight:1.5,flex:1}}>{lang==="ko"?"처음 플레이하시나요? 아래 아카데미 버튼으로 17단계 가이드를 시작해보세요!":"First time? Hit Academy below for a guided 17-step walkthrough!"}</div>
             </div>}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:24}}>
               {[
                 {mode:"campaign",emoji:"🎯",name:t("mode.campaign"),time:{ko:"60-90분/시나리오",en:"60-90 min/scenario"},desc:t("mode.campaign.desc"),color:"#00E5A0",action:()=>setMenuSubScreen("scenario")},
                 {mode:"sandbox", emoji:"🏗️",name:t("mode.sandbox"), time:{ko:"시간 제한 없음",en:"Unlimited"},desc:t("mode.sandbox.desc"), color:"#FFD93D",action:()=>setPendingStartParams({mode:"sandbox",scenarioId:null,diff:"normal"})},
                 {mode:"challenge",emoji:"⚡",name:t("mode.challenge"),time:{ko:"30-45분",en:"30-45 min"},desc:t("mode.challenge.desc"),color:"#FF6B9D",action:()=>setMenuSubScreen("difficulty")},
-                {mode:"tutorial",emoji:"🎓",name:lang==="ko"?"튜토리얼":"Tutorial",time:{ko:"약 15분",en:"~15 min"},desc:lang==="ko"?`처음 하시나요?\n단계별로 게임을 배워보세요${tutDone?" ✓ 완료":""}`:(`New to the game?\nLearn step by step${tutDone?" ✓ Done":""}`),color:"#9B7FFF",action:()=>{startGame("sandbox",null,"normal",null,null);setTutorialStep(1);}},
+                {mode:"tutorial",emoji:"🎓",name:lang==="ko"?"아카데미":"Academy",time:{ko:"약 20분",en:"~20 min"},desc:(()=>{const done=(()=>{try{return!!localStorage.getItem('pt_academy_done');}catch{return false;}})();return lang==="ko"?`처음 하시나요?\n5챕터 17단계 체험${done?" ✓ 완료":""}`:(`New to the game?\n5 chapters, 17 steps${done?" ✓ Done":""}`);})(),color:"#9B7FFF",action:()=>startGame("tutorial",null,"normal",null,null)},
               ].map(({mode,emoji,name,time,desc,color,action})=>(
                 <button key={mode} style={{background:"rgba(255,255,255,0.02)",border:`2px solid ${color}22`,borderRadius:14,padding:"20px 14px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",transition:"all 0.2s",backdropFilter:"blur(4px)"}}
                   onMouseEnter={e=>{e.currentTarget.style.border=`2px solid ${color}`;e.currentTarget.style.background=color+"0A";e.currentTarget.style.boxShadow=`0 8px 30px ${color}22, inset 0 0 20px ${color}06`;}}
@@ -2588,8 +2698,8 @@ export default function ParkTycoon(){
         <div className="topbar-row1" style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
           <button style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.10)",color:"#6B7CA1",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:10,fontFamily:"inherit",whiteSpace:"nowrap",transition:"all 0.15s"}} onClick={()=>{setSpeed(0);setScreen("menu");}}>{t("btn.menu")}</button>
           <div style={{fontSize:13,fontWeight:800,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:4,color:"transparent",background:"linear-gradient(135deg,#FFD93D,#FF9F43)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",whiteSpace:"nowrap"}}>🎡 PARCADIA</div>
-          <div style={{fontSize:10,borderRadius:4,padding:"2px 6px",background:gameMode==="sandbox"?"rgba(255,217,61,0.10)":gameMode==="campaign"?"rgba(0,229,160,0.10)":"rgba(255,107,157,0.10)",border:`1px solid ${gameMode==="sandbox"?"rgba(255,217,61,0.3)":gameMode==="campaign"?"rgba(0,229,160,0.3)":"rgba(255,107,157,0.3)"}`,color:gameMode==="sandbox"?"#FFD93D":gameMode==="campaign"?"#00E5A0":"#FF6B9D",whiteSpace:"nowrap",fontWeight:600}}>
-            {gameMode==="sandbox"?t("misc.sandbox"):gameMode==="campaign"?`🎯 ${t(`scn.${currentScenarioData?.id}`)||(lang==="ko"?"캠페인":"Campaign")}`:`⚡ ${t(`diff.${difficulty}`)}`}
+          <div style={{fontSize:10,borderRadius:4,padding:"2px 6px",background:gameMode==="tutorial"?"rgba(155,127,255,0.10)":gameMode==="sandbox"?"rgba(255,217,61,0.10)":gameMode==="campaign"?"rgba(0,229,160,0.10)":"rgba(255,107,157,0.10)",border:`1px solid ${gameMode==="tutorial"?"rgba(155,127,255,0.3)":gameMode==="sandbox"?"rgba(255,217,61,0.3)":gameMode==="campaign"?"rgba(0,229,160,0.3)":"rgba(255,107,157,0.3)"}`,color:gameMode==="tutorial"?"#9B7FFF":gameMode==="sandbox"?"#FFD93D":gameMode==="campaign"?"#00E5A0":"#FF6B9D",whiteSpace:"nowrap",fontWeight:600}}>
+            {gameMode==="tutorial"?`🎓 ${lang==="ko"?"아카데미":"Academy"} ${academyStep}/${ACADEMY_STEPS.length}`:gameMode==="sandbox"?t("misc.sandbox"):gameMode==="campaign"?`🎯 ${t(`scn.${currentScenarioData?.id}`)||(lang==="ko"?"캠페인":"Campaign")}`:`⚡ ${t(`diff.${difficulty}`)}`}
           </div>
           {gameMode==="campaign"&&scenarioTimeLimit>0&&(
             <div style={{fontSize:10,padding:"2px 5px",background:day>scenarioTimeLimit-5?"rgba(255,71,87,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${day>scenarioTimeLimit-5?"rgba(255,71,87,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:4,color:day>scenarioTimeLimit-5?"#FF5757":"#6B7CA1",whiteSpace:"nowrap"}}>
@@ -4867,6 +4977,109 @@ export default function ParkTycoon(){
                     </div>
                   </div>
                 </div>
+              );
+            })()}
+
+            {/* ── ACADEMY TUTORIAL CARD ── */}
+            {academyStep>0&&academyStep<=ACADEMY_STEPS.length&&screen==="game"&&gameMode==="tutorial"&&(()=>{
+              const acStep=ACADEMY_STEPS[academyStep-1];
+              const acChNum=acStep.chapter;
+              const acCh=ACADEMY_CHAPTERS[acChNum];
+              const acDone=(()=>{try{return!!localStorage.getItem('pt_academy_done');}catch{return false;}})();
+              const chSteps=acCh.steps;
+              const stepInChapter=chSteps.indexOf(academyStep)+1;
+              const totalChapters=Object.keys(ACADEMY_CHAPTERS).length;
+              const skipAcademy=()=>{try{localStorage.setItem('pt_academy_done','1');}catch{}setAcademyStep(0);setScreen("menu");};
+              return(
+                <>
+                  <div style={{position:isMobile?"fixed":"absolute",inset:0,zIndex:isMobile?240:25,pointerEvents:"none",
+                    background:"rgba(0,0,0,0.45)",borderRadius:isMobile?0:6}}/>
+                  <div style={{
+                    position:isMobile?"fixed":"absolute",
+                    ...(isMobile
+                      ? (bottomSheetOpen?{top:68}:{bottom:64+tutCardOffsetY})
+                      : {bottom:16,right:16}),
+                    ...(isMobile?{left:"50%",transform:"translateX(-50%)"}:{}),
+                    background:"linear-gradient(135deg,#0D1535,#080B20)",
+                    border:"2px solid #9B7FFF88",
+                    borderRadius:14,
+                    padding:isMobile?"10px 14px":"14px 18px",
+                    zIndex:isMobile?250:30,
+                    minWidth:isMobile?Math.min(window.innerWidth-32,300):280,
+                    maxWidth:isMobile?Math.min(window.innerWidth-24,340):320,
+                    boxShadow:"0 8px 40px rgba(0,0,0,0.9),0 0 0 1px rgba(155,127,255,0.15)",
+                    animation:"slide-in 0.3s ease",pointerEvents:"auto",
+                    touchAction:"none"}}
+                    onTouchStart={isMobile?(e)=>{tutCardDragRef.current={active:true,startY:e.touches[0].clientY,startOffset:tutCardOffsetY};}:undefined}
+                    onTouchMove={isMobile?(e)=>{if(!tutCardDragRef.current.active)return;const dy=tutCardDragRef.current.startY-e.touches[0].clientY;setTutCardOffsetY(Math.max(-60,Math.min(window.innerHeight-200,tutCardDragRef.current.startOffset+dy)));e.stopPropagation();}:undefined}
+                    onTouchEnd={isMobile?()=>{tutCardDragRef.current.active=false;}:undefined}>
+                    {isMobile&&<div style={{display:"flex",justifyContent:"center",marginBottom:8,marginTop:-4}}>
+                      <div style={{width:32,height:4,borderRadius:99,background:"rgba(155,127,255,0.35)"}}/>
+                    </div>}
+                    {/* Veteran skip (top, prominent) */}
+                    {acDone&&<button onClick={skipAcademy} style={{position:"absolute",top:10,right:10,background:"rgba(155,127,255,0.18)",border:"1px solid rgba(155,127,255,0.4)",color:"#9B7FFF",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit",fontWeight:700}}>
+                      ⏭ {lang==="ko"?"건너뛰기":"Skip"}
+                    </button>}
+                    {/* Chapter header */}
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+                      <div style={{fontSize:14}}>{acCh.emoji}</div>
+                      <div>
+                        <div style={{fontSize:8,color:"#9B7FFF",fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>
+                          {lang==="ko"?`챕터 ${acChNum}/${totalChapters}`:(`Chapter ${acChNum}/${totalChapters}`)} · {acCh.name[lang]||acCh.name.ko}
+                        </div>
+                        <div style={{fontSize:8,color:"#3A4A6A"}}>
+                          {lang==="ko"?`전체 진행: ${academyStep}/${ACADEMY_STEPS.length}`:`Progress: ${academyStep}/${ACADEMY_STEPS.length}`}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Progress bar */}
+                    <div style={{display:"flex",gap:2,marginBottom:10}}>
+                      {chSteps.map(sid=>(
+                        <div key={sid} style={{flex:1,height:4,borderRadius:99,
+                          background:sid<academyStep?"#9B7FFF":sid===academyStep?"#FFD93D":"#1A2040",
+                          boxShadow:sid===academyStep?"0 0 5px #FFD93D":sid<academyStep?"0 0 3px #9B7FFF":"none",
+                          transition:"all 0.3s"}}/>
+                      ))}
+                    </div>
+                    {/* Step content */}
+                    <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:8}}>
+                      <div style={{fontSize:20,flexShrink:0,filter:"drop-shadow(0 0 6px rgba(155,127,255,0.5))"}}>
+                        {acStep.title[lang]?.charAt(0)||acStep.title.ko?.charAt(0)||"📌"}
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:11,fontWeight:900,color:"#9B7FFF",lineHeight:1.2,marginBottom:3}}>
+                          {acStep.title[lang]||acStep.title.ko}
+                        </div>
+                        <div style={{display:"inline-flex",alignItems:"center",gap:3,
+                          background:"rgba(155,127,255,0.10)",border:"1px solid rgba(155,127,255,0.3)",
+                          borderRadius:20,padding:"2px 8px",fontSize:8,color:"#9B7FFF",fontWeight:700,animation:"pulse 2s infinite"}}>
+                          {lang==="ko"?`${stepInChapter}/${chSteps.length}단계`:`Step ${stepInChapter}/${chSteps.length}`}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{fontSize:10,color:"#8899CC",lineHeight:1.7,whiteSpace:"pre-line",marginBottom:8}}>
+                      {acStep.instruction[lang]||acStep.instruction.ko}
+                    </div>
+                    {/* Why explanation */}
+                    <div style={{background:"rgba(155,127,255,0.06)",border:"1px solid rgba(155,127,255,0.2)",borderRadius:6,padding:"5px 8px",marginBottom:10,display:"flex",gap:5,alignItems:"flex-start"}}>
+                      <span style={{fontSize:11,flexShrink:0}}>💡</span>
+                      <div style={{fontSize:9,color:"#9B7FFF",lineHeight:1.5}}>
+                        {acStep.why?.[lang]||acStep.why?.ko}
+                      </div>
+                    </div>
+                    {/* Waiting indicator */}
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,padding:"4px 8px",background:"rgba(255,217,61,0.06)",border:"1px solid rgba(255,217,61,0.2)",borderRadius:6}}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:"#FFD93D",animation:"pulse 1s infinite"}}/>
+                      <div style={{fontSize:9,color:"#FFD93DAA"}}>{lang==="ko"?"행동을 완료하면 자동으로 다음 단계로 진행됩니다":"Complete the action above to advance automatically"}</div>
+                    </div>
+                    {/* Skip (first-timer, small) */}
+                    {!acDone&&<div style={{textAlign:"center"}}>
+                      <button onClick={skipAcademy} style={{background:"none",border:"none",color:"#3A4A6A",cursor:"pointer",fontSize:9,fontFamily:"inherit",textDecoration:"underline"}}>
+                        {lang==="ko"?"건너뛰기":"Skip tutorial"}
+                      </button>
+                    </div>}
+                  </div>
+                </>
               );
             })()}
 
