@@ -8,7 +8,7 @@ import {
   WEATHERS, WEATHER_WEIGHTS, DEFAULT_RIDE_PRICES, DEFAULT_SHOP_MULTS, MAX_FEE_BY_STARS,
   LANG_FLAGS, TR, SCENARIOS, DIFFICULTY_SETTINGS, STAGES, B, STARTING_PERKS, WEEKLY_CHALLENGES,
   STAFF, STAFF_UPGRADES, RIVAL_PARKS, FRANCHISES, ZONE_MASTERY, LOAN_OPTS, DOTS, TUTORIAL_STEPS, DAILY_CHALLENGES, SCENARIO_CLEAR_REWARDS, SCENARIO_DIFFICULTY,
-  RIVAL_EVENTS, ACHIEVEMENTS, BONUS_EVENTS, SCENARIO_CLEAR_FLAVOR, BUILDING_EVENTS, SCENARIO_STORIES,
+  RIVAL_EVENTS, ACHIEVEMENTS, BONUS_EVENTS, SCENARIO_CLEAR_FLAVOR, BUILDING_EVENTS, SCENARIO_STORIES, COMBOS,
 } from './gameData.js';
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
 import {
@@ -190,7 +190,11 @@ export default function ParkTycoon(){
   const [segData,setSegData]=useState({family:0.2,couple:0.2,thrill:0.2,child:0.1,general:0.3});
   const [zonePaint,setZonePaint]=useState(null);
   const [buildMode,setBuildMode]=useState("build");
-  const [dots,setDots]=useState(()=>Array(40).fill(null).map((_,i)=>({id:i,r:Math.floor(Math.random()*GR),c:Math.floor(Math.random()*GC),emoji:DOTS[i%DOTS.length]})));
+  const [dots,setDots]=useState(()=>Array(60).fill(null).map((_,i)=>({
+    id:i, segType:['couple','family','thrill','child','general'][i%5],
+    r:Math.floor(Math.random()*GR), c:Math.floor(Math.random()*GC),
+    state:'entering', targetR:null, targetC:null, targetBld:null, dwellLeft:0,
+  })));
   const [gridPopups,setGridPopups]=useState([]);
   const [campaigns,setCampaigns]=useState([]);
   const [pendingVIP,setPendingVIP]=useState(null);
@@ -235,6 +239,11 @@ export default function ParkTycoon(){
   const [investmentHistory,setInvestmentHistory]=useState([]);
   const [mapType,setMapType]=useState("default");
   const [earnedMedals,setEarnedMedals]=useState([]);
+
+  // Combo system
+  const [activeCombos,setActiveCombos]=useState([]);
+  const discoveredCombosRef=useRef(new Set());
+  const [comboToast,setComboToast]=useState(null); // {combo, timeoutId}
 
   // UI-only states (not saved)
   const [bp,setBp]=useState(()=>window.innerWidth<600?"mobile":window.innerWidth<1024?"tablet":"pc");
@@ -328,7 +337,7 @@ export default function ParkTycoon(){
 
   const ref=useRef();
   const diffSettings=DIFFICULTY_SETTINGS[difficulty]||DIFFICULTY_SETTINGS.normal;
-  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,profitStreakDays,soundOn,ftueGoalDone,scenarioTimeLimit,rivalEventActive,lang,lastBuilt,startPerk,weeklyChallengeMod,sandboxGoal,segArrivalShown};
+  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,profitStreakDays,soundOn,ftueGoalDone,scenarioTimeLimit,rivalEventActive,lang,lastBuilt,startPerk,weeklyChallengeMod,sandboxGoal,segArrivalShown,activeCombos};
 
   const season=SEASONS[Math.floor(((day-1)%120)/SL)];
   const rb=getRB(researched);
@@ -581,6 +590,11 @@ export default function ParkTycoon(){
     setTab("build");
 
     setTutorialStep(0);
+    setDots(Array(60).fill(null).map((_,i)=>({
+      id:i, segType:['couple','family','thrill','child','general'][i%5],
+      r:Math.floor(Math.random()*GR), c:Math.floor(Math.random()*GC),
+      state:'entering', targetR:null, targetC:null, targetBld:null, dwellLeft:0,
+    })));
 
     const startLog = mode === "sandbox" 
       ? t("log.startSandbox")
@@ -623,6 +637,46 @@ export default function ParkTycoon(){
     const evt=story?.events?.find(e=>e.day===day);
     if(evt) setTimeout(()=>tryShowStory({...evt,id:`${currentScenario}_${evt.id}`}),400);
   },[day]); // eslint-disable-line
+
+  // 조합 감지: 그리드 변경 시 활성 콤보 재계산
+  useEffect(()=>{
+    // Collect all cell positions per building type
+    const posMap={};
+    for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
+      const cell=grid[r][c];
+      if(!cell?.type||cell.type.startsWith("_")) continue;
+      if(!posMap[cell.type]) posMap[cell.type]=[];
+      posMap[cell.type].push({r,c});
+    }
+    const nowActive=[];
+    for(const combo of COMBOS){
+      // Check all required buildings exist
+      if(!combo.buildings.every(b=>posMap[b]?.length>0)) continue;
+      // For each building, check if at least one cell of it is within radius of at least one cell of every other required building
+      const found=combo.buildings[0]&&posMap[combo.buildings[0]].some(a=>
+        combo.buildings.slice(1).every(b=>
+          posMap[b].some(bPos=>Math.abs(a.r-bPos.r)+Math.abs(a.c-bPos.c)<=combo.radius)
+        )
+      );
+      if(found) nowActive.push(combo.id);
+    }
+    setActiveCombos(prev=>{
+      // Trigger discovery toasts for newly activated combos
+      for(const id of nowActive){
+        if(!discoveredCombosRef.current.has(id)&&screen==="game"){
+          discoveredCombosRef.current.add(id);
+          const combo=COMBOS.find(c=>c.id===id);
+          if(combo){
+            setComboToast(t=>{if(t?.timeoutId) clearTimeout(t.timeoutId);
+              const tid=setTimeout(()=>setComboToast(null),3500);
+              return{combo,timeoutId:tid};
+            });
+          }
+        }
+      }
+      return nowActive;
+    });
+  },[grid,screen]); // eslint-disable-line
 
   // 5단계 튜토리얼: 스텝 5(직원 고용) 도달 시 경영 탭 자동 오픈
   useEffect(()=>{
@@ -678,6 +732,34 @@ export default function ParkTycoon(){
     });
     return result;
   },[grid,zoneGrid]);
+
+  // Combo cell highlight map: key="${r},${c}" → combo color
+  const comboCellMap=useMemo(()=>{
+    if(activeCombos.length===0) return {};
+    const posMap={};
+    for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
+      const cell=grid[r][c];
+      if(!cell?.type||cell.type.startsWith("_")) continue;
+      if(!posMap[cell.type]) posMap[cell.type]=[];
+      posMap[cell.type].push({r,c});
+    }
+    const result={};
+    for(const comboId of activeCombos){
+      const combo=COMBOS.find(c=>c.id===comboId);
+      if(!combo) continue;
+      // For each building in combo, find the cell that is "in range" of all others
+      for(const btype of combo.buildings){
+        const poses=posMap[btype]||[];
+        for(const pos of poses){
+          const inRange=combo.buildings.every(ob=>ob===btype||
+            (posMap[ob]||[]).some(op=>Math.abs(pos.r-op.r)+Math.abs(pos.c-op.c)<=combo.radius)
+          );
+          if(inRange) result[`${pos.r},${pos.c}`]=combo.color;
+        }
+      }
+    }
+    return result;
+  },[activeCombos,grid]);
 
   // 구역 보너스 활성화 시 floating text 연출
   useEffect(()=>{
@@ -745,7 +827,7 @@ export default function ParkTycoon(){
       const feePenalty=fee>maxFee?0.5:1.0;
 
       let visMult=1,revMult=1,satPenExtra=0,disWage=1;
-      if(ad&&gm!=="sandbox"){visMult=ad.visMult||1;revMult=ad.revMult!==undefined?ad.revMult:1;satPenExtra=ad.satPen||0;if(ad.id==="strike") disWage=0;}
+      if(ad&&gm!=="sandbox"){const dm=1-comboDisasterMitigation;visMult=1-(1-(ad.visMult||1))*dm;revMult=ad.revMult!==undefined?1-(1-ad.revMult)*dm:1;satPenExtra=(ad.satPen||0)*(1-comboDisasterMitigation*0.5);if(ad.id==="strike") disWage=0;}
 
       const campBoost=camps.reduce((t,c)=>t+c.boost,0);
       const newCamps=camps.map(c=>({...c,remaining:c.remaining-1})).filter(c=>c.remaining>0);
@@ -771,6 +853,29 @@ export default function ParkTycoon(){
         }
       }
       const scnFeeCapPen=(scnConstraints.admFeeCap&&fee>scnConstraints.admFeeCap&&gm==="campaign")?(scnConstraints.admFeeCapPenalty||0):0;
+
+      // Combo strategy bonuses
+      const curActiveCombos=ref.current.activeCombos||[];
+      const comboSumBonus=(key,def=0)=>COMBOS.filter(c=>curActiveCombos.includes(c.id)).reduce((t,c)=>t+(c.bonus[key]||0),def);
+      const comboCoupleVisMult=1+Math.min(comboSumBonus("coupleMult"),0.60);
+      const comboFamilyVisMult=1+Math.min(comboSumBonus("familyMult"),0.60);
+      const comboThrillVisMult=1+Math.min(comboSumBonus("thrillMult"),0.60);
+      const comboChildVisMult=1+Math.min(comboSumBonus("childMult"),0.60);
+      const comboGeneralVisMult=1+Math.min(comboSumBonus("generalMult"),0.60);
+      const comboRevMult=1+Math.min(comboSumBonus("revMult"),0.50);
+      const comboSatBonus=Math.min(comboSumBonus("satBonus"),20);
+      const comboPrestigeBonus=comboSumBonus("prestige");
+      const comboDisasterMitigation=Math.min(comboSumBonus("disasterMitigation"),0.40);
+      const comboSummerMult=seasonIdx===1?comboSumBonus("summerMult",0):0;
+      const comboFamilySat=comboSumBonus("familySat");
+      // Weighted visitor multiplier from combo (seg ratios)
+      const comboVisSegMult=1+(
+        (segs.couple||0)*Math.min(comboSumBonus("coupleMult"),0.60)+
+        (segs.family||0)*Math.min(comboSumBonus("familyMult"),0.60)+
+        (segs.thrill||0)*Math.min(comboSumBonus("thrillMult"),0.60)+
+        (segs.child||0)*Math.min(comboSumBonus("childMult"),0.60)+
+        (segs.general||0)*Math.min(comboSumBonus("generalMult"),0.60)
+      );
 
       const feeEff=pm==="per_ride"?1.25:Math.max(0.15,1.3-fee*0.022/(1+(parkRat.stars-1)*0.06));
       // Phase 2-1: entertainer level bonus
@@ -818,7 +923,7 @@ export default function ParkTycoon(){
       if(nightCycle&&day%3===0&&day>0) addLog(nightPhase?(lang==="ko"?"🌙 야간 영업 시작! 방문객 급증":"🌙 Night opens! Visitor surge"):(lang==="ko"?"☀️ 낮 시간 — 방문객 감소":"☀️ Daytime — visitors reduced"));
       // Opening bonus: Grand Opening buzz fades over first 7 days
       const openingBonus=day<=3?1.5:day<=7?1.2:1.0;
-      const rawVis=Math.max(0,Math.floor(s.attraction*2.5*(1+hired.entertainer*(0.05+entVisMult))*(0.4+(s0/100)*0.9)*ssn.mult*feeEff*(1+campBoost)*(1+(parkRat.stars-1)*0.10)*(1+rb.globalVisBonus)*(1+rb.coupleBonus*(segs.couple||0))*feePenalty*stgVisMult*wth.visMult*ratingVisMult*(1-rivalSteal)*mapVisMult*holidayVisMult*openingBonus*rivalEventVisMult*s7VisMult));
+      const rawVis=Math.max(0,Math.floor(s.attraction*2.5*(1+hired.entertainer*(0.05+entVisMult))*(0.4+(s0/100)*0.9)*ssn.mult*feeEff*(1+campBoost)*(1+(parkRat.stars-1)*0.10)*(1+rb.globalVisBonus)*(1+rb.coupleBonus*(segs.couple||0))*feePenalty*stgVisMult*wth.visMult*ratingVisMult*(1-rivalSteal)*mapVisMult*holidayVisMult*openingBonus*rivalEventVisMult*s7VisMult*comboVisSegMult*(1+comboSummerMult)));
       const congested=s.capacity>0&&rawVis>s.capacity;
       let vis=Math.floor(Math.max(0,(congested?s.capacity*1.05:rawVis)*visMult));
       if(s.hasEntrance&&s.attraction>0&&vis<3) vis=3;
@@ -832,7 +937,7 @@ export default function ParkTycoon(){
       const shopMul=avgShopMult(cc2,sm);
       const shopRev=vis*s.rpv*spendMult*shopMul;
       const passInc=pe?Math.floor(ph*pp/365*rb.passIncomeMult):0;
-      const totalRevDay=Math.floor((admRev+rideRev+shopRev)*revMult*stgRevMult)+passInc;
+      const totalRevDay=Math.floor((admRev+rideRev+shopRev)*revMult*stgRevMult*comboRevMult)+passInc;
 
       const wages=Object.entries(hired).reduce((t,[k,v])=>t+STAFF[k].daily*v,0)*disWage;
       let loanPay=0;
@@ -854,7 +959,7 @@ export default function ParkTycoon(){
       // 방문객 없을 때 패널티 제거 (운영 안 하면 만족도 변화 없음)
       const baseSatDelta = vis > 0 ? -0.18 : 0;
       const coupleBoostSat=ref.current.startPerk==="coupleBoost"?5:0;
-      const newSat=Math.min(100,Math.max(5,s0+hired.janitor*janSatBonus+hired.security*secSatBonus+s.satBonus+baseSatDelta+cleanMod+(congested&&vis>0?-5:0)+Math.min(0,-s.brokenCount*2)+segSatMod(newGrid,segs)+Math.min(0,-s.isolatedCount)+(fee>maxFee?-6:0)-satPenExtra+wth.satMod+holidaySatMod-rivalEventSatPen*0.5+coupleBoostSat+scnSatMod+scnFeeCapPen));
+      const newSat=Math.min(100,Math.max(5,s0+hired.janitor*janSatBonus+hired.security*secSatBonus+s.satBonus+baseSatDelta+cleanMod+(congested&&vis>0?-5:0)+Math.min(0,-s.brokenCount*2)+segSatMod(newGrid,segs)+Math.min(0,-s.isolatedCount)+(fee>maxFee?-6:0)-satPenExtra+wth.satMod+holidaySatMod-rivalEventSatPen*0.5+coupleBoostSat+scnSatMod+scnFeeCapPen+comboSatBonus*0.08+comboFamilySat*0.04));
 
       let newDisaster=ad?{...ad,remaining:ad.remaining-1}:null;
       if(newDisaster?.remaining<=0){addLog(t("log.disasterEnd", {name: t(`dis.${newDisaster.id}`)}));newDisaster=null;}
@@ -939,6 +1044,8 @@ export default function ParkTycoon(){
         if(prestigeMod!==0) setPrestigeBonus(pb=>pb+Math.round(prestigeMod*rb.prestigeRateMult));
         if(ref.current.soundOn) playSound(grade==="S"||grade==="A"?"mission":"disaster");
       }
+      // Combo prestige bonus (daily)
+      if(comboPrestigeBonus>0) setPrestigeBonus(pb=>pb+comboPrestigeBonus);
 
       // Phase 2-4: visitor ratings
       const ratingCount=Math.floor(vis*0.05);
@@ -1312,39 +1419,194 @@ export default function ParkTycoon(){
     }
   },[currentStage.id]);
 
+  // ── 살아있는 방문객 시스템 ──
   useEffect(()=>{
-    if(screen !== "game") return;
+    if(screen!=="game") return;
+
+    // Segment → preferred building types (ordered by priority)
+    const SEG_TARGETS={
+      couple:['ferrisWheel','fountain','photoBooth','vipLounge','garden','cinema4D','balloonRide'],
+      family:['carousel','miniTrain','kidsPlayground','foodStall','miniGolf','restroom','amphitheater'],
+      thrill:['rollerCoaster','thrillRide','dropTower','hauntedHouse','bumperCars','waterRide'],
+      child: ['kidsPlayground','arcade','iceCream','carousel','bumperCars','miniTrain'],
+      general:['foodStall','coffeeCafe','amphitheater','giftShop','garden','miniGolf','cinema4D'],
+    };
+    // Dwell ticks [min,max]
+    const DWELL={couple:[6,10],family:[4,7],thrill:[2,4],child:[2,3],general:[3,5]};
+
+    // Greedy path-preferring move: return {r,c} one step closer to (tr,tc)
+    const greedyStep=(r,c,tr,tc,pathSet)=>{
+      const dr=tr-r, dc=tc-c;
+      if(dr===0&&dc===0) return{r,c};
+      const candidates=[];
+      if(Math.abs(dr)>=Math.abs(dc)){
+        if(dr!==0) candidates.push({r:r+Math.sign(dr),c});
+        if(dc!==0) candidates.push({r,c:c+Math.sign(dc)});
+      } else {
+        if(dc!==0) candidates.push({r,c:c+Math.sign(dc)});
+        if(dr!==0) candidates.push({r:r+Math.sign(dr),c});
+      }
+      // Prefer path tile, otherwise take any valid step
+      const pathStep=candidates.find(m=>m.r>=0&&m.r<GR&&m.c>=0&&m.c<GC&&pathSet.has(`${m.r},${m.c}`));
+      if(pathStep) return pathStep;
+      const anyStep=candidates.find(m=>m.r>=0&&m.r<GR&&m.c>=0&&m.c<GC);
+      return anyStep||{r,c};
+    };
+
+    // Pick a new segment type weighted by segData
+    const pickSeg=(segData)=>{
+      const keys=Object.keys(SEGS);
+      const total=keys.reduce((s,k)=>s+(segData[k]||0),0)||1;
+      let rnd=Math.random()*total;
+      for(const k of keys){rnd-=(segData[k]||0);if(rnd<=0) return k;}
+      return 'general';
+    };
+
+    // Reset a dot back to spawn point with new identity
+    const respawnDot=(dot,spawnR,spawnC,segData)=>{
+      const sk=pickSeg(segData);
+      const off=Math.floor(Math.random()*3)-1;
+      return{...dot,
+        segType:sk,
+        r:Math.max(0,Math.min(GR-1,spawnR+off)),
+        c:Math.max(0,Math.min(GC-1,spawnC+off)),
+        state:'entering', targetR:null, targetC:null, targetBld:null, dwellLeft:0,
+      };
+    };
+
     const id=setInterval(()=>{
-      const{grid,visitors,segData}=ref.current;
+      const{grid,visitors,segData,weather:wth,sat:curSat,clean:curClean}=ref.current;
       if(visitors===0) return;
-      const paths=[];for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){const cell=grid[r][c];if(cell?.type==="_path"||cell?.type==="_pathFancy") paths.push({r,c});}
-      const tiles=[];for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){if(grid[r][c]&&!grid[r][c].broken) tiles.push({r,c});}
-      const pool=paths.length>2?paths:tiles;if(!pool.length) return;
-      const pathSet=new Set(paths.map(p=>`${p.r},${p.c}`));
-      // Build weighted segment pool once per tick for proportional dot emoji distribution
-      const segKeys=Object.keys(SEGS);
-      const totalW=segKeys.reduce((s,k)=>s+(segData[k]||0),0)||1;
-      const segPool=[];segKeys.forEach(k=>{const cnt=Math.max(1,Math.round((segData[k]||0)/totalW*20));for(let j=0;j<cnt;j++) segPool.push(k);});
-      setDots(prev=>prev.map((dot,dotIdx)=>{
-        const sk=segPool[dotIdx%segPool.length]||"general";
-        if(paths.length>2){
-          // Step along adjacent path tiles for organic walking movement
-          const adj=[];
-          for(const[dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){const nr=dot.r+dr,nc=dot.c+dc;if(pathSet.has(`${nr},${nc}`)) adj.push({r:nr,c:nc});}
-          if(adj.length>0){const nxt=adj[Math.floor(Math.random()*adj.length)];return{...dot,r:nxt.r,c:nxt.c,emoji:SEGS[sk].emoji};}
-          const snap=paths[Math.floor(Math.random()*Math.min(8,paths.length))];
-          return{...dot,r:snap.r,c:snap.c,emoji:SEGS[sk].emoji};
+
+      // Build caches each tick (O(GR*GC) = 800 ops, cheap)
+      const pathCells=[]; const pathSet=new Set();
+      const bldNearPaths={}; // buildingType → [{r,c}] of adjacent path cells
+      let spawnR=-1, spawnC=-1;
+
+      for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
+        const cell=grid[r][c];
+        if(!cell||cell.ref) continue;
+        if(cell.type==="_path"||cell.type==="_pathFancy"){
+          pathCells.push({r,c}); pathSet.add(`${r},${c}`);
         }
-        const base=pool[Math.floor(Math.random()*pool.length)];
-        return{...dot,r:Math.max(0,Math.min(GR-1,base.r+Math.floor(Math.random()*3)-1)),c:Math.max(0,Math.min(GC-1,base.c+Math.floor(Math.random()*3)-1)),emoji:SEGS[sk].emoji};
+        if(cell.type==="entrance"&&spawnR<0){spawnR=r;spawnC=c;}
+        if(!cell.type.startsWith("_")&&cell.type!=="entrance"&&!cell.broken){
+          if(!bldNearPaths[cell.type]) bldNearPaths[cell.type]=[];
+          // Collect path cells within 2 of this building
+          for(const[dr,dc] of [[-1,0],[1,0],[0,-1],[0,1],[-2,0],[2,0],[0,-2],[0,2]]){
+            const nr=r+dr, nc=c+dc;
+            if(nr>=0&&nr<GR&&nc>=0&&nc<GC&&pathSet.has(`${nr},${nc}`)){
+              bldNearPaths[cell.type].push({r:nr,c:nc});
+            }
+          }
+        }
+      }
+      if(spawnR<0){spawnR=Math.floor(GR/2);spawnC=Math.floor(GC/2);}
+
+      // Weather modifier: rain/storm → push couple/general toward indoor attractions
+      const isRainy=wth?.id==="rainy"||wth?.id==="stormy";
+      const indoorBlds=['cinema4D','arcade','amphitheater','vipLounge','foodStall','coffeeCafe'];
+
+      const maxDots=Math.min(60,Math.max(4,Math.round(visitors/3)));
+
+      setDots(prev=>prev.map((dot,idx)=>{
+        // Only animate active dots
+        if(idx>=maxDots) return dot;
+
+        // Family/couple move at half speed
+        if((dot.segType==="family"||dot.segType==="couple")&&Math.random()<0.45) return dot;
+
+        let d={...dot};
+
+        switch(d.state){
+          case 'entering':{
+            // Walk away from spawn into park — aim for center + slight spread
+            const goalR=Math.floor(GR/2)+Math.floor(Math.random()*4)-2;
+            const goalC=Math.floor(GC/4)+Math.floor(Math.random()*8);
+            const dist=Math.abs(d.r-goalR)+Math.abs(d.c-goalC);
+            if(dist<=3){d.state='walking'; break;}
+            const moved=greedyStep(d.r,d.c,goalR,goalC,pathSet);
+            d.r=moved.r; d.c=moved.c;
+            break;
+          }
+
+          case 'walking':{
+            if(d.targetR===null||d.targetC===null){
+              // Pick a target building from segment preference
+              const pref=isRainy&&(d.segType==="couple"||d.segType==="general")
+                ?[...indoorBlds,...(SEG_TARGETS[d.segType]||SEG_TARGETS.general)]
+                :(SEG_TARGETS[d.segType]||SEG_TARGETS.general);
+              let target=null;
+              for(const btype of pref){
+                const cells=bldNearPaths[btype];
+                if(cells&&cells.length>0){
+                  target={bld:btype,...cells[Math.floor(Math.random()*cells.length)]};
+                  break;
+                }
+              }
+              if(target){
+                d.targetR=target.r; d.targetC=target.c; d.targetBld=target.bld;
+              } else if(pathCells.length>0){
+                // No matching building → wander path
+                const p=pathCells[Math.floor(Math.random()*pathCells.length)];
+                d.r=p.r; d.c=p.c;
+              }
+            } else {
+              const dist=Math.abs(d.r-d.targetR)+Math.abs(d.c-d.targetC);
+              if(dist<=2){
+                // Arrived — start dwelling
+                d.state='dwelling';
+                const[lo,hi]=DWELL[d.segType]||[3,5];
+                d.dwellLeft=lo+Math.floor(Math.random()*(hi-lo+1));
+                d.targetR=null; d.targetC=null;
+              } else {
+                const m=greedyStep(d.r,d.c,d.targetR,d.targetC,pathSet);
+                d.r=m.r; d.c=m.c;
+              }
+            }
+            break;
+          }
+
+          case 'dwelling':{
+            d.dwellLeft=d.dwellLeft-1;
+            // Tiny micro-jitter near attraction
+            if(Math.random()<0.35&&pathCells.length>0){
+              const adj=[];
+              for(const[dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+                const nr=d.r+dr,nc=d.c+dc;
+                if(pathSet.has(`${nr},${nc}`)) adj.push({r:nr,c:nc});
+              }
+              if(adj.length>0){const n=adj[Math.floor(Math.random()*adj.length)];d.r=n.r;d.c=n.c;}
+            }
+            if(d.dwellLeft<=0){
+              // 25% leave, 75% find new attraction
+              d.state=Math.random()<0.25?'leaving':'walking';
+              d.targetR=null; d.targetC=null; d.targetBld=null;
+            }
+            break;
+          }
+
+          case 'leaving':{
+            const dist=Math.abs(d.r-spawnR)+Math.abs(d.c-spawnC);
+            if(dist<=2){
+              // Respawn as new visitor
+              d=respawnDot(d,spawnR,spawnC,segData);
+            } else {
+              const m=greedyStep(d.r,d.c,spawnR,spawnC,pathSet);
+              d.r=m.r; d.c=m.c;
+            }
+            break;
+          }
+
+          default: d.state='entering';
+        }
+        return d;
       }));
-      // 15% 확률로 랜덤 방문객 말풍선 (2-2: 실제 상태 기반 컨텍스트 메시지)
-      if(Math.random()<0.25&&ref.current.visitors>0){
-        const curSat=ref.current.sat;
-        const curClean=ref.current.clean;
+
+      // Speech bubbles: context-aware based on sat/clean
+      if(Math.random()<0.22&&visitors>0){
         const brokenNow=ref.current.grid.flat().filter(c=>c&&!c.ref&&c.broken).length;
-        let msgs;
-        const isKo=ref.current.lang==="ko";
+        let msgs; const isKo=ref.current.lang==="ko";
         if(curSat>75){
           msgs=isKo?["😊 재밌어요!","🎉 신났다!","👍 대박이야!","🎠 즐거워요!","⭐ 또 올게요!"]:["😊 So fun!","🎉 Excited!","👍 Amazing!","🎠 Enjoying it!","⭐ Coming back!"];
         } else if(curSat>50){
@@ -1360,12 +1622,13 @@ export default function ParkTycoon(){
         setBubbles(prev=>{
           const now=Date.now();
           const alive=prev.filter(b=>b.expires>now).slice(-4);
-          const r=Math.floor(Math.random()*GR);
-          const c=Math.floor(Math.random()*GC);
-          return [...alive,{id:now,r,c,text,expires:now+2800}];
+          const activeDot=prev.length>0?null:null;
+          // Attach bubble to a random active path cell for realism
+          const bPos=pathCells.length>0?pathCells[Math.floor(Math.random()*Math.min(12,pathCells.length))]:{r:Math.floor(Math.random()*GR),c:Math.floor(Math.random()*GC)};
+          return[...alive,{id:now,r:bPos.r,c:bPos.c,text,expires:now+2800}];
         });
       }
-    },1200);
+    },950);
     return()=>clearInterval(id);
   },[screen]);
 
@@ -3292,6 +3555,42 @@ export default function ParkTycoon(){
                   </div>);
                 })}
               </div>
+
+              {/* ── 시너지 조합 패널 ── */}
+              <div style={{marginTop:10}}>
+                <div style={{fontSize:10,color:"#9B7FFF",letterSpacing:2,textTransform:"uppercase",marginBottom:6,display:"flex",alignItems:"center",gap:6}}>
+                  <span>✨</span>
+                  <span>{lang==="ko"?"시너지 조합":"Synergy Combos"}</span>
+                  {activeCombos.length>0&&<span style={{background:"#9B7FFF33",border:"1px solid #9B7FFF55",borderRadius:20,padding:"1px 6px",fontSize:9,color:"#9B7FFF",marginLeft:"auto"}}>{activeCombos.length} {lang==="ko"?"활성":"active"}</span>}
+                </div>
+                {COMBOS.map(combo=>{
+                  const isActive=activeCombos.includes(combo.id);
+                  return(
+                    <div key={combo.id} style={{display:"flex",alignItems:"flex-start",gap:6,padding:"5px 7px",marginBottom:3,
+                      background:isActive?`${combo.color}12`:"rgba(255,255,255,0.02)",
+                      border:`1px solid ${isActive?combo.color+"55":"rgba(255,255,255,0.06)"}`,
+                      borderRadius:6,transition:"all 0.2s",opacity:isActive?1:0.45}}>
+                      <div style={{fontSize:16,lineHeight:1,marginTop:1}}>{combo.emoji}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:4}}>
+                          <span style={{fontSize:11,fontWeight:700,color:isActive?combo.color:"#8899BB"}}>{combo.name[lang]||combo.name.ko}</span>
+                          {combo.tier===3&&<span style={{fontSize:8,background:combo.color+"33",color:combo.color,borderRadius:3,padding:"1px 4px",flexShrink:0}}>{lang==="ko"?"TRIPLE":"TRIPLE"}</span>}
+                          {isActive&&<span style={{fontSize:8,color:"#00E5A0",flexShrink:0}}>✅</span>}
+                        </div>
+                        <div style={{fontSize:10,color:isActive?"#DDE2FF":"#445566",marginTop:1}}>{combo.desc[lang]||combo.desc.ko}</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:3}}>
+                          {combo.buildings.map(b=>(
+                            <span key={b} style={{fontSize:9,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:3,padding:"1px 5px",color:"#6677AA"}}>
+                              {B[b]?.emoji} {t(`b.${b}`)}
+                            </span>
+                          ))}
+                          <span style={{fontSize:9,color:"#334455",padding:"1px 0"}}>({lang==="ko"?"반경":"radius"} {combo.radius})</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </>}
 
             {tab==="marketing"&&<>
@@ -4134,6 +4433,7 @@ export default function ParkTycoon(){
                 const isCongested=congestedCells.has(`${r},${c}`);
                 const isRightBoundary=owned&&c+bw<GC&&!ownedGrid[r][c+bw];
                 const isNextBuyable=!owned&&gameMode!=="sandbox"&&((c>0&&ownedGrid[r][c-1])||(c<GC-1&&ownedGrid[r][c+1]));
+                const comboCellColor=cell&&!broken&&!isPath?comboCellMap[`${r},${c}`]:null;
 
                 const OBS_STYLE={rock:{bg:"rgba(70,50,30,0.55)",bd:"rgba(120,90,55,0.6)",emoji:"🪨"},water:{bg:"rgba(10,70,180,0.40)",bd:"rgba(40,130,255,0.55)",emoji:"💧"},rubble:{bg:"rgba(90,80,60,0.50)",bd:"rgba(140,120,90,0.5)",emoji:"🧱"},deadtree:{bg:"rgba(25,55,15,0.50)",bd:"rgba(40,90,25,0.5)",emoji:"🌵"}};
                 let bg="#0C1028";
@@ -4175,7 +4475,7 @@ export default function ParkTycoon(){
                     transition:"border-color 0.12s,background 0.12s",
                     minHeight:0,overflow:"hidden",position:"relative",
                     background:isNextBuyable?"rgba(77,159,255,0.04)":bg,
-                    boxShadow:isSel?`0 0 0 2px #FFD93D, 0 0 16px rgba(255,217,61,0.4)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?"0 0 8px rgba(255,87,87,0.3)":isDemolishHov?"0 0 8px rgba(255,87,87,0.4)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 8px rgba(255,159,67,0.3)":isEntrance&&!broken?`0 0 14px rgba(255,217,61,0.3), inset 0 0 14px rgba(255,217,61,0.08)`:cell&&!broken&&!isPath?(cell.level>=2?`0 0 12px ${bd.color}77, inset 0 0 12px ${bd.color}33`:cell.level>=1?`0 0 7px ${bd.color}55, inset 0 0 10px ${bd.color}22`:`0 0 5px ${bd.color}33, inset 0 0 8px ${bd.color}14`):"none",
+                    boxShadow:isSel?`0 0 0 2px #FFD93D, 0 0 16px rgba(255,217,61,0.4)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?"0 0 8px rgba(255,87,87,0.3)":isDemolishHov?"0 0 8px rgba(255,87,87,0.4)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 8px rgba(255,159,67,0.3)":isEntrance&&!broken?`0 0 14px rgba(255,217,61,0.3), inset 0 0 14px rgba(255,217,61,0.08)`:cell&&!broken&&!isPath?(comboCellColor?`0 0 0 2px ${comboCellColor}, 0 0 10px ${comboCellColor}88, inset 0 0 8px ${comboCellColor}22`:cell.level>=2?`0 0 12px ${bd.color}77, inset 0 0 12px ${bd.color}33`:cell.level>=1?`0 0 7px ${bd.color}55, inset 0 0 10px ${bd.color}22`:`0 0 5px ${bd.color}33, inset 0 0 8px ${bd.color}14`):"none",
                     opacity:!owned?0.12:1}}
                   onMouseDown={(e)=>{
                     if(e.button!==0) return;
@@ -4399,13 +4699,47 @@ export default function ParkTycoon(){
               </div>
             )}
             {visitors>0&&<div style={{position:"absolute",inset:3,pointerEvents:"none",overflow:"hidden",borderRadius:6}}>
-              {dots.slice(0,Math.min(40,Math.max(4,Math.round(visitors/4)))).map(dot=>{
-                const isSimple=visitors<20;
-                const dotColors=["#4D9FFF","#00E5A0","#FFD93D","#FF9F43","#FF6B9D"];
-                return(<div key={dot.id} style={{position:"absolute",left:`${(dot.c/GC)*100}%`,top:`${(dot.r/GR)*100}%`,width:`${(1/GC)*100}%`,height:`${(1/GR)*100}%`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:isSimple?9:11,transition:"left 1.1s ease,top 1.1s ease",filter:"drop-shadow(0 2px 4px rgba(0,0,0,1))",zIndex:5,animation:`visitor-wander ${3+dot.id%3}s ease-in-out infinite`,animationDelay:`${(dot.id*0.4)%3}s`}}>
-                  {isSimple?<span style={{color:dotColors[dot.id%dotColors.length],fontSize:8}}>●</span>:dot.emoji}
-                </div>);
-              })}
+              {(()=>{
+                const maxDots=isMobile?Math.min(30,Math.max(3,Math.round(visitors/5))):Math.min(60,Math.max(4,Math.round(visitors/3)));
+                const SEG_COLORS={couple:"#FF6B9D",family:"#FF9F43",thrill:"#FF4757",child:"#48DBFB",general:"#C7B8EA"};
+                const SEG_EMOJI={couple:"💑",family:"👨‍👩‍👧",thrill:"🤸",child:"🧒",general:"🧑"};
+                const isSimple=visitors<15;
+                return dots.slice(0,maxDots).map(dot=>{
+                  const segColor=SEG_COLORS[dot.segType]||"#C7B8EA";
+                  const isDwelling=dot.state==="dwelling";
+                  const isLeaving=dot.state==="leaving";
+                  // Thrill seekers get faster wander animation
+                  const wanderDur=dot.segType==="thrill"?1.5:dot.segType==="child"?2:dot.segType==="family"?4:3;
+                  return(
+                    <div key={dot.id} style={{
+                      position:"absolute",
+                      left:`${(dot.c/GC)*100}%`,
+                      top:`${(dot.r/GR)*100}%`,
+                      width:`${(1/GC)*100}%`,
+                      height:`${(1/GR)*100}%`,
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:isSimple?8:isDwelling?13:11,
+                      transition:"left 0.9s ease,top 0.9s ease,opacity 0.4s",
+                      filter:isDwelling
+                        ?`drop-shadow(0 0 4px ${segColor}) drop-shadow(0 2px 4px rgba(0,0,0,0.9))`
+                        :"drop-shadow(0 2px 4px rgba(0,0,0,0.9))",
+                      zIndex:isDwelling?7:5,
+                      opacity:isLeaving?0.5:1,
+                      animation:isDwelling
+                        ?`visitor-wander ${wanderDur*0.6}s ease-in-out infinite`
+                        :dot.segType==="child"
+                        ?`visitor-wander ${wanderDur}s ease-in-out infinite`
+                        :undefined,
+                      animationDelay:`${(dot.id*0.3)%2}s`,
+                    }}>
+                      {isSimple
+                        ?<span style={{color:segColor,fontSize:7,lineHeight:1}}>●</span>
+                        :<span style={{lineHeight:1,userSelect:"none"}}>{SEG_EMOJI[dot.segType]||"🧑"}</span>
+                      }
+                    </div>
+                  );
+                });
+              })()}
               {gridPopups.filter(p=>p.expires>Date.now()).map(p=>(
                 <div key={p.id} style={{position:"absolute",left:`${(p.c/GC)*100}%`,top:`${(p.r/GR)*100}%`,color:p.color,fontSize:14,fontWeight:900,animation:"float-up 2.8s ease-out forwards",pointerEvents:"none",zIndex:20,whiteSpace:"nowrap",textShadow:`0 0 8px ${p.color},0 2px 8px rgba(0,0,0,0.95)`,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{p.text}</div>
               ))}
@@ -4438,6 +4772,28 @@ export default function ParkTycoon(){
                 </div>
               ))}
             </div>}
+
+            {/* ── 조합 발견 토스트 ── */}
+            {comboToast&&screen==="game"&&(()=>{
+              const c=comboToast.combo;
+              return(
+                <div style={{position:"absolute",top:isMobile?72:16,left:"50%",transform:"translateX(-50%)",zIndex:isMobile?250:70,
+                  background:`linear-gradient(135deg,${c.color}22,#0A0D20)`,
+                  border:`1px solid ${c.color}66`,borderRadius:12,padding:"10px 16px",
+                  display:"flex",alignItems:"center",gap:10,minWidth:200,maxWidth:320,
+                  boxShadow:`0 4px 20px rgba(0,0,0,0.7),0 0 12px ${c.color}44`,
+                  animation:"slide-in 0.25s ease",backdropFilter:"blur(8px)",pointerEvents:"none"}}>
+                  <div style={{fontSize:22,lineHeight:1}}>{c.emoji}</div>
+                  <div>
+                    <div style={{fontSize:10,color:c.color,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Barlow Condensed',sans-serif"}}>
+                      {lang==="ko"?"✨ 새 조합 발견!":"✨ New Combo!"}
+                    </div>
+                    <div style={{fontSize:13,color:"#DDE2FF",fontWeight:700}}>{c.name[lang]||c.name.ko}</div>
+                    <div style={{fontSize:11,color:"#8899BB",marginTop:2}}>{c.desc[lang]||c.desc.ko}</div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ── 스토리 카드 오버레이 ── */}
             {storyCard&&screen==="game"&&(()=>{
