@@ -374,6 +374,9 @@ export default function ParkTycoon(){
   const [hof,setHof]=useState(()=>{try{return JSON.parse(localStorage.getItem('pt_hof')||'{}');}catch{return{};}});
   const [speedrunRecords,setSpeedrunRecords]=useState(()=>{try{return JSON.parse(localStorage.getItem('pt_speedrun')||'{}');}catch{return{};}});
   const [saveQuotaWarning,setSaveQuotaWarning]=useState(false);
+  const [showAbout,setShowAbout]=useState(false);
+  const [showAllClear,setShowAllClear]=useState(false);
+  const allClearShownRef=useRef(false);
   const [pendingBuild,setPendingBuild]=useState(null); // {r,c,selected,bd} for confirm
   const [showFtueModal,setShowFtueModal]=useState(false);
   const prevEarnedMedalsLenRef=useRef(0);
@@ -457,7 +460,9 @@ export default function ParkTycoon(){
         addLog(lang==="ko"?"📤 공유됨!":"📤 Shared!");
       } else {
         await navigator.clipboard.writeText(text + window.location.href);
-        addLog(lang==="ko"?"📋 공유 텍스트 복사됨!":"📋 Share text copied!");
+        addLog(lang==="ko"?"📋 클립보드에 복사됐습니다! 붙여넣기로 공유하세요":"📋 Copied to clipboard! Paste anywhere to share.");
+        setAchievementFlash({col:"#4D9FFF",emoji:"📋",name:{ko:"복사됨!",en:"Copied!"},desc:{ko:"클립보드에 공유 텍스트가 복사됐습니다",en:"Share text copied to clipboard"}});
+        setTimeout(()=>setAchievementFlash(null),2500);
       }
     } catch { addLog(lang==="ko"?"❌ 공유 실패":"❌ Share failed"); }
   }, [grid, zoneGrid, hired, rb, sat, clean, visitors, day, dailyHistory, lang, addLog]);
@@ -1598,6 +1603,16 @@ export default function ParkTycoon(){
     }
   },[totalVis,parkRating.stars,money,currentStage.id,clean,sat,day,earnedMedals,loans]);
 
+  useEffect(()=>{
+    if(gameMode!=="campaign") return;
+    const campaignIds=SCENARIOS.map(s=>s.id);
+    const clearedIds=new Set(earnedMedals.map(m=>m.scenarioId));
+    if(campaignIds.length>0&&campaignIds.every(id=>clearedIds.has(id))&&!allClearShownRef.current){
+      allClearShownRef.current=true;
+      setTimeout(()=>setShowAllClear(true),1500);
+    }
+  },[earnedMedals,gameMode]);
+
   const lastAutoSaveDay=useRef(-1);
   useEffect(()=>{
     if(screen!=="game"||day<2) return;
@@ -2471,6 +2486,26 @@ export default function ParkTycoon(){
     return(<>
       <div className="screen-enter" style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%, #0D1535 0%, #020510 60%)",color:"var(--text-primary)",height:"100%",overflowY:"auto",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:20}}>
         {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} bgMusicOn={bgMusicOn} setBgMusicOn={setBgMusicOn} bgVolume={bgVolume} setBgVolume={setBgVolume} onClose={()=>setShowSettings(false)} lang={lang}/>}
+        {showAbout&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setShowAbout(false)}>
+          <div role="dialog" aria-modal={true} aria-label={lang==="ko"?"소개":"About"} style={{background:"#0C1128",border:"1px solid rgba(120,140,255,0.3)",borderRadius:14,padding:"28px 32px",maxWidth:360,boxShadow:"0 8px 40px rgba(0,0,0,0.9)",fontFamily:"'Rajdhani','Barlow Condensed',sans-serif"}} onClick={e=>e.stopPropagation()}>
+            <div style={{textAlign:"center",marginBottom:16}}>
+              <div style={{fontSize:40,marginBottom:6}}>🎡</div>
+              <div style={{fontSize:22,fontWeight:900,letterSpacing:4,color:"#FFD93D",fontFamily:"'Barlow Condensed',sans-serif"}}>PARCADIA</div>
+              <div style={{fontSize:11,color:"#5566AA",marginTop:2,fontFamily:"'Space Mono',monospace"}}>v1.0.0</div>
+            </div>
+            <div style={{fontSize:11,color:"#8899BB",lineHeight:1.8,marginBottom:16,textAlign:"center"}}>
+              {lang==="ko"?"8개 시나리오 · 27종 건물 · 날씨·재난·연구 시스템\n완전 무료 브라우저 경영 시뮬레이션":"8 scenarios · 27 buildings · weather, disaster & research\nFully free browser management simulation"}
+            </div>
+            <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(120,140,255,0.1)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:10,color:"#6B7CA1",lineHeight:1.8}}>
+              <div>🎮 {lang==="ko"?"개발":"Dev"}: PeterPark3832</div>
+              <div>🌐 {lang==="ko"?"지원 언어":"Languages"}: 한국어 · English</div>
+              <div>⚙️ {lang==="ko"?"기술 스택":"Stack"}: React · Vite · Recharts</div>
+            </div>
+            <button style={{width:"100%",padding:"8px 0",background:"rgba(100,120,255,0.1)",border:"1px solid rgba(100,120,255,0.25)",color:"#8899CC",borderRadius:7,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:600}} onClick={()=>setShowAbout(false)}>{lang==="ko"?"닫기":"Close"}</button>
+          </div>
+        </div>
+      )}
         <button onClick={()=>setShowSettings(true)} style={{position:"fixed",top:12,right:12,background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.3)",color:"#8899CC",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:16,fontFamily:"inherit",transition:"all 0.15s",zIndex:1000}} title={lang==="ko"?"설정":"Settings"}>⚙️</button>
         <div style={{width:"100%",maxWidth:680,margin:"auto"}}>
           <div style={{textAlign:"center",marginBottom:28}}>
@@ -2716,8 +2751,10 @@ export default function ParkTycoon(){
           </>}
 
           {/* 하단 버전 정보 */}
-          <div style={{textAlign:"center",marginTop:24,fontSize:10,color:"#1A2040",fontFamily:"'Space Mono',monospace"}}>
-            v1.0.0 · Parcadia · {lang==="ko"?"무료 경영 시뮬레이션":"Free Management Sim"}
+          <div style={{textAlign:"center",marginTop:24,display:"flex",alignItems:"center",justifyContent:"center",gap:12}}>
+            <span style={{fontSize:10,color:"#1A2040",fontFamily:"'Space Mono',monospace"}}>v1.0.0 · Parcadia</span>
+            <button style={{background:"none",border:"1px solid rgba(120,140,255,0.2)",color:"#3A4A6A",borderRadius:5,padding:"2px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit",transition:"all 0.15s"}}
+              onClick={()=>setShowAbout(true)}>ℹ️ {lang==="ko"?"소개":"About"}</button>
           </div>
         </div>
       </div>
@@ -4029,6 +4066,13 @@ export default function ParkTycoon(){
                 <div style={{flex:1,fontSize:10,color:"#5EF6A0",lineHeight:1.6}}>{lang==="ko"?"미션을 달성하면 RP와 보너스 자금을 얻어요. 달성률이 높을수록 리그 등급이 오릅니다!":"Complete missions for RP & bonus cash. Higher completion rate = higher league rank!"}</div>
                 <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,"tab_mission"];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
               </div>}
+              {day>=30&&!dismissedHints.includes("late_systems")&&(
+                <div style={{background:"rgba(255,159,67,0.06)",border:"1px solid rgba(255,159,67,0.3)",borderRadius:7,padding:"7px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",animation:"slide-in 0.2s ease"}}>
+                  <span style={{fontSize:14,flexShrink:0}}>💡</span>
+                  <div style={{flex:1,fontSize:10,color:"#FF9F43",lineHeight:1.7}}>{lang==="ko"?"후반 시스템: VIP 이벤트(경영→VIP탭), 라이벌(마케팅탭), 건물 콤보(같은 카테고리 인접 배치), 구역 숙련도(구역 탭)를 활용하면 수익이 크게 오릅니다!":"Late-game: VIP Events (Manage→VIP), Rival Parks (Marketing), Building Combos (place same category adjacent), Zone Mastery (Zone tab) — these multiply income significantly!"}</div>
+                  <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,"late_systems"];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
+                </div>
+              )}
               {day<=30&&(()=>{
                 const anyPaths2=grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy");
                 const rideTypes=['ferrisWheel','rollerCoaster','carousel','thrillRide','waterRide','bumperCars','dropTower','miniTrain','hauntedHouse','cinema4D','balloonRide','miniGolf','amphitheater'];
@@ -4051,6 +4095,22 @@ export default function ParkTycoon(){
                   ))}
                 </div>);
               })()}
+              {gameMode==="sandbox"&&!sandboxGoal&&(
+                <div style={{background:"rgba(77,159,255,0.06)",border:"1px solid rgba(77,159,255,0.2)",borderRadius:8,padding:8,marginBottom:6}}>
+                  <div style={{fontSize:9,color:"#4D9FFF",letterSpacing:2,textTransform:"uppercase",marginBottom:5,fontWeight:700}}>🎮 {lang==="ko"?"샌드박스 목표":"SANDBOX GOALS"}</div>
+                  {[
+                    {done:visitors>=100,  label:{ko:"방문객 100명 달성",    en:"Reach 100 visitors"}},
+                    {done:parkRating.stars>=3, label:{ko:"별점 3성 달성",   en:"Reach 3-star rating"}},
+                    {done:researched.length>=Math.floor(RESEARCH.length/2),label:{ko:"연구 절반 이상 완료",en:"Complete half the research tree"}},
+                    {done:parkRating.stars>=5&&researched.length>=RESEARCH.length,label:{ko:"5성+전체 연구 → 프레스티지!",en:"5★+all research → Prestige!"}},
+                  ].map((g,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                      <span style={{fontSize:10,flexShrink:0}}>{g.done?"✅":"⬜"}</span>
+                      <span style={{fontSize:10,color:g.done?"#4D9FFF":"#8899BB",textDecoration:g.done?"line-through":"none"}}>{g.label[lang]||g.label.ko}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {/* 상업화 단계 패널 */}
               <div style={{background:`linear-gradient(135deg,${currentStage.gradFrom},${currentStage.gradTo})`,border:`2px solid ${currentStage.color}55`,borderRadius:8,padding:8,marginBottom:6}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
@@ -4545,8 +4605,15 @@ export default function ParkTycoon(){
             <div style={{background:"rgba(255,50,50,0.15)",border:"2px solid rgba(255,87,87,0.7)",borderRadius:6,padding:"5px 10px",color:"#FF5757",fontSize:10,fontWeight:700,display:"flex",gap:8,alignItems:"center",marginBottom:4,animation:"pulse 1s infinite",flexShrink:0}}>
               <span style={{fontSize:16}}>💸</span>
               <div style={{flex:1}}>
-                {lang==="ko"?`파산 위험! ${5-bankruptcyDays}일 후 공원 폐쇄 — 수익을 늘리거나 비용을 줄이세요`:`Bankruptcy risk! Park closes in ${5-bankruptcyDays} days — increase revenue or cut costs`}
+                <div>{lang==="ko"?`파산 위험! ${5-bankruptcyDays}일 후 공원 폐쇄 — 수익을 늘리거나 비용을 줄이세요`:`Bankruptcy risk! Park closes in ${5-bankruptcyDays} days — increase revenue or cut costs`}</div>
+                <div style={{fontSize:9,marginTop:2,opacity:0.85}}>{lang==="ko"?"💡 입장료 인상(경영 탭) · 대출(재무 탭) · 시즌 캠페인(마케팅 탭) 을 고려하세요":"💡 Try raising fees (Manage tab), taking a loan (Finance tab), or launching a campaign (Marketing tab)"}</div>
               </div>
+            </div>
+          )}
+          {money<3000&&bankruptcyDays===0&&stats?.hasEntrance&&screen==="game"&&gameMode!=="sandbox"&&(
+            <div style={{background:"rgba(255,159,67,0.08)",border:"1px solid rgba(255,159,67,0.35)",borderRadius:6,padding:"4px 10px",color:"#FF9F43",fontSize:9,display:"flex",gap:6,alignItems:"center",marginBottom:4,flexShrink:0}}>
+              <span>⚠️</span>
+              <span>{lang==="ko"?"자금 부족 경고 — 재무 탭에서 대출을 고려하세요":"Low funds — consider a loan in the Finance tab"}</span>
             </div>
           )}
           {disasterWarning&&screen==="game"&&(
@@ -4677,6 +4744,7 @@ export default function ParkTycoon(){
                 <div className="mobile-hud-br hud-chip-row" style={{alignItems:"flex-end"}}>
                   <button onClick={()=>setMinimapOpen(v=>!v)} className="hud-chip" style={{border:`1px solid ${minimapOpen?"rgba(0,229,160,0.4)":"rgba(120,140,255,0.18)"}`,color:minimapOpen?"#00E5A0":"#6B7CA1",cursor:"pointer",fontSize:12,background:"rgba(6,8,22,0.82)"}}>🗺️</button>
                   <button onClick={()=>setShowSettings(true)} className="hud-chip" style={{cursor:"pointer",fontSize:12,color:"#6B7CA1",background:"rgba(6,8,22,0.82)"}}>⚙️</button>
+                  <button onClick={()=>{saveToSlot(0);setSpeed(0);setScreen("menu");}} className="hud-chip" style={{cursor:"pointer",fontSize:12,color:"#00E5A0",background:"rgba(6,8,22,0.82)",border:"1px solid rgba(0,229,160,0.3)"}} title={lang==="ko"?"저장 후 메인으로":"Save & Main Menu"}>💾</button>
                   <button onClick={()=>{setSpeed(0);setScreen("menu");}} className="hud-chip" style={{cursor:"pointer",fontSize:12,color:"#FF6B9D",background:"rgba(6,8,22,0.82)",border:"1px solid rgba(255,107,157,0.3)"}} title={lang==="ko"?"메인으로":"Main Menu"}>🏠</button>
                 </div>
               </div>
@@ -5877,6 +5945,23 @@ export default function ParkTycoon(){
             </button>
           ))}
         </nav>
+      )}
+
+      {showAllClear&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(2,5,16,0.96)",backdropFilter:"blur(12px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:150}}>
+          <div style={{background:"linear-gradient(135deg,#0D1235,#080B20)",border:"2px solid rgba(255,217,61,0.6)",borderRadius:20,padding:"40px 48px",textAlign:"center",maxWidth:440,boxShadow:"0 20px 60px rgba(0,0,0,0.9),0 0 60px rgba(255,217,61,0.15)",fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",animation:"slide-in 0.4s ease"}}>
+            <div style={{fontSize:64,marginBottom:12}}>🏆</div>
+            <div style={{fontSize:10,color:"#FFD93D",letterSpacing:4,textTransform:"uppercase",marginBottom:6}}>{lang==="ko"?"캠페인 완전 클리어":"CAMPAIGN COMPLETE"}</div>
+            <div style={{fontSize:28,fontWeight:900,letterSpacing:2,color:"#FFD93D",fontFamily:"'Barlow Condensed',sans-serif",marginBottom:8}}>PARCADIA MASTER</div>
+            <div style={{fontSize:11,color:"#8899BB",lineHeight:1.9,marginBottom:20,padding:"12px 16px",background:"rgba(255,217,61,0.04)",borderRadius:8,border:"1px solid rgba(255,217,61,0.12)"}}>
+              {lang==="ko"?"8개 시나리오를 모두 클리어했습니다!\n빈 땅에서 왕실 공원까지 — 진정한 공원 경영의 전설입니다.\n샌드박스에서 무한한 창의력을 펼쳐보세요.":"You cleared all 8 scenarios!\nFrom empty land to royal glory — you are a true legend.\nNow unleash your creativity in sandbox mode."}
+            </div>
+            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+              <button style={{padding:"10px 22px",background:"rgba(155,127,255,0.15)",border:"2px solid rgba(155,127,255,0.5)",color:"#9B7FFF",borderRadius:10,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700}} onClick={()=>{setShowAllClear(false);setSpeed(0);setScreen("menu");}}>{lang==="ko"?"메인 메뉴":"Main Menu"}</button>
+              <button style={{padding:"10px 22px",background:"linear-gradient(135deg,rgba(255,217,61,0.2),rgba(0,229,160,0.1))",border:"2px solid rgba(255,217,61,0.6)",color:"#FFD93D",borderRadius:10,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:800,letterSpacing:1}} onClick={()=>{setShowAllClear(false);startGame("sandbox",null,"normal",null,null);}}>🎮 {lang==="ko"?"샌드박스로":"Go Sandbox"}</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {scenarioResult&&(()=>{
