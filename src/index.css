@@ -270,8 +270,8 @@ body {
 }
 .mobile-hud-tl { top: 8px; left: 8px; }
 .mobile-hud-tr { top: 8px; right: 8px; }
-.mobile-hud-bl { bottom: 8px; left: 8px; }
-.mobile-hud-br { bottom: 8px; right: 8px; }
+.mobile-hud-bl { bottom: 64px; left: 8px; }
+.mobile-hud-br { bottom: 64px; right: 8px; }
 .hud-chip {
   display: flex;
   align-items: center;
@@ -306,7 +306,8 @@ body {
 }
 .minimap-overlay {
   position: absolute;
-  bottom: 8px;
+  top: 60px;
+  bottom: auto;
   right: 8px;
   z-index: 45;
   border-radius: 8px;
