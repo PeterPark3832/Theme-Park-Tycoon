@@ -372,6 +372,9 @@ function _getAudioCtx() {
   } catch { return null; }
 }
 
+let _sfxVol = 1.0;
+export function setSfxVolume(v){ _sfxVol = Math.max(0, Math.min(1, v)); }
+
 export function playSound(type, bldType) {
   try {
     const ctx = _getAudioCtx(); if (!ctx) return;
@@ -380,7 +383,7 @@ export function playSound(type, bldType) {
       const o = ctx.createOscillator(), g = ctx.createGain();
       o.connect(g); g.connect(ctx.destination);
       o.type = wt; o.frequency.value = f;
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.015);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol * _sfxVol, t + 0.015);
       g.gain.linearRampToValueAtTime(0, t + dur);
       o.start(t); o.stop(t + dur + 0.01);
     };

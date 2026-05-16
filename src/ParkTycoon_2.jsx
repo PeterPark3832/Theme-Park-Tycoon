@@ -16,7 +16,7 @@ import {
   tFn, pickWeather, getReachablePaths, hasPath, hasBuildingPath, getZM, calcStats, calcSegs,
   segSatMod, checkVIPReq, bldCounts, calcParkRating, calcRideTicketRev, avgShopMult,
   calcStage, stageVisBonus, stageRevBonus, calcLeague, getRB,
-  loadSaveSlots, writeSaveSlots, mkGrid, mkOwned, timeAgoL, playSound, startDisasterDrum, startCrowdNoise,
+  loadSaveSlots, writeSaveSlots, mkGrid, mkOwned, timeAgoL, playSound, startDisasterDrum, startCrowdNoise, setSfxVolume,
 } from './gameLogic.js';
 
 // ── Background Music Engine ──────────────────────────────────────────────────
@@ -107,8 +107,8 @@ function _startMusicEngine(mg,ctx){
 function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,bgMusicOn,setBgMusicOn,bgVolume,setBgVolume,onClose,lang}){
   const fzLabel={small:lang==="ko"?"작게":"Small",medium:lang==="ko"?"보통":"Medium",large:lang==="ko"?"크게":"Large"};
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
-      <div style={{background:"#0C1128",border:"1px solid rgba(100,120,255,0.3)",borderRadius:12,padding:24,minWidth:280,maxWidth:360,boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}} onClick={e=>e.stopPropagation()}>
+    <div role="presentation" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
+      <div role="dialog" aria-modal={true} aria-label={lang==="ko"?"설정":"Settings"} style={{background:"#0C1128",border:"1px solid rgba(100,120,255,0.3)",borderRadius:12,padding:24,minWidth:280,maxWidth:360,boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
           <div style={{fontSize:16,fontWeight:700,letterSpacing:2,color:"#DDE2FF"}}>{lang==="ko"?"⚙️ 설정":"⚙️ Settings"}</div>
           <button style={{background:"none",border:"none",color:"#8899BB",cursor:"pointer",fontSize:16,fontFamily:"inherit"}} onClick={onClose}>✕</button>
@@ -138,6 +138,15 @@ function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,bgMusicOn,se
             <span style={{fontSize:10,color:"#6B7CA1",minWidth:28}}>{Math.round(bgVolume*100)}%</span>
           </div>}
         </div>
+        {soundOn&&<div style={{marginBottom:16}}>
+          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"효과음 볼륨":"SFX Volume"}</div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:10,color:"#6B7CA1",minWidth:24}}>🔉</span>
+            <input type="range" min="0" max="100" value={Math.round((uiSettings.sfxVol??1)*100)} onChange={e=>setUiSettings(p=>({...p,sfxVol:Number(e.target.value)/100}))}
+              style={{flex:1,accentColor:"#00E5A0",cursor:"pointer"}}/>
+            <span style={{fontSize:10,color:"#6B7CA1",minWidth:28}}>{Math.round((uiSettings.sfxVol??1)*100)}%</span>
+          </div>
+        </div>}
         <div style={{marginBottom:16}}>
           <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"색각 지원 모드":"Colorblind Mode"}</div>
           <button style={{width:"100%",padding:"7px 0",background:uiSettings.colorBlind?"rgba(255,159,67,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${uiSettings.colorBlind?"rgba(255,159,67,0.5)":"rgba(255,255,255,0.10)"}`,color:uiSettings.colorBlind?"#FF9F43":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,transition:"all 0.15s"}}
@@ -326,7 +335,7 @@ export default function ParkTycoon(){
   const bgMusicRef=useRef(null); // {ctx, masterGain, cleanup, setPhase}
   const bgVolumeRef=useRef(bgVolume);
   const disasterDrumRef=useRef(null); // cleanup fn for disaster bass drum
-  const [uiSettings,setUiSettings]=useState(()=>{try{const s=JSON.parse(localStorage.getItem('uiSettings'));return s?{fontSize:'medium',colorBlind:false,...s}:{fontSize:'medium',colorBlind:false};}catch{return{fontSize:'medium',colorBlind:false};}});
+  const [uiSettings,setUiSettings]=useState(()=>{try{const s=JSON.parse(localStorage.getItem('uiSettings'));return s?{fontSize:'medium',colorBlind:false,sfxVol:1,...s}:{fontSize:'medium',colorBlind:false,sfxVol:1};}catch{return{fontSize:'medium',colorBlind:false,sfxVol:1};}});
   const [showSettings,setShowSettings]=useState(false);
   const [bottomSheetOpen,setBottomSheetOpen]=useState(false);
   const [placementPreview,setPlacementPreview]=useState(null);
@@ -666,6 +675,7 @@ export default function ParkTycoon(){
     const scale=uiSettings.fontSize==='small'?0.85:uiSettings.fontSize==='large'?1.2:1.0;
     document.body.style.zoom=scale;
     document.body.classList.toggle('colorblind-mode',!!uiSettings.colorBlind);
+    setSfxVolume(uiSettings.sfxVol??1);
     try{localStorage.setItem('uiSettings',JSON.stringify(uiSettings));}catch{}
   },[uiSettings]);
 
