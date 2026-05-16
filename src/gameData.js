@@ -875,8 +875,9 @@ export const ACADEMY_STEPS = [
   // ── Chapter 5: 위기 대응 & 졸업 ──
   {id:16, chapter:5,
    title:{ko:"🚨 재난 발생! 즉시 해결하세요",en:"🚨 Disaster! Resolve It Now"},
-   instruction:{ko:"재난이 발생했습니다! 화면에 표시된\n즉시 해결 버튼을 클릭하세요",en:"A disaster struck! Click the\nResolve button that appeared on screen"},
+   instruction:{ko:"미션 탭을 열어 재난 패널의\n즉시 해결 버튼을 클릭하세요",en:"Open the Mission tab and click\nthe Resolve button in the disaster panel"},
    why:{ko:"재난을 방치하면 방문객이 급감하고 만족도가 폭락해요!",en:"Ignoring disasters = visitor drop + satisfaction crash!"},
+   highlightTab:"mission",
    check:s=>s.disasterResolved},
 
   {id:17, chapter:5,

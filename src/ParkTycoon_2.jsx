@@ -3285,7 +3285,8 @@ export default function ParkTycoon(){
               {k:"research", ic:"🔬", label:{ko:"연구",en:"R&D"}},
               {k:"mission",  ic:"🎯", label:{ko:"미션",en:"Quest"}},
             ].map(({k,ic,label})=>{
-                const isTutTab=(tutorialStep===5&&k==="manage")||(tutorialStep===6&&k==="finance")||(tutorialStep===7&&k==="marketing")||(tutorialStep===8&&k==="build")||(tutorialStep===9&&k==="research");
+                const isTutTab=(tutorialStep===5&&k==="manage")||(tutorialStep===6&&k==="finance")||(tutorialStep===7&&k==="marketing")||(tutorialStep===8&&k==="build")||(tutorialStep===9&&k==="research")
+                  ||(academyStep>0&&ACADEMY_STEPS[academyStep-1]?.highlightTab===k);
                 return(
                 <button key={k} style={{flex:"1 1 30%",minWidth:0,padding:"5px 2px",background:tab===k?"rgba(255,255,255,0.08)":isTutTab?"rgba(255,217,61,0.08)":"transparent",border:"none",borderBottom:`2px solid ${tab===k?sc:isTutTab?"#FFD93D":"transparent"}`,color:tab===k?sc:isTutTab?"#FFD93D":"#3A4A70",cursor:"pointer",fontFamily:"inherit",fontWeight:tab===k||isTutTab?700:400,transition:"all 0.15s",position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:1,animation:isTutTab?"pulse 1.5s infinite":"none",boxShadow:isTutTab?"0 0 10px rgba(255,217,61,0.3)":"none"}} onClick={()=>setTab(k)}>
                   <span style={{fontSize:13}}>{ic}</span>
@@ -5550,6 +5551,13 @@ export default function ParkTycoon(){
                         {acStep.why?.[lang]||acStep.why?.ko}
                       </div>
                     </div>
+                    {/* Step 16: inline disaster resolve button */}
+                    {academyStep===16&&activeDisaster&&activeDisaster.resolveCost>0&&(
+                      <button style={{width:"100%",marginBottom:8,padding:"7px 0",background:money>=activeDisaster.resolveCost?"rgba(255,71,87,0.15)":"rgba(255,255,255,0.04)",border:`2px solid ${money>=activeDisaster.resolveCost?"#FF4757":"#3A3A5A"}`,color:money>=activeDisaster.resolveCost?"#FF4757":"#7788BB",borderRadius:8,cursor:money>=activeDisaster.resolveCost?"pointer":"default",fontSize:11,fontWeight:900,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:6}} onClick={()=>{if(money>=activeDisaster.resolveCost) resolveDisaster();}}>
+                        <span style={{fontSize:16}}>{activeDisaster.emoji}</span>
+                        <span>{lang==="ko"?`🚨 즉시 해결 -$${activeDisaster.resolveCost.toLocaleString()}`:`🚨 Resolve Now -$${activeDisaster.resolveCost.toLocaleString()}`}</span>
+                      </button>
+                    )}
                     {/* Waiting indicator */}
                     <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,padding:"4px 8px",background:"rgba(255,217,61,0.06)",border:"1px solid rgba(255,217,61,0.2)",borderRadius:6}}>
                       <div style={{width:6,height:6,borderRadius:"50%",background:"#FFD93D",animation:"pulse 1s infinite"}}/>
