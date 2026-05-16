@@ -12,6 +12,8 @@ import {
   ACADEMY_STEPS, ACADEMY_CHAPTERS,
 } from './gameData.js';
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
+import IsoGridCanvas from './IsoGridCanvas.jsx';
+import { preloadSprites } from './spriteLoader.js';
 import {
   tFn, pickWeather, getReachablePaths, hasPath, hasBuildingPath, getZM, calcStats, calcSegs,
   segSatMod, checkVIPReq, bldCounts, calcParkRating, calcRideTicketRev, avgShopMult,
@@ -165,6 +167,7 @@ const pathList=Object.entries(B).filter(([,b])=>b.cat==="path");
 const decoList=Object.entries(B).filter(([,b])=>b.cat==="deco");
 
 export default function ParkTycoon(){
+  const ISO_MODE = true; // Phase 1: canvas isometric renderer (set false to revert to CSS grid)
   const [screen,setScreen]=useState("menu");
   const [gameMode,setGameMode]=useState(null);
   const [currentScenario,setCurrentScenario]=useState(null);
@@ -881,6 +884,8 @@ export default function ParkTycoon(){
     handleResize(); // call once on mount
     return()=>window.removeEventListener('resize',handleResize);
   },[]);
+
+  useEffect(()=>{ if(ISO_MODE) preloadSprites(Object.keys(B)); },[]);
 
   // Phase 2-6: Zone Mastery calculation (must be before useEffect that depends on it)
   const zoneMastery=useMemo(()=>{
@@ -2163,6 +2168,23 @@ export default function ParkTycoon(){
       setMoney(mo=>mo-bd.baseCost);
       setLastBuilt(sel);
     } else if(drag.mode==="demolish"){
+      const{grid:g}=ref.current;if(!g[r][c]) return;
+      let ar=r,ac=c;if(g[r][c].ref)[ar,ac]=g[r][c].ref;
+      const anchorCell=g[ar][ac];
+      const bw=B[anchorCell?.type]?.size?.w||1,bh=B[anchorCell?.type]?.size?.h||1;
+      const cells=[];for(let dr=0;dr<bh;dr++) for(let dc=0;dc<bw;dc++) cells.push(`${ar+dr},${ac+dc}`);
+      setMultiSelectedCells(prev=>{const n=new Set(prev);cells.forEach(k=>n.add(k));return n;});
+    }
+  };
+  // ISO_MODE drag handler — called by IsoGridCanvas on pointer drag
+  const handleDragBuild=(r,c)=>{
+    if(buildMode==="build"&&selected){
+      const bd=B[selected];if(!bd||(bd.size?.w||1)!==1||(bd.size?.h||1)!==1) return;
+      const{ownedGrid:og,grid:g,money:m}=ref.current;
+      if(!og[r][c]||g[r][c]||obstacleMap[`${r},${c}`]||m<bd.baseCost) return;
+      setGrid(prev=>{const n=prev.map(row=>[...row]);n[r][c]={type:selected,level:0,broken:false};return n;});
+      setMoney(mo=>mo-bd.baseCost);setLastBuilt(selected);
+    } else if(buildMode==="demolish"){
       const{grid:g}=ref.current;if(!g[r][c]) return;
       let ar=r,ac=c;if(g[r][c].ref)[ar,ac]=g[r][c].ref;
       const anchorCell=g[ar][ac];
@@ -4619,6 +4641,7 @@ export default function ParkTycoon(){
         {/* ── GRID + LOG ── */}
         <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:isMobile?2:7,gap:isMobile?2:5,overflow:"hidden",background:"var(--bg-deep)",touchAction:isMobile?"none":"auto"}}
           onTouchStart={(e) => {
+            if (ISO_MODE) return;
             if (e.touches.length === 2) {
               panRef.current.active = false;
               const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -4640,6 +4663,7 @@ export default function ParkTycoon(){
             }
           }}
           onTouchMove={(e) => {
+            if (ISO_MODE) return;
             if (pinchRef.current.active && e.touches.length === 2) {
               const dx = e.touches[0].clientX - e.touches[1].clientX;
               const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -4658,7 +4682,7 @@ export default function ParkTycoon(){
               e.preventDefault();
             }
           }}
-          onTouchEnd={() => { pinchRef.current.active = false; panRef.current.active = false; }}
+          onTouchEnd={() => { if(ISO_MODE) return; pinchRef.current.active = false; panRef.current.active = false; }}
         >
           {/* Banners + event popups — in grid-area on tablet/mobile, in right panel on PC */}
           {!isPC&&<>
@@ -4918,6 +4942,19 @@ export default function ParkTycoon(){
                 }} style={{display:"block",width:160,height:80}}/>
               </div>
             )}
+            {ISO_MODE ? (
+              <IsoGridCanvas
+                grid={grid} zoneGrid={zoneGrid} ownedGrid={ownedGrid}
+                obstacleMap={obstacleMap} dots={dots}
+                clickedTile={clickedTile} selected={selected} selBd={selBd}
+                buildMode={buildMode} hovFootprintValid={hovFootprintValid}
+                multiSelectedCells={multiSelectedCells} isMobile={isMobile}
+                onCellClick={(row,col)=>handleGridClick(row,col)}
+                onCellHover={(rc)=>setHovered({r:rc.row,c:rc.col})}
+                onCellLeave={()=>setHovered(null)}
+                onDragBuild={handleDragBuild}
+              />
+            ) : (
             <div style={{display:"grid",
               gridTemplateColumns:`repeat(${GC},1fr)`,
               gridTemplateRows:`repeat(${GR},1fr)`,
@@ -5145,6 +5182,7 @@ export default function ParkTycoon(){
                 </div>);
               }))}
             </div>
+            )}
 
             {/* 주야간 오버레이 — s7 야간 공포 분위기 */}
             {screen==="game"&&nightPhase&&(
@@ -5253,7 +5291,7 @@ export default function ParkTycoon(){
                 </div>
               </div>
             )}
-            {visitors>0&&<div style={{position:"absolute",inset:3,pointerEvents:"none",overflow:"hidden",borderRadius:6}}>
+            {!ISO_MODE&&visitors>0&&<div style={{position:"absolute",inset:3,pointerEvents:"none",overflow:"hidden",borderRadius:6}}>
               {(()=>{
                 const maxDots=isMobile?Math.min(30,Math.max(3,Math.round(visitors/5))):Math.min(60,Math.max(4,Math.round(visitors/3)));
                 const SEG_COLORS={couple:"#FF6B9D",family:"#FF9F43",thrill:"#FF4757",child:"#48DBFB",general:"#C7B8EA"};
