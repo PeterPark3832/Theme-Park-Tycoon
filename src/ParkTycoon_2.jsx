@@ -190,7 +190,11 @@ export default function ParkTycoon(){
   const [segData,setSegData]=useState({family:0.2,couple:0.2,thrill:0.2,child:0.1,general:0.3});
   const [zonePaint,setZonePaint]=useState(null);
   const [buildMode,setBuildMode]=useState("build");
-  const [dots,setDots]=useState(()=>Array(40).fill(null).map((_,i)=>({id:i,r:Math.floor(Math.random()*GR),c:Math.floor(Math.random()*GC),emoji:DOTS[i%DOTS.length]})));
+  const [dots,setDots]=useState(()=>Array(60).fill(null).map((_,i)=>({
+    id:i, segType:['couple','family','thrill','child','general'][i%5],
+    r:Math.floor(Math.random()*GR), c:Math.floor(Math.random()*GC),
+    state:'entering', targetR:null, targetC:null, targetBld:null, dwellLeft:0,
+  })));
   const [gridPopups,setGridPopups]=useState([]);
   const [campaigns,setCampaigns]=useState([]);
   const [pendingVIP,setPendingVIP]=useState(null);
@@ -586,6 +590,11 @@ export default function ParkTycoon(){
     setTab("build");
 
     setTutorialStep(0);
+    setDots(Array(60).fill(null).map((_,i)=>({
+      id:i, segType:['couple','family','thrill','child','general'][i%5],
+      r:Math.floor(Math.random()*GR), c:Math.floor(Math.random()*GC),
+      state:'entering', targetR:null, targetC:null, targetBld:null, dwellLeft:0,
+    })));
 
     const startLog = mode === "sandbox" 
       ? t("log.startSandbox")
@@ -1410,39 +1419,194 @@ export default function ParkTycoon(){
     }
   },[currentStage.id]);
 
+  // ── 살아있는 방문객 시스템 ──
   useEffect(()=>{
-    if(screen !== "game") return;
+    if(screen!=="game") return;
+
+    // Segment → preferred building types (ordered by priority)
+    const SEG_TARGETS={
+      couple:['ferrisWheel','fountain','photoBooth','vipLounge','garden','cinema4D','balloonRide'],
+      family:['carousel','miniTrain','kidsPlayground','foodStall','miniGolf','restroom','amphitheater'],
+      thrill:['rollerCoaster','thrillRide','dropTower','hauntedHouse','bumperCars','waterRide'],
+      child: ['kidsPlayground','arcade','iceCream','carousel','bumperCars','miniTrain'],
+      general:['foodStall','coffeeCafe','amphitheater','giftShop','garden','miniGolf','cinema4D'],
+    };
+    // Dwell ticks [min,max]
+    const DWELL={couple:[6,10],family:[4,7],thrill:[2,4],child:[2,3],general:[3,5]};
+
+    // Greedy path-preferring move: return {r,c} one step closer to (tr,tc)
+    const greedyStep=(r,c,tr,tc,pathSet)=>{
+      const dr=tr-r, dc=tc-c;
+      if(dr===0&&dc===0) return{r,c};
+      const candidates=[];
+      if(Math.abs(dr)>=Math.abs(dc)){
+        if(dr!==0) candidates.push({r:r+Math.sign(dr),c});
+        if(dc!==0) candidates.push({r,c:c+Math.sign(dc)});
+      } else {
+        if(dc!==0) candidates.push({r,c:c+Math.sign(dc)});
+        if(dr!==0) candidates.push({r:r+Math.sign(dr),c});
+      }
+      // Prefer path tile, otherwise take any valid step
+      const pathStep=candidates.find(m=>m.r>=0&&m.r<GR&&m.c>=0&&m.c<GC&&pathSet.has(`${m.r},${m.c}`));
+      if(pathStep) return pathStep;
+      const anyStep=candidates.find(m=>m.r>=0&&m.r<GR&&m.c>=0&&m.c<GC);
+      return anyStep||{r,c};
+    };
+
+    // Pick a new segment type weighted by segData
+    const pickSeg=(segData)=>{
+      const keys=Object.keys(SEGS);
+      const total=keys.reduce((s,k)=>s+(segData[k]||0),0)||1;
+      let rnd=Math.random()*total;
+      for(const k of keys){rnd-=(segData[k]||0);if(rnd<=0) return k;}
+      return 'general';
+    };
+
+    // Reset a dot back to spawn point with new identity
+    const respawnDot=(dot,spawnR,spawnC,segData)=>{
+      const sk=pickSeg(segData);
+      const off=Math.floor(Math.random()*3)-1;
+      return{...dot,
+        segType:sk,
+        r:Math.max(0,Math.min(GR-1,spawnR+off)),
+        c:Math.max(0,Math.min(GC-1,spawnC+off)),
+        state:'entering', targetR:null, targetC:null, targetBld:null, dwellLeft:0,
+      };
+    };
+
     const id=setInterval(()=>{
-      const{grid,visitors,segData}=ref.current;
+      const{grid,visitors,segData,weather:wth,sat:curSat,clean:curClean}=ref.current;
       if(visitors===0) return;
-      const paths=[];for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){const cell=grid[r][c];if(cell?.type==="_path"||cell?.type==="_pathFancy") paths.push({r,c});}
-      const tiles=[];for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){if(grid[r][c]&&!grid[r][c].broken) tiles.push({r,c});}
-      const pool=paths.length>2?paths:tiles;if(!pool.length) return;
-      const pathSet=new Set(paths.map(p=>`${p.r},${p.c}`));
-      // Build weighted segment pool once per tick for proportional dot emoji distribution
-      const segKeys=Object.keys(SEGS);
-      const totalW=segKeys.reduce((s,k)=>s+(segData[k]||0),0)||1;
-      const segPool=[];segKeys.forEach(k=>{const cnt=Math.max(1,Math.round((segData[k]||0)/totalW*20));for(let j=0;j<cnt;j++) segPool.push(k);});
-      setDots(prev=>prev.map((dot,dotIdx)=>{
-        const sk=segPool[dotIdx%segPool.length]||"general";
-        if(paths.length>2){
-          // Step along adjacent path tiles for organic walking movement
-          const adj=[];
-          for(const[dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){const nr=dot.r+dr,nc=dot.c+dc;if(pathSet.has(`${nr},${nc}`)) adj.push({r:nr,c:nc});}
-          if(adj.length>0){const nxt=adj[Math.floor(Math.random()*adj.length)];return{...dot,r:nxt.r,c:nxt.c,emoji:SEGS[sk].emoji};}
-          const snap=paths[Math.floor(Math.random()*Math.min(8,paths.length))];
-          return{...dot,r:snap.r,c:snap.c,emoji:SEGS[sk].emoji};
+
+      // Build caches each tick (O(GR*GC) = 800 ops, cheap)
+      const pathCells=[]; const pathSet=new Set();
+      const bldNearPaths={}; // buildingType → [{r,c}] of adjacent path cells
+      let spawnR=-1, spawnC=-1;
+
+      for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
+        const cell=grid[r][c];
+        if(!cell||cell.ref) continue;
+        if(cell.type==="_path"||cell.type==="_pathFancy"){
+          pathCells.push({r,c}); pathSet.add(`${r},${c}`);
         }
-        const base=pool[Math.floor(Math.random()*pool.length)];
-        return{...dot,r:Math.max(0,Math.min(GR-1,base.r+Math.floor(Math.random()*3)-1)),c:Math.max(0,Math.min(GC-1,base.c+Math.floor(Math.random()*3)-1)),emoji:SEGS[sk].emoji};
+        if(cell.type==="entrance"&&spawnR<0){spawnR=r;spawnC=c;}
+        if(!cell.type.startsWith("_")&&cell.type!=="entrance"&&!cell.broken){
+          if(!bldNearPaths[cell.type]) bldNearPaths[cell.type]=[];
+          // Collect path cells within 2 of this building
+          for(const[dr,dc] of [[-1,0],[1,0],[0,-1],[0,1],[-2,0],[2,0],[0,-2],[0,2]]){
+            const nr=r+dr, nc=c+dc;
+            if(nr>=0&&nr<GR&&nc>=0&&nc<GC&&pathSet.has(`${nr},${nc}`)){
+              bldNearPaths[cell.type].push({r:nr,c:nc});
+            }
+          }
+        }
+      }
+      if(spawnR<0){spawnR=Math.floor(GR/2);spawnC=Math.floor(GC/2);}
+
+      // Weather modifier: rain/storm → push couple/general toward indoor attractions
+      const isRainy=wth?.id==="rainy"||wth?.id==="stormy";
+      const indoorBlds=['cinema4D','arcade','amphitheater','vipLounge','foodStall','coffeeCafe'];
+
+      const maxDots=Math.min(60,Math.max(4,Math.round(visitors/3)));
+
+      setDots(prev=>prev.map((dot,idx)=>{
+        // Only animate active dots
+        if(idx>=maxDots) return dot;
+
+        // Family/couple move at half speed
+        if((dot.segType==="family"||dot.segType==="couple")&&Math.random()<0.45) return dot;
+
+        let d={...dot};
+
+        switch(d.state){
+          case 'entering':{
+            // Walk away from spawn into park — aim for center + slight spread
+            const goalR=Math.floor(GR/2)+Math.floor(Math.random()*4)-2;
+            const goalC=Math.floor(GC/4)+Math.floor(Math.random()*8);
+            const dist=Math.abs(d.r-goalR)+Math.abs(d.c-goalC);
+            if(dist<=3){d.state='walking'; break;}
+            const moved=greedyStep(d.r,d.c,goalR,goalC,pathSet);
+            d.r=moved.r; d.c=moved.c;
+            break;
+          }
+
+          case 'walking':{
+            if(d.targetR===null||d.targetC===null){
+              // Pick a target building from segment preference
+              const pref=isRainy&&(d.segType==="couple"||d.segType==="general")
+                ?[...indoorBlds,...(SEG_TARGETS[d.segType]||SEG_TARGETS.general)]
+                :(SEG_TARGETS[d.segType]||SEG_TARGETS.general);
+              let target=null;
+              for(const btype of pref){
+                const cells=bldNearPaths[btype];
+                if(cells&&cells.length>0){
+                  target={bld:btype,...cells[Math.floor(Math.random()*cells.length)]};
+                  break;
+                }
+              }
+              if(target){
+                d.targetR=target.r; d.targetC=target.c; d.targetBld=target.bld;
+              } else if(pathCells.length>0){
+                // No matching building → wander path
+                const p=pathCells[Math.floor(Math.random()*pathCells.length)];
+                d.r=p.r; d.c=p.c;
+              }
+            } else {
+              const dist=Math.abs(d.r-d.targetR)+Math.abs(d.c-d.targetC);
+              if(dist<=2){
+                // Arrived — start dwelling
+                d.state='dwelling';
+                const[lo,hi]=DWELL[d.segType]||[3,5];
+                d.dwellLeft=lo+Math.floor(Math.random()*(hi-lo+1));
+                d.targetR=null; d.targetC=null;
+              } else {
+                const m=greedyStep(d.r,d.c,d.targetR,d.targetC,pathSet);
+                d.r=m.r; d.c=m.c;
+              }
+            }
+            break;
+          }
+
+          case 'dwelling':{
+            d.dwellLeft=d.dwellLeft-1;
+            // Tiny micro-jitter near attraction
+            if(Math.random()<0.35&&pathCells.length>0){
+              const adj=[];
+              for(const[dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+                const nr=d.r+dr,nc=d.c+dc;
+                if(pathSet.has(`${nr},${nc}`)) adj.push({r:nr,c:nc});
+              }
+              if(adj.length>0){const n=adj[Math.floor(Math.random()*adj.length)];d.r=n.r;d.c=n.c;}
+            }
+            if(d.dwellLeft<=0){
+              // 25% leave, 75% find new attraction
+              d.state=Math.random()<0.25?'leaving':'walking';
+              d.targetR=null; d.targetC=null; d.targetBld=null;
+            }
+            break;
+          }
+
+          case 'leaving':{
+            const dist=Math.abs(d.r-spawnR)+Math.abs(d.c-spawnC);
+            if(dist<=2){
+              // Respawn as new visitor
+              d=respawnDot(d,spawnR,spawnC,segData);
+            } else {
+              const m=greedyStep(d.r,d.c,spawnR,spawnC,pathSet);
+              d.r=m.r; d.c=m.c;
+            }
+            break;
+          }
+
+          default: d.state='entering';
+        }
+        return d;
       }));
-      // 15% 확률로 랜덤 방문객 말풍선 (2-2: 실제 상태 기반 컨텍스트 메시지)
-      if(Math.random()<0.25&&ref.current.visitors>0){
-        const curSat=ref.current.sat;
-        const curClean=ref.current.clean;
+
+      // Speech bubbles: context-aware based on sat/clean
+      if(Math.random()<0.22&&visitors>0){
         const brokenNow=ref.current.grid.flat().filter(c=>c&&!c.ref&&c.broken).length;
-        let msgs;
-        const isKo=ref.current.lang==="ko";
+        let msgs; const isKo=ref.current.lang==="ko";
         if(curSat>75){
           msgs=isKo?["😊 재밌어요!","🎉 신났다!","👍 대박이야!","🎠 즐거워요!","⭐ 또 올게요!"]:["😊 So fun!","🎉 Excited!","👍 Amazing!","🎠 Enjoying it!","⭐ Coming back!"];
         } else if(curSat>50){
@@ -1458,12 +1622,13 @@ export default function ParkTycoon(){
         setBubbles(prev=>{
           const now=Date.now();
           const alive=prev.filter(b=>b.expires>now).slice(-4);
-          const r=Math.floor(Math.random()*GR);
-          const c=Math.floor(Math.random()*GC);
-          return [...alive,{id:now,r,c,text,expires:now+2800}];
+          const activeDot=prev.length>0?null:null;
+          // Attach bubble to a random active path cell for realism
+          const bPos=pathCells.length>0?pathCells[Math.floor(Math.random()*Math.min(12,pathCells.length))]:{r:Math.floor(Math.random()*GR),c:Math.floor(Math.random()*GC)};
+          return[...alive,{id:now,r:bPos.r,c:bPos.c,text,expires:now+2800}];
         });
       }
-    },1200);
+    },950);
     return()=>clearInterval(id);
   },[screen]);
 
@@ -4534,13 +4699,47 @@ export default function ParkTycoon(){
               </div>
             )}
             {visitors>0&&<div style={{position:"absolute",inset:3,pointerEvents:"none",overflow:"hidden",borderRadius:6}}>
-              {dots.slice(0,Math.min(40,Math.max(4,Math.round(visitors/4)))).map(dot=>{
-                const isSimple=visitors<20;
-                const dotColors=["#4D9FFF","#00E5A0","#FFD93D","#FF9F43","#FF6B9D"];
-                return(<div key={dot.id} style={{position:"absolute",left:`${(dot.c/GC)*100}%`,top:`${(dot.r/GR)*100}%`,width:`${(1/GC)*100}%`,height:`${(1/GR)*100}%`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:isSimple?9:11,transition:"left 1.1s ease,top 1.1s ease",filter:"drop-shadow(0 2px 4px rgba(0,0,0,1))",zIndex:5,animation:`visitor-wander ${3+dot.id%3}s ease-in-out infinite`,animationDelay:`${(dot.id*0.4)%3}s`}}>
-                  {isSimple?<span style={{color:dotColors[dot.id%dotColors.length],fontSize:8}}>●</span>:dot.emoji}
-                </div>);
-              })}
+              {(()=>{
+                const maxDots=isMobile?Math.min(30,Math.max(3,Math.round(visitors/5))):Math.min(60,Math.max(4,Math.round(visitors/3)));
+                const SEG_COLORS={couple:"#FF6B9D",family:"#FF9F43",thrill:"#FF4757",child:"#48DBFB",general:"#C7B8EA"};
+                const SEG_EMOJI={couple:"💑",family:"👨‍👩‍👧",thrill:"🤸",child:"🧒",general:"🧑"};
+                const isSimple=visitors<15;
+                return dots.slice(0,maxDots).map(dot=>{
+                  const segColor=SEG_COLORS[dot.segType]||"#C7B8EA";
+                  const isDwelling=dot.state==="dwelling";
+                  const isLeaving=dot.state==="leaving";
+                  // Thrill seekers get faster wander animation
+                  const wanderDur=dot.segType==="thrill"?1.5:dot.segType==="child"?2:dot.segType==="family"?4:3;
+                  return(
+                    <div key={dot.id} style={{
+                      position:"absolute",
+                      left:`${(dot.c/GC)*100}%`,
+                      top:`${(dot.r/GR)*100}%`,
+                      width:`${(1/GC)*100}%`,
+                      height:`${(1/GR)*100}%`,
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:isSimple?8:isDwelling?13:11,
+                      transition:"left 0.9s ease,top 0.9s ease,opacity 0.4s",
+                      filter:isDwelling
+                        ?`drop-shadow(0 0 4px ${segColor}) drop-shadow(0 2px 4px rgba(0,0,0,0.9))`
+                        :"drop-shadow(0 2px 4px rgba(0,0,0,0.9))",
+                      zIndex:isDwelling?7:5,
+                      opacity:isLeaving?0.5:1,
+                      animation:isDwelling
+                        ?`visitor-wander ${wanderDur*0.6}s ease-in-out infinite`
+                        :dot.segType==="child"
+                        ?`visitor-wander ${wanderDur}s ease-in-out infinite`
+                        :undefined,
+                      animationDelay:`${(dot.id*0.3)%2}s`,
+                    }}>
+                      {isSimple
+                        ?<span style={{color:segColor,fontSize:7,lineHeight:1}}>●</span>
+                        :<span style={{lineHeight:1,userSelect:"none"}}>{SEG_EMOJI[dot.segType]||"🧑"}</span>
+                      }
+                    </div>
+                  );
+                });
+              })()}
               {gridPopups.filter(p=>p.expires>Date.now()).map(p=>(
                 <div key={p.id} style={{position:"absolute",left:`${(p.c/GC)*100}%`,top:`${(p.r/GR)*100}%`,color:p.color,fontSize:14,fontWeight:900,animation:"float-up 2.8s ease-out forwards",pointerEvents:"none",zIndex:20,whiteSpace:"nowrap",textShadow:`0 0 8px ${p.color},0 2px 8px rgba(0,0,0,0.95)`,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{p.text}</div>
               ))}
