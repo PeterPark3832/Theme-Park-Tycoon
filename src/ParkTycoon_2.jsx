@@ -286,6 +286,8 @@ export default function ParkTycoon(){
   const [bottomSheetOpen,setBottomSheetOpen]=useState(false);
   const [placementPreview,setPlacementPreview]=useState(null);
   const [minimapOpen,setMinimapOpen]=useState(false);
+  const [tutCardOffsetY,setTutCardOffsetY]=useState(0); // mobile drag offset (px upward from bottom)
+  const tutCardDragRef=useRef({active:false,startY:0,startOffset:0});
   // Phase 3 new states
   const [weatherForecast,setWeatherForecast]=useState([]);
   const [rivalEventActive,setRivalEventActive]=useState(null); // {event,remaining,rivalName}
@@ -595,6 +597,7 @@ export default function ParkTycoon(){
 
   // 탭 방문 추적: 스텝이 바뀌면 리셋
   useEffect(()=>{ setTutTabVisited(false); },[tutorialStep]);
+  useEffect(()=>{ setTutCardOffsetY(0); },[tutorialStep]);
   // 스텝별 액션 완료 감지: 6=입장료 변경, 7=캠페인 실행, 9=연구탭 방문
   useEffect(()=>{
     if(tutorialStep===6&&fee!==15) setTutTabVisited(true);
@@ -4451,14 +4454,30 @@ export default function ParkTycoon(){
                   /* ── 일반 단계 카드 (steps 1-9) ── */
                   <div style={{
                     position:isMobile?"fixed":"absolute",
-                    bottom:isMobile?64:16,
+                    bottom:isMobile?64+tutCardOffsetY:16,
                     left:"50%",transform:"translateX(-50%)",
                     background:"linear-gradient(135deg,#0D1535,#080B20)",border:"2px solid #FFD93D88",
                     borderRadius:14,padding:isMobile?"10px 14px":"14px 20px",
                     zIndex:isMobile?250:30,
                     minWidth:isMobile?Math.min(window.innerWidth-32,300):270,maxWidth:isMobile?Math.min(window.innerWidth-24,340):350,
                     boxShadow:"0 8px 40px rgba(0,0,0,0.9),0 0 0 1px rgba(255,217,61,0.15)",
-                    animation:"slide-in 0.3s ease",pointerEvents:"auto"}}>
+                    animation:tutCardOffsetY===0?"slide-in 0.3s ease":"none",pointerEvents:"auto",
+                    touchAction:"none"}}
+                    onTouchStart={isMobile?(e)=>{
+                      tutCardDragRef.current={active:true,startY:e.touches[0].clientY,startOffset:tutCardOffsetY};
+                    }:undefined}
+                    onTouchMove={isMobile?(e)=>{
+                      if(!tutCardDragRef.current.active) return;
+                      const dy=tutCardDragRef.current.startY-e.touches[0].clientY; // positive = dragged up
+                      const next=Math.max(-60,Math.min(window.innerHeight-200,tutCardDragRef.current.startOffset+dy));
+                      setTutCardOffsetY(next);
+                      e.stopPropagation();
+                    }:undefined}
+                    onTouchEnd={isMobile?()=>{tutCardDragRef.current.active=false;}:undefined}>
+                    {/* 드래그 핸들 (모바일) */}
+                    {isMobile&&<div style={{display:"flex",justifyContent:"center",marginBottom:8,marginTop:-4,cursor:"grab"}}>
+                      <div style={{width:32,height:4,borderRadius:99,background:"rgba(255,217,61,0.35)"}}/>
+                    </div>}
 
                     {/* 페이즈 라벨 + progress dots */}
                     <div style={{marginBottom:10}}>
