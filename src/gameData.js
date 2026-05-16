@@ -263,7 +263,9 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"방문객 50명",en:"50 visitors"},check:s=>s.vis>=50},
     {id:"silver",medal:"🥈",desc:{ko:"방문객 100명 + 만족도 65%",en:"100 visitors + 65% happiness"},check:s=>s.vis>=100&&s.sat>=65},
     {id:"gold",medal:"🥇",desc:{ko:"방문객 200명 + 만족도 75%",en:"200 visitors + 75% happiness"},check:s=>s.vis>=200&&s.sat>=75},
-    {id:"platinum",medal:"🏅",desc:{ko:"방문객 300명 + 5성 + 만족도 85%",en:"300 visitors + 5 stars + 85% happiness"},check:s=>s.vis>=300&&s.pres>=5&&s.sat>=85}]},
+    {id:"platinum",medal:"🏅",desc:{ko:"방문객 300명 + 5성 + 만족도 85%",en:"300 visitors + 5 stars + 85% happiness"},check:s=>s.vis>=300&&s.pres>=5&&s.sat>=85}],
+  hiddenGoals:[
+    {id:"s1_nomad",medal:"🔮",hint:{ko:"저렴한 입장료로 많은 방문객을 유치하면...",en:"Attract many visitors with a surprisingly low entrance fee..."},desc:{ko:"민주적 공원: 입장료 $8 이하 + 방문객 200명",en:"People's Park: 200 visitors with entrance fee ≤$8"},check:s=>s.vis>=200&&s.fee<=8}]},
   {id:"s2",emoji:"💑",difficulty:2,color:"#FF6B9D",startMoney:38000,timeLimit:50,allowedCampaigns:["sns","billboard"],preBuilt:[],gridRestrict:null,
    obstacles:[{r:7,c:21,type:"water"},{r:7,c:22,type:"water"},{r:8,c:21,type:"water"},{r:8,c:22,type:"water"}],
    constraints:{
@@ -276,7 +278,9 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"커플 비율 40%",en:"40% couple ratio"},check:s=>s.coupleRatio>=0.4},
     {id:"silver",medal:"🥈",desc:{ko:"커플 55% + 입장료 $20",en:"55% couples + $20 fee"},check:s=>s.coupleRatio>=0.55&&s.fee>=20},
     {id:"gold",medal:"🥇",desc:{ko:"커플 65% + 순이익 $2k",en:"65% couples + $2k profit"},check:s=>s.coupleRatio>=0.65&&s.net>=2000},
-    {id:"platinum",medal:"🏅",desc:{ko:"커플 70% + 5성 + 순이익 $5k",en:"70% couples + 5 stars + $5k profit"},check:s=>s.coupleRatio>=0.7&&s.pres>=5&&s.net>=5000}]},
+    {id:"platinum",medal:"🏅",desc:{ko:"커플 70% + 5성 + 순이익 $5k",en:"70% couples + 5 stars + $5k profit"},check:s=>s.coupleRatio>=0.7&&s.pres>=5&&s.net>=5000}],
+  hiddenGoals:[
+    {id:"s2_soulmate",medal:"🔮",hint:{ko:"커플들이 정말 완벽한 공원이라 느끼려면...",en:"To make couples feel it's truly perfect for them..."},desc:{ko:"소울메이트 낙원: 커플 80% + 만족도 88%",en:"Soulmate Paradise: 80% couples + 88% satisfaction"},check:s=>s.coupleRatio>=0.80&&s.sat>=88}]},
   {id:"s3",emoji:"🔧",difficulty:3,color:"#FF9F43",startMoney:27000,timeLimit:55,preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"ferrisWheel",r:5,c:12,level:0,broken:true},{type:"carousel",r:11,c:18,level:0,broken:true},{type:"restroom",r:8,c:17,level:0,broken:false},{type:"foodStall",r:12,c:15,level:0,broken:false}],gridRestrict:null,
    obstacles:[{r:3,c:20,type:"rubble"},{r:3,c:21,type:"rubble"},{r:4,c:20,type:"rubble"},{r:14,c:19,type:"rubble"},{r:15,c:19,type:"rubble"}],
    constraints:{
@@ -287,7 +291,9 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"공원 2성",en:"2-star park"},check:s=>s.pres>=2},
     {id:"silver",medal:"🥈",desc:{ko:"3성 + 고장 없음",en:"3 stars + no breakdowns"},check:s=>s.pres>=3&&s.brokenCount===0},
     {id:"gold",medal:"🥇",desc:{ko:"4성 + 만족도 75%",en:"4 stars + 75% happiness"},check:s=>s.pres>=4&&s.sat>=75},
-    {id:"platinum",medal:"🏅",desc:{ko:"5성 + 만족도 85% + 고장 없음",en:"5 stars + 85% happiness + no breakdowns"},check:s=>s.pres>=5&&s.sat>=85&&s.brokenCount===0}]},
+    {id:"platinum",medal:"🏅",desc:{ko:"5성 + 만족도 85% + 고장 없음",en:"5 stars + 85% happiness + no breakdowns"},check:s=>s.pres>=5&&s.sat>=85&&s.brokenCount===0}],
+  hiddenGoals:[
+    {id:"s3_perfectop",medal:"🔮",hint:{ko:"완벽한 정비사라면 만족도도 최고여야...",en:"A true maintenance master keeps guests happy too..."},desc:{ko:"완전 무결: 5성 + 만족도 90% + 고장 없음",en:"Flawless Operation: 5 stars + 90% satisfaction + zero breakdowns"},check:s=>s.pres>=5&&s.sat>=90&&s.brokenCount===0}]},
   {id:"s4",emoji:"🏙️",difficulty:3,color:"#48DBFB",startMoney:45000,timeLimit:60,preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false}],gridRestrict:{cols:[14,25]},bannedBuildings:["waterRide","miniTrain","balloonRide"],
    obstacles:[{r:5,c:14,type:"rock"},{r:5,c:15,type:"rock"},{r:14,c:14,type:"rock"},{r:14,c:15,type:"rock"}],
    constraints:{
@@ -300,7 +306,9 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"순이익 $1,000/일",en:"$1,000 daily profit"},check:s=>s.net>=1000},
     {id:"silver",medal:"🥈",desc:{ko:"순이익 $3,000/일",en:"$3,000 daily profit"},check:s=>s.net>=3000},
     {id:"gold",medal:"🥇",desc:{ko:"순이익 $5k + 만족도 75%",en:"$5k profit + 75% happiness"},check:s=>s.net>=5000&&s.sat>=75},
-    {id:"platinum",medal:"🏅",desc:{ko:"순이익 $8k + 방문객 200명",en:"$8k profit + 200 visitors"},check:s=>s.net>=8000&&s.vis>=200}]},
+    {id:"platinum",medal:"🏅",desc:{ko:"순이익 $8k + 방문객 200명",en:"$8k profit + 200 visitors"},check:s=>s.net>=8000&&s.vis>=200}],
+  hiddenGoals:[
+    {id:"s4_mogul",medal:"🔮",hint:{ko:"도심 부자들은 최고가에 최고 이익을 원한다...",en:"City elites expect premium pricing with premium profits..."},desc:{ko:"도심의 귀족: 입장료 $25+ + 순이익 $12,000",en:"Urban Mogul: fee ≥$25 + net profit $12,000"},check:s=>s.fee>=25&&s.net>=12000}]},
   {id:"s5",emoji:"👦",difficulty:2,color:"#FECA57",startMoney:42000,timeLimit:55,bannedBuildings:["thrillRide","dropTower"],preBuilt:[{type:"entrance",r:9,c:15,level:0,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false},{type:"carousel",r:7,c:19,level:0,broken:true},{type:"miniTrain",r:11,c:17,level:0,broken:true}],gridRestrict:null,
    constraints:{
      admFeeCap:12,
@@ -313,7 +321,9 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"어린이 비율 40%",en:"40% child ratio"},check:s=>s.childRatio>=0.4},
     {id:"silver",medal:"🥈",desc:{ko:"어린이 55% + 만족도 70%",en:"55% children + 70% happiness"},check:s=>s.childRatio>=0.55&&s.sat>=70},
     {id:"gold",medal:"🥇",desc:{ko:"어린이 65% + 방문객 150명",en:"65% children + 150 visitors"},check:s=>s.childRatio>=0.65&&s.vis>=150},
-    {id:"platinum",medal:"🏅",desc:{ko:"어린이 75% + 방문객 200명 + 만족도 85%",en:"75% children + 200 visitors + 85% happiness"},check:s=>s.childRatio>=0.75&&s.vis>=200&&s.sat>=85}]},
+    {id:"platinum",medal:"🏅",desc:{ko:"어린이 75% + 방문객 200명 + 만족도 85%",en:"75% children + 200 visitors + 85% happiness"},check:s=>s.childRatio>=0.75&&s.vis>=200&&s.sat>=85}],
+  hiddenGoals:[
+    {id:"s5_kidland",medal:"🔮",hint:{ko:"어린이들이 진정한 왕국이라 느끼려면...",en:"For children to feel it's truly their kingdom..."},desc:{ko:"어린이 왕국: 어린이 비율 82% + 방문객 250명",en:"Kiddie Kingdom: 82% children + 250 visitors"},check:s=>s.childRatio>=0.82&&s.vis>=250}]},
   {id:"s6",emoji:"🏖️",difficulty:2,color:"#54A0FF",startMoney:42000,timeLimit:65,allowedCampaigns:["tv","celebrity","event"],preBuilt:[
     {type:"entrance",r:9,c:15,level:0,broken:false},
     {type:"_path",   r:9,c:17,level:0,broken:false},
@@ -329,7 +339,9 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"커플 35% + 방문객 80명",en:"35% couples + 80 visitors"},check:s=>s.coupleRatio>=0.35&&s.vis>=80},
     {id:"silver",medal:"🥈",desc:{ko:"커플 50% + 만족도 70%",en:"50% couples + 70% happiness"},check:s=>s.coupleRatio>=0.50&&s.sat>=70&&s.vis>=130},
     {id:"gold",medal:"🥇",desc:{ko:"커플 60% + 방문객 220명 + 순이익 $2k",en:"60% couples + 220 visitors + $2k profit"},check:s=>s.coupleRatio>=0.60&&s.vis>=220&&s.net>=2000},
-    {id:"platinum",medal:"🏅",desc:{ko:"커플 70% + 5성 + 방문객 250명",en:"70% couples + 5 stars + 250 visitors"},check:s=>s.coupleRatio>=0.7&&s.pres>=5&&s.vis>=250}]},
+    {id:"platinum",medal:"🏅",desc:{ko:"커플 70% + 5성 + 방문객 250명",en:"70% couples + 5 stars + 250 visitors"},check:s=>s.coupleRatio>=0.7&&s.pres>=5&&s.vis>=250}],
+  hiddenGoals:[
+    {id:"s6_paradise",medal:"🔮",hint:{ko:"해변의 진정한 낙원은 모든 것이 완벽할 때...",en:"A true beach paradise has it all — love, profit, and happiness..."},desc:{ko:"완벽한 해변 낙원: 커플 75% + 만족도 87% + 순이익 $3,000",en:"Perfect Beach Paradise: 75% couples + 87% sat + $3k profit"},check:s=>s.coupleRatio>=0.75&&s.sat>=87&&s.net>=3000}]},
   {id:"s7",emoji:"👻",difficulty:4,color:"#5F27CD",startMoney:38000,timeLimit:55,nightCycle:true,bannedBuildings:["carousel","miniTrain","iceCream","balloonRide"],preBuilt:[
     {type:"entrance",    r:9,c:15,level:0,broken:false},
     {type:"_path",       r:9,c:17,level:0,broken:false},
@@ -348,7 +360,9 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"방문객 60명 + 순이익 $800",en:"60 visitors + $800 profit"},check:s=>s.vis>=60&&s.net>=800},
     {id:"silver",medal:"🥈",desc:{ko:"방문객 120명 + 3성 + 만족도 65%",en:"120 visitors + 3 stars + 65% happiness"},check:s=>s.vis>=120&&s.pres>=3&&s.sat>=65},
     {id:"gold",medal:"🥇",desc:{ko:"방문객 200명 + 4성 + 만족도 75%",en:"200 visitors + 4 stars + 75% happiness"},check:s=>s.vis>=200&&s.pres>=4&&s.sat>=75},
-    {id:"platinum",medal:"🏅",desc:{ko:"5성 + 방문객 200명 + 순이익 $5k",en:"5 stars + 200 visitors + $5k profit"},check:s=>s.pres>=5&&s.vis>=200&&s.net>=5000}]},
+    {id:"platinum",medal:"🏅",desc:{ko:"5성 + 방문객 200명 + 순이익 $5k",en:"5 stars + 200 visitors + $5k profit"},check:s=>s.pres>=5&&s.vis>=200&&s.net>=5000}],
+  hiddenGoals:[
+    {id:"s7_legend",medal:"🔮",hint:{ko:"공포의 전설이 되려면 단순히 무섭기만 해서는 안 된다...",en:"To become a legend of horror, fear alone isn't enough..."},desc:{ko:"전설의 공포 공원: 5성 + 순이익 $8,000 + 만족도 82%",en:"Haunted Legend: 5 stars + $8k profit + 82% satisfaction"},check:s=>s.pres>=5&&s.net>=8000&&s.sat>=82}]},
   {id:"s8",emoji:"👑",difficulty:5,color:"#FECA57",startMoney:65000,timeLimit:82,preBuilt:[{type:"entrance",r:9,c:15,level:1,broken:false},{type:"_path",r:9,c:17,level:0,broken:false},{type:"_path",r:9,c:18,level:0,broken:false},{type:"rollerCoaster",r:4,c:18,level:0,broken:true},{type:"ferrisWheel",r:12,c:21,level:1,broken:false}],gridRestrict:null,
    obstacles:[{r:4,c:16,type:"rock"},{r:4,c:17,type:"rock"},{r:10,c:13,type:"water"},{r:10,c:14,type:"water"},{r:15,c:22,type:"rock"},{r:7,c:23,type:"rock"}],
    constraints:{
@@ -360,7 +374,9 @@ export const SCENARIOS = [
     {id:"bronze",medal:"🥉",desc:{ko:"3성 + 순이익 $1,500",en:"3 stars + $1,500 profit"},check:s=>s.pres>=3&&s.net>=1500},
     {id:"silver",medal:"🥈",desc:{ko:"4성 + 순이익 $3,000 + 만족도 75%",en:"4 stars + $3,000 profit + 75% happiness"},check:s=>s.pres>=4&&s.net>=3000&&s.sat>=75},
     {id:"gold",medal:"🥇",desc:{ko:"5성 + 순이익 $5,000 + 만족도 80%",en:"5 stars + $5,000 profit + 80% happiness"},check:s=>s.pres>=5&&s.net>=5000&&s.sat>=80},
-    {id:"platinum",medal:"🏅",desc:{ko:"5성 + 방문객 300명 + 순이익 $10k",en:"5 stars + 300 visitors + $10k profit"},check:s=>s.pres>=5&&s.vis>=300&&s.net>=10000}]},
+    {id:"platinum",medal:"🏅",desc:{ko:"5성 + 방문객 300명 + 순이익 $10k",en:"5 stars + 300 visitors + $10k profit"},check:s=>s.pres>=5&&s.vis>=300&&s.net>=10000}],
+  hiddenGoals:[
+    {id:"s8_empire",medal:"🔮",hint:{ko:"진정한 왕국은 방문객도, 이익도, 별점도 모두 최정점이어야...",en:"A true empire dominates visitors, profit, and prestige alike..."},desc:{ko:"파크 제국: 5성 + 방문객 400명 + 순이익 $15,000",en:"Park Empire: 5 stars + 400 visitors + $15k profit"},check:s=>s.pres>=5&&s.vis>=400&&s.net>=15000}]},
 ];
 
 // ─── 시나리오 스토리 레이어 ────────────────────────────────────────────────
@@ -859,8 +875,9 @@ export const ACADEMY_STEPS = [
   // ── Chapter 5: 위기 대응 & 졸업 ──
   {id:16, chapter:5,
    title:{ko:"🚨 재난 발생! 즉시 해결하세요",en:"🚨 Disaster! Resolve It Now"},
-   instruction:{ko:"재난이 발생했습니다! 화면에 표시된\n즉시 해결 버튼을 클릭하세요",en:"A disaster struck! Click the\nResolve button that appeared on screen"},
+   instruction:{ko:"미션 탭을 열어 재난 패널의\n즉시 해결 버튼을 클릭하세요",en:"Open the Mission tab and click\nthe Resolve button in the disaster panel"},
    why:{ko:"재난을 방치하면 방문객이 급감하고 만족도가 폭락해요!",en:"Ignoring disasters = visitor drop + satisfaction crash!"},
+   highlightTab:"mission",
    check:s=>s.disasterResolved},
 
   {id:17, chapter:5,
@@ -910,6 +927,18 @@ export const RIVAL_EVENTS = [
    name:{ko:"경쟁사 대형 이벤트",en:"Rival Mega Event"},
    desc:{ko:"경쟁사가 대규모 이벤트 개최! 방문객 -30% (2일)",en:"Rival runs mega event! Visitors -30% (2 days)"},
    visMult:0.70, satPen:0, dur:2},
+  {id:"new_attraction",emoji:"🎢", col:"#A29BFE",
+   name:{ko:"경쟁사 신규 어트랙션",en:"Rival New Ride"},
+   desc:{ko:"경쟁사가 신규 대형 어트랙션 오픈! 방문객 -18% (3일)",en:"Rival opens exciting new ride! Visitors -18% (3 days)"},
+   visMult:0.82, satPen:3, dur:3},
+  {id:"celebrity_visit",emoji:"🌟", col:"#FECA57",
+   name:{ko:"경쟁사 셀럽 방문",en:"Rival Celebrity Visit"},
+   desc:{ko:"유명인이 경쟁사 방문! SNS 버즈 — 방문객 -25% · 만족도 -8 (3일)",en:"Celebrity visits rival park! Social media buzz — Visitors -25% · Sat -8 (3 days)"},
+   visMult:0.75, satPen:8, dur:3},
+  {id:"media_expose",  emoji:"📡", col:"#FF9F43",
+   name:{ko:"미디어 집중 보도",en:"Media Spotlight on Rival"},
+   desc:{ko:"경쟁사가 TV 특집 방송 출연! 만족도 -12 · 방문객 -10% (4일)",en:"Rival featured on TV special! Sat -12 · Visitors -10% (4 days)"},
+   visMult:0.90, satPen:12, dur:4},
 ];
 
 // Phase 3-5: Achievement System
