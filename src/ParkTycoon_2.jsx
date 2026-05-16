@@ -8,7 +8,7 @@ import {
   WEATHERS, WEATHER_WEIGHTS, DEFAULT_RIDE_PRICES, DEFAULT_SHOP_MULTS, MAX_FEE_BY_STARS,
   LANG_FLAGS, TR, SCENARIOS, DIFFICULTY_SETTINGS, STAGES, B, STARTING_PERKS, WEEKLY_CHALLENGES,
   STAFF, STAFF_UPGRADES, RIVAL_PARKS, FRANCHISES, ZONE_MASTERY, LOAN_OPTS, DOTS, TUTORIAL_STEPS, DAILY_CHALLENGES, SCENARIO_CLEAR_REWARDS, SCENARIO_DIFFICULTY,
-  RIVAL_EVENTS, ACHIEVEMENTS, BONUS_EVENTS, SCENARIO_CLEAR_FLAVOR, BUILDING_EVENTS, SCENARIO_STORIES,
+  RIVAL_EVENTS, ACHIEVEMENTS, BONUS_EVENTS, SCENARIO_CLEAR_FLAVOR, BUILDING_EVENTS, SCENARIO_STORIES, COMBOS,
 } from './gameData.js';
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
 import {
@@ -236,6 +236,11 @@ export default function ParkTycoon(){
   const [mapType,setMapType]=useState("default");
   const [earnedMedals,setEarnedMedals]=useState([]);
 
+  // Combo system
+  const [activeCombos,setActiveCombos]=useState([]);
+  const discoveredCombosRef=useRef(new Set());
+  const [comboToast,setComboToast]=useState(null); // {combo, timeoutId}
+
   // UI-only states (not saved)
   const [bp,setBp]=useState(()=>window.innerWidth<600?"mobile":window.innerWidth<1024?"tablet":"pc");
   const isMobile=bp==="mobile";
@@ -328,7 +333,7 @@ export default function ParkTycoon(){
 
   const ref=useRef();
   const diffSettings=DIFFICULTY_SETTINGS[difficulty]||DIFFICULTY_SETTINGS.normal;
-  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,profitStreakDays,soundOn,ftueGoalDone,scenarioTimeLimit,rivalEventActive,lang,lastBuilt,startPerk,weeklyChallengeMod,sandboxGoal,segArrivalShown};
+  ref.current={grid,zoneGrid,ownedGrid,money,sat,clean,fee,hired,day,speed,loans,visitors,segData,campaigns,pendingVIP,passOn,passPrice,passHolders,prestigeBonus,totalVis:totalVis,researched,researchPoints,activeMissions,completedMissions,activeDisaster,ridePrices,shopMults,pricingMode,gameMode,currentScenario,difficulty,scenarioResult,weather,weatherTimer,staffLevels,rivals,pressReviews,visitorRatings,activeHoliday,holidayHistory,pendingInvestor,activeInvestment,investmentHistory,mapType,earnedMedals,disasterWarning,activeDailyChallenge,dailyChallengeHistory,bankruptcyDays,profitStreakDays,soundOn,ftueGoalDone,scenarioTimeLimit,rivalEventActive,lang,lastBuilt,startPerk,weeklyChallengeMod,sandboxGoal,segArrivalShown,activeCombos};
 
   const season=SEASONS[Math.floor(((day-1)%120)/SL)];
   const rb=getRB(researched);
@@ -624,6 +629,46 @@ export default function ParkTycoon(){
     if(evt) setTimeout(()=>tryShowStory({...evt,id:`${currentScenario}_${evt.id}`}),400);
   },[day]); // eslint-disable-line
 
+  // 조합 감지: 그리드 변경 시 활성 콤보 재계산
+  useEffect(()=>{
+    // Collect all cell positions per building type
+    const posMap={};
+    for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
+      const cell=grid[r][c];
+      if(!cell?.type||cell.type.startsWith("_")) continue;
+      if(!posMap[cell.type]) posMap[cell.type]=[];
+      posMap[cell.type].push({r,c});
+    }
+    const nowActive=[];
+    for(const combo of COMBOS){
+      // Check all required buildings exist
+      if(!combo.buildings.every(b=>posMap[b]?.length>0)) continue;
+      // For each building, check if at least one cell of it is within radius of at least one cell of every other required building
+      const found=combo.buildings[0]&&posMap[combo.buildings[0]].some(a=>
+        combo.buildings.slice(1).every(b=>
+          posMap[b].some(bPos=>Math.abs(a.r-bPos.r)+Math.abs(a.c-bPos.c)<=combo.radius)
+        )
+      );
+      if(found) nowActive.push(combo.id);
+    }
+    setActiveCombos(prev=>{
+      // Trigger discovery toasts for newly activated combos
+      for(const id of nowActive){
+        if(!discoveredCombosRef.current.has(id)&&screen==="game"){
+          discoveredCombosRef.current.add(id);
+          const combo=COMBOS.find(c=>c.id===id);
+          if(combo){
+            setComboToast(t=>{if(t?.timeoutId) clearTimeout(t.timeoutId);
+              const tid=setTimeout(()=>setComboToast(null),3500);
+              return{combo,timeoutId:tid};
+            });
+          }
+        }
+      }
+      return nowActive;
+    });
+  },[grid,screen]); // eslint-disable-line
+
   // 5단계 튜토리얼: 스텝 5(직원 고용) 도달 시 경영 탭 자동 오픈
   useEffect(()=>{
     if(!tutorialStep) return;
@@ -678,6 +723,34 @@ export default function ParkTycoon(){
     });
     return result;
   },[grid,zoneGrid]);
+
+  // Combo cell highlight map: key="${r},${c}" → combo color
+  const comboCellMap=useMemo(()=>{
+    if(activeCombos.length===0) return {};
+    const posMap={};
+    for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
+      const cell=grid[r][c];
+      if(!cell?.type||cell.type.startsWith("_")) continue;
+      if(!posMap[cell.type]) posMap[cell.type]=[];
+      posMap[cell.type].push({r,c});
+    }
+    const result={};
+    for(const comboId of activeCombos){
+      const combo=COMBOS.find(c=>c.id===comboId);
+      if(!combo) continue;
+      // For each building in combo, find the cell that is "in range" of all others
+      for(const btype of combo.buildings){
+        const poses=posMap[btype]||[];
+        for(const pos of poses){
+          const inRange=combo.buildings.every(ob=>ob===btype||
+            (posMap[ob]||[]).some(op=>Math.abs(pos.r-op.r)+Math.abs(pos.c-op.c)<=combo.radius)
+          );
+          if(inRange) result[`${pos.r},${pos.c}`]=combo.color;
+        }
+      }
+    }
+    return result;
+  },[activeCombos,grid]);
 
   // 구역 보너스 활성화 시 floating text 연출
   useEffect(()=>{
@@ -745,7 +818,7 @@ export default function ParkTycoon(){
       const feePenalty=fee>maxFee?0.5:1.0;
 
       let visMult=1,revMult=1,satPenExtra=0,disWage=1;
-      if(ad&&gm!=="sandbox"){visMult=ad.visMult||1;revMult=ad.revMult!==undefined?ad.revMult:1;satPenExtra=ad.satPen||0;if(ad.id==="strike") disWage=0;}
+      if(ad&&gm!=="sandbox"){const dm=1-comboDisasterMitigation;visMult=1-(1-(ad.visMult||1))*dm;revMult=ad.revMult!==undefined?1-(1-ad.revMult)*dm:1;satPenExtra=(ad.satPen||0)*(1-comboDisasterMitigation*0.5);if(ad.id==="strike") disWage=0;}
 
       const campBoost=camps.reduce((t,c)=>t+c.boost,0);
       const newCamps=camps.map(c=>({...c,remaining:c.remaining-1})).filter(c=>c.remaining>0);
@@ -771,6 +844,29 @@ export default function ParkTycoon(){
         }
       }
       const scnFeeCapPen=(scnConstraints.admFeeCap&&fee>scnConstraints.admFeeCap&&gm==="campaign")?(scnConstraints.admFeeCapPenalty||0):0;
+
+      // Combo strategy bonuses
+      const curActiveCombos=ref.current.activeCombos||[];
+      const comboSumBonus=(key,def=0)=>COMBOS.filter(c=>curActiveCombos.includes(c.id)).reduce((t,c)=>t+(c.bonus[key]||0),def);
+      const comboCoupleVisMult=1+Math.min(comboSumBonus("coupleMult"),0.60);
+      const comboFamilyVisMult=1+Math.min(comboSumBonus("familyMult"),0.60);
+      const comboThrillVisMult=1+Math.min(comboSumBonus("thrillMult"),0.60);
+      const comboChildVisMult=1+Math.min(comboSumBonus("childMult"),0.60);
+      const comboGeneralVisMult=1+Math.min(comboSumBonus("generalMult"),0.60);
+      const comboRevMult=1+Math.min(comboSumBonus("revMult"),0.50);
+      const comboSatBonus=Math.min(comboSumBonus("satBonus"),20);
+      const comboPrestigeBonus=comboSumBonus("prestige");
+      const comboDisasterMitigation=Math.min(comboSumBonus("disasterMitigation"),0.40);
+      const comboSummerMult=seasonIdx===1?comboSumBonus("summerMult",0):0;
+      const comboFamilySat=comboSumBonus("familySat");
+      // Weighted visitor multiplier from combo (seg ratios)
+      const comboVisSegMult=1+(
+        (segs.couple||0)*Math.min(comboSumBonus("coupleMult"),0.60)+
+        (segs.family||0)*Math.min(comboSumBonus("familyMult"),0.60)+
+        (segs.thrill||0)*Math.min(comboSumBonus("thrillMult"),0.60)+
+        (segs.child||0)*Math.min(comboSumBonus("childMult"),0.60)+
+        (segs.general||0)*Math.min(comboSumBonus("generalMult"),0.60)
+      );
 
       const feeEff=pm==="per_ride"?1.25:Math.max(0.15,1.3-fee*0.022/(1+(parkRat.stars-1)*0.06));
       // Phase 2-1: entertainer level bonus
@@ -818,7 +914,7 @@ export default function ParkTycoon(){
       if(nightCycle&&day%3===0&&day>0) addLog(nightPhase?(lang==="ko"?"🌙 야간 영업 시작! 방문객 급증":"🌙 Night opens! Visitor surge"):(lang==="ko"?"☀️ 낮 시간 — 방문객 감소":"☀️ Daytime — visitors reduced"));
       // Opening bonus: Grand Opening buzz fades over first 7 days
       const openingBonus=day<=3?1.5:day<=7?1.2:1.0;
-      const rawVis=Math.max(0,Math.floor(s.attraction*2.5*(1+hired.entertainer*(0.05+entVisMult))*(0.4+(s0/100)*0.9)*ssn.mult*feeEff*(1+campBoost)*(1+(parkRat.stars-1)*0.10)*(1+rb.globalVisBonus)*(1+rb.coupleBonus*(segs.couple||0))*feePenalty*stgVisMult*wth.visMult*ratingVisMult*(1-rivalSteal)*mapVisMult*holidayVisMult*openingBonus*rivalEventVisMult*s7VisMult));
+      const rawVis=Math.max(0,Math.floor(s.attraction*2.5*(1+hired.entertainer*(0.05+entVisMult))*(0.4+(s0/100)*0.9)*ssn.mult*feeEff*(1+campBoost)*(1+(parkRat.stars-1)*0.10)*(1+rb.globalVisBonus)*(1+rb.coupleBonus*(segs.couple||0))*feePenalty*stgVisMult*wth.visMult*ratingVisMult*(1-rivalSteal)*mapVisMult*holidayVisMult*openingBonus*rivalEventVisMult*s7VisMult*comboVisSegMult*(1+comboSummerMult)));
       const congested=s.capacity>0&&rawVis>s.capacity;
       let vis=Math.floor(Math.max(0,(congested?s.capacity*1.05:rawVis)*visMult));
       if(s.hasEntrance&&s.attraction>0&&vis<3) vis=3;
@@ -832,7 +928,7 @@ export default function ParkTycoon(){
       const shopMul=avgShopMult(cc2,sm);
       const shopRev=vis*s.rpv*spendMult*shopMul;
       const passInc=pe?Math.floor(ph*pp/365*rb.passIncomeMult):0;
-      const totalRevDay=Math.floor((admRev+rideRev+shopRev)*revMult*stgRevMult)+passInc;
+      const totalRevDay=Math.floor((admRev+rideRev+shopRev)*revMult*stgRevMult*comboRevMult)+passInc;
 
       const wages=Object.entries(hired).reduce((t,[k,v])=>t+STAFF[k].daily*v,0)*disWage;
       let loanPay=0;
@@ -854,7 +950,7 @@ export default function ParkTycoon(){
       // 방문객 없을 때 패널티 제거 (운영 안 하면 만족도 변화 없음)
       const baseSatDelta = vis > 0 ? -0.18 : 0;
       const coupleBoostSat=ref.current.startPerk==="coupleBoost"?5:0;
-      const newSat=Math.min(100,Math.max(5,s0+hired.janitor*janSatBonus+hired.security*secSatBonus+s.satBonus+baseSatDelta+cleanMod+(congested&&vis>0?-5:0)+Math.min(0,-s.brokenCount*2)+segSatMod(newGrid,segs)+Math.min(0,-s.isolatedCount)+(fee>maxFee?-6:0)-satPenExtra+wth.satMod+holidaySatMod-rivalEventSatPen*0.5+coupleBoostSat+scnSatMod+scnFeeCapPen));
+      const newSat=Math.min(100,Math.max(5,s0+hired.janitor*janSatBonus+hired.security*secSatBonus+s.satBonus+baseSatDelta+cleanMod+(congested&&vis>0?-5:0)+Math.min(0,-s.brokenCount*2)+segSatMod(newGrid,segs)+Math.min(0,-s.isolatedCount)+(fee>maxFee?-6:0)-satPenExtra+wth.satMod+holidaySatMod-rivalEventSatPen*0.5+coupleBoostSat+scnSatMod+scnFeeCapPen+comboSatBonus*0.08+comboFamilySat*0.04));
 
       let newDisaster=ad?{...ad,remaining:ad.remaining-1}:null;
       if(newDisaster?.remaining<=0){addLog(t("log.disasterEnd", {name: t(`dis.${newDisaster.id}`)}));newDisaster=null;}
@@ -939,6 +1035,8 @@ export default function ParkTycoon(){
         if(prestigeMod!==0) setPrestigeBonus(pb=>pb+Math.round(prestigeMod*rb.prestigeRateMult));
         if(ref.current.soundOn) playSound(grade==="S"||grade==="A"?"mission":"disaster");
       }
+      // Combo prestige bonus (daily)
+      if(comboPrestigeBonus>0) setPrestigeBonus(pb=>pb+comboPrestigeBonus);
 
       // Phase 2-4: visitor ratings
       const ratingCount=Math.floor(vis*0.05);
@@ -3292,6 +3390,42 @@ export default function ParkTycoon(){
                   </div>);
                 })}
               </div>
+
+              {/* ── 시너지 조합 패널 ── */}
+              <div style={{marginTop:10}}>
+                <div style={{fontSize:10,color:"#9B7FFF",letterSpacing:2,textTransform:"uppercase",marginBottom:6,display:"flex",alignItems:"center",gap:6}}>
+                  <span>✨</span>
+                  <span>{lang==="ko"?"시너지 조합":"Synergy Combos"}</span>
+                  {activeCombos.length>0&&<span style={{background:"#9B7FFF33",border:"1px solid #9B7FFF55",borderRadius:20,padding:"1px 6px",fontSize:9,color:"#9B7FFF",marginLeft:"auto"}}>{activeCombos.length} {lang==="ko"?"활성":"active"}</span>}
+                </div>
+                {COMBOS.map(combo=>{
+                  const isActive=activeCombos.includes(combo.id);
+                  return(
+                    <div key={combo.id} style={{display:"flex",alignItems:"flex-start",gap:6,padding:"5px 7px",marginBottom:3,
+                      background:isActive?`${combo.color}12`:"rgba(255,255,255,0.02)",
+                      border:`1px solid ${isActive?combo.color+"55":"rgba(255,255,255,0.06)"}`,
+                      borderRadius:6,transition:"all 0.2s",opacity:isActive?1:0.45}}>
+                      <div style={{fontSize:16,lineHeight:1,marginTop:1}}>{combo.emoji}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:4}}>
+                          <span style={{fontSize:11,fontWeight:700,color:isActive?combo.color:"#8899BB"}}>{combo.name[lang]||combo.name.ko}</span>
+                          {combo.tier===3&&<span style={{fontSize:8,background:combo.color+"33",color:combo.color,borderRadius:3,padding:"1px 4px",flexShrink:0}}>{lang==="ko"?"TRIPLE":"TRIPLE"}</span>}
+                          {isActive&&<span style={{fontSize:8,color:"#00E5A0",flexShrink:0}}>✅</span>}
+                        </div>
+                        <div style={{fontSize:10,color:isActive?"#DDE2FF":"#445566",marginTop:1}}>{combo.desc[lang]||combo.desc.ko}</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:3}}>
+                          {combo.buildings.map(b=>(
+                            <span key={b} style={{fontSize:9,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:3,padding:"1px 5px",color:"#6677AA"}}>
+                              {B[b]?.emoji} {t(`b.${b}`)}
+                            </span>
+                          ))}
+                          <span style={{fontSize:9,color:"#334455",padding:"1px 0"}}>({lang==="ko"?"반경":"radius"} {combo.radius})</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </>}
 
             {tab==="marketing"&&<>
@@ -4134,6 +4268,7 @@ export default function ParkTycoon(){
                 const isCongested=congestedCells.has(`${r},${c}`);
                 const isRightBoundary=owned&&c+bw<GC&&!ownedGrid[r][c+bw];
                 const isNextBuyable=!owned&&gameMode!=="sandbox"&&((c>0&&ownedGrid[r][c-1])||(c<GC-1&&ownedGrid[r][c+1]));
+                const comboCellColor=cell&&!broken&&!isPath?comboCellMap[`${r},${c}`]:null;
 
                 const OBS_STYLE={rock:{bg:"rgba(70,50,30,0.55)",bd:"rgba(120,90,55,0.6)",emoji:"🪨"},water:{bg:"rgba(10,70,180,0.40)",bd:"rgba(40,130,255,0.55)",emoji:"💧"},rubble:{bg:"rgba(90,80,60,0.50)",bd:"rgba(140,120,90,0.5)",emoji:"🧱"},deadtree:{bg:"rgba(25,55,15,0.50)",bd:"rgba(40,90,25,0.5)",emoji:"🌵"}};
                 let bg="#0C1028";
@@ -4175,7 +4310,7 @@ export default function ParkTycoon(){
                     transition:"border-color 0.12s,background 0.12s",
                     minHeight:0,overflow:"hidden",position:"relative",
                     background:isNextBuyable?"rgba(77,159,255,0.04)":bg,
-                    boxShadow:isSel?`0 0 0 2px #FFD93D, 0 0 16px rgba(255,217,61,0.4)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?"0 0 8px rgba(255,87,87,0.3)":isDemolishHov?"0 0 8px rgba(255,87,87,0.4)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 8px rgba(255,159,67,0.3)":isEntrance&&!broken?`0 0 14px rgba(255,217,61,0.3), inset 0 0 14px rgba(255,217,61,0.08)`:cell&&!broken&&!isPath?(cell.level>=2?`0 0 12px ${bd.color}77, inset 0 0 12px ${bd.color}33`:cell.level>=1?`0 0 7px ${bd.color}55, inset 0 0 10px ${bd.color}22`:`0 0 5px ${bd.color}33, inset 0 0 8px ${bd.color}14`):"none",
+                    boxShadow:isSel?`0 0 0 2px #FFD93D, 0 0 16px rgba(255,217,61,0.4)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?"0 0 8px rgba(255,87,87,0.3)":isDemolishHov?"0 0 8px rgba(255,87,87,0.4)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 8px rgba(255,159,67,0.3)":isEntrance&&!broken?`0 0 14px rgba(255,217,61,0.3), inset 0 0 14px rgba(255,217,61,0.08)`:cell&&!broken&&!isPath?(comboCellColor?`0 0 0 2px ${comboCellColor}, 0 0 10px ${comboCellColor}88, inset 0 0 8px ${comboCellColor}22`:cell.level>=2?`0 0 12px ${bd.color}77, inset 0 0 12px ${bd.color}33`:cell.level>=1?`0 0 7px ${bd.color}55, inset 0 0 10px ${bd.color}22`:`0 0 5px ${bd.color}33, inset 0 0 8px ${bd.color}14`):"none",
                     opacity:!owned?0.12:1}}
                   onMouseDown={(e)=>{
                     if(e.button!==0) return;
@@ -4438,6 +4573,28 @@ export default function ParkTycoon(){
                 </div>
               ))}
             </div>}
+
+            {/* ── 조합 발견 토스트 ── */}
+            {comboToast&&screen==="game"&&(()=>{
+              const c=comboToast.combo;
+              return(
+                <div style={{position:"absolute",top:isMobile?72:16,left:"50%",transform:"translateX(-50%)",zIndex:isMobile?250:70,
+                  background:`linear-gradient(135deg,${c.color}22,#0A0D20)`,
+                  border:`1px solid ${c.color}66`,borderRadius:12,padding:"10px 16px",
+                  display:"flex",alignItems:"center",gap:10,minWidth:200,maxWidth:320,
+                  boxShadow:`0 4px 20px rgba(0,0,0,0.7),0 0 12px ${c.color}44`,
+                  animation:"slide-in 0.25s ease",backdropFilter:"blur(8px)",pointerEvents:"none"}}>
+                  <div style={{fontSize:22,lineHeight:1}}>{c.emoji}</div>
+                  <div>
+                    <div style={{fontSize:10,color:c.color,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Barlow Condensed',sans-serif"}}>
+                      {lang==="ko"?"✨ 새 조합 발견!":"✨ New Combo!"}
+                    </div>
+                    <div style={{fontSize:13,color:"#DDE2FF",fontWeight:700}}>{c.name[lang]||c.name.ko}</div>
+                    <div style={{fontSize:11,color:"#8899BB",marginTop:2}}>{c.desc[lang]||c.desc.ko}</div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ── 스토리 카드 오버레이 ── */}
             {storyCard&&screen==="game"&&(()=>{
