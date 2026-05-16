@@ -108,7 +108,7 @@ function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,bgMusicOn,se
   const fzLabel={small:lang==="ko"?"작게":"Small",medium:lang==="ko"?"보통":"Medium",large:lang==="ko"?"크게":"Large"};
   return(
     <div role="presentation" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
-      <div role="dialog" aria-modal={true} aria-label={lang==="ko"?"설정":"Settings"} style={{background:"#0C1128",border:"1px solid rgba(100,120,255,0.3)",borderRadius:12,padding:24,minWidth:280,maxWidth:360,boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}} onClick={e=>e.stopPropagation()}>
+      <div role="dialog" aria-modal={true} aria-label={lang==="ko"?"설정":"Settings"} style={{background:"#0C1128",border:"1px solid rgba(100,120,255,0.3)",borderRadius:12,padding:24,minWidth:"min(280px,calc(100vw - 32px))",maxWidth:"min(360px,calc(100vw - 24px))",boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
           <div style={{fontSize:16,fontWeight:700,letterSpacing:2,color:"#DDE2FF"}}>{lang==="ko"?"⚙️ 설정":"⚙️ Settings"}</div>
           <button style={{background:"none",border:"none",color:"#8899BB",cursor:"pointer",fontSize:16,fontFamily:"inherit"}} onClick={onClose}>✕</button>
@@ -2478,8 +2478,8 @@ export default function ParkTycoon(){
           <div style={{fontSize:36,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:6,color:"#FFD93D",textShadow:"0 0 40px rgba(255,217,61,0.5)",lineHeight:1,marginBottom:8}}>PARCADIA</div>
           <div style={{fontSize:13,color:"#7788BB",marginBottom:28,letterSpacing:1}}>언어를 선택하세요 · Choose your language</div>
           <div style={{display:"flex",flexDirection:"column",gap:12,alignItems:"center"}}>
-            <button onClick={()=>chooseLang("ko")} style={{width:240,padding:"14px 0",background:"rgba(255,217,61,0.08)",border:"2px solid rgba(255,217,61,0.4)",color:"#FFD93D",borderRadius:12,cursor:"pointer",fontSize:16,fontFamily:"inherit",fontWeight:700,letterSpacing:2,transition:"all 0.15s"}}>🇰🇷 한국어</button>
-            <button onClick={()=>chooseLang("en")} style={{width:240,padding:"14px 0",background:"rgba(77,159,255,0.08)",border:"2px solid rgba(77,159,255,0.4)",color:"#4D9FFF",borderRadius:12,cursor:"pointer",fontSize:16,fontFamily:"inherit",fontWeight:700,letterSpacing:2,transition:"all 0.15s"}}>🇺🇸 English</button>
+            <button onClick={()=>chooseLang("ko")} style={{width:"min(240px,80vw)",padding:"14px 0",background:"rgba(255,217,61,0.08)",border:"2px solid rgba(255,217,61,0.4)",color:"#FFD93D",borderRadius:12,cursor:"pointer",fontSize:16,fontFamily:"inherit",fontWeight:700,letterSpacing:2,transition:"all 0.15s"}}>🇰🇷 한국어</button>
+            <button onClick={()=>chooseLang("en")} style={{width:"min(240px,80vw)",padding:"14px 0",background:"rgba(77,159,255,0.08)",border:"2px solid rgba(77,159,255,0.4)",color:"#4D9FFF",borderRadius:12,cursor:"pointer",fontSize:16,fontFamily:"inherit",fontWeight:700,letterSpacing:2,transition:"all 0.15s"}}>🇺🇸 English</button>
           </div>
         </div>
       </div>
@@ -2855,7 +2855,7 @@ export default function ParkTycoon(){
         const relCombos=COMBOS.filter(c=>c.buildings.includes(showBldInfo));
         return(
           <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:12}} onClick={()=>setShowBldInfo(null)}>
-            <div style={{background:"linear-gradient(145deg,#0D1535 0%,#08091E 100%)",border:`2px solid ${bd.color}44`,borderRadius:16,padding:"20px 22px",maxWidth:360,width:"100%",boxShadow:`0 20px 60px rgba(0,0,0,0.9),0 0 30px ${bd.color}11`,maxHeight:"80vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div style={{background:"linear-gradient(145deg,#0D1535 0%,#08091E 100%)",border:`2px solid ${bd.color}44`,borderRadius:16,padding:"20px 22px",maxWidth:"min(360px,calc(100vw - 24px))",width:"100%",boxShadow:`0 20px 60px rgba(0,0,0,0.9),0 0 30px ${bd.color}11`,maxHeight:"88vh",overflowY:"auto",WebkitOverflowScrolling:"touch"}} onClick={e=>e.stopPropagation()}>
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
                 <div style={{width:40,height:40,borderRadius:10,background:`${bd.color}22`,border:`2px solid ${bd.color}44`,display:"flex",alignItems:"center",justifyContent:"center"}}>
                   {hasBuildingIcon(showBldInfo)?getBuildingIcon(showBldInfo,bd.color,28):<span style={{fontSize:22}}>{bd.emoji}</span>}
@@ -2932,7 +2932,7 @@ export default function ParkTycoon(){
       )}
       {/* Phase 3-5: 업적 달성 플래시 알림 */}
       {achievementFlash&&(
-        <div style={{position:"fixed",bottom:24,right:20,zIndex:9998,background:`rgba(5,8,28,0.97)`,border:`2px solid ${achievementFlash.col}`,borderRadius:12,padding:"10px 16px",display:"flex",gap:10,alignItems:"center",boxShadow:`0 4px 24px rgba(0,0,0,0.8), 0 0 20px ${achievementFlash.col}44`,animation:"slide-in 0.3s ease",backdropFilter:"blur(10px)",maxWidth:280}}>
+        <div style={{position:"fixed",bottom:isMobile?72:24,right:isMobile?8:20,zIndex:9998,background:`rgba(5,8,28,0.97)`,border:`2px solid ${achievementFlash.col}`,borderRadius:12,padding:"10px 16px",display:"flex",gap:10,alignItems:"center",boxShadow:`0 4px 24px rgba(0,0,0,0.8), 0 0 20px ${achievementFlash.col}44`,animation:"slide-in 0.3s ease",backdropFilter:"blur(10px)",maxWidth:isMobile?"calc(100vw - 16px)":280}}>
           <span style={{fontSize:28,filter:`drop-shadow(0 0 6px ${achievementFlash.col})`}}>{achievementFlash.emoji}</span>
           <div>
             <div style={{fontSize:9,color:achievementFlash.col,letterSpacing:2,textTransform:"uppercase",marginBottom:2}}>{lang==="ko"?"🏅 업적 달성":"🏅 ACHIEVEMENT"}</div>
@@ -3172,9 +3172,9 @@ export default function ParkTycoon(){
             return(
             <div key={l} style={{position:"relative",display:"flex",alignItems:"center",gap:1}}>
               <div
-                onClick={isVis?()=>setShowVisBreakdown(x=>!x):undefined}
-                onMouseEnter={isSat?(e)=>{const r=e.currentTarget.getBoundingClientRect();const tw=200,th=180;const x=Math.max(8,Math.min(r.left,window.innerWidth-tw-8));const y=r.bottom+4+th>window.innerHeight?r.top-th-4:r.bottom+4;setSatTooltipPos({x,y});setShowSatTooltip(true);}:undefined}
-                onMouseLeave={isSat?()=>setShowSatTooltip(false):undefined}
+                onClick={isVis?()=>setShowVisBreakdown(x=>!x):isSat?(e)=>{const r=e.currentTarget.getBoundingClientRect();const tw=200,th=180;const x=Math.max(8,Math.min(r.left,window.innerWidth-tw-8));const y=r.bottom+4+th>window.innerHeight?r.top-th-4:r.bottom+4;setSatTooltipPos({x,y});setShowSatTooltip(s=>!s);}:undefined}
+                onMouseEnter={isSat&&!isMobile?(e)=>{const r=e.currentTarget.getBoundingClientRect();const tw=200,th=180;const x=Math.max(8,Math.min(r.left,window.innerWidth-tw-8));const y=r.bottom+4+th>window.innerHeight?r.top-th-4:r.bottom+4;setSatTooltipPos({x,y});setShowSatTooltip(true);}:undefined}
+                onMouseLeave={isSat&&!isMobile?()=>setShowSatTooltip(false):undefined}
                 style={{display:"flex",alignItems:"center",gap:4,background:big?"rgba(255,255,255,0.05)":primary?"rgba(255,255,255,0.04)":"rgba(255,255,255,0.025)",border:`1px solid ${isVis&&showVisBreakdown?"#4D9FFF66":isSat&&showSatTooltip?col+"66":big?col+"33":primary?col+"22":"rgba(255,255,255,0.06)"}`,borderRadius:8,padding:big?"3px 10px":primary?"3px 9px":"3px 7px",whiteSpace:"nowrap",flexShrink:0,cursor:isVis||isSat?"pointer":"default",transition:"border-color 0.15s",opacity:primary?1:0.85}}>
                 <span style={{fontSize:big?14:primary?12:10}}>{ic}</span>
                 <div>
@@ -3183,7 +3183,8 @@ export default function ParkTycoon(){
                 </div>
               </div>
               {tipKey&&STAT_TIPS[tipKey]&&<button onClick={()=>setStatTooltip(st=>st?.title===STAT_TIPS[tipKey].title?null:STAT_TIPS[tipKey])} style={{background:"none",border:"1px solid rgba(100,120,255,0.2)",borderRadius:"50%",width:13,height:13,fontSize:7,color:"#5566AA",cursor:"pointer",padding:0,lineHeight:1,flexShrink:0}}>?</button>}
-              {/* 만족도 hover 툴팁 */}
+              {/* 만족도 hover/tap 툴팁 */}
+              {isSat&&showSatTooltip&&isMobile&&<div onClick={()=>setShowSatTooltip(false)} style={{position:"fixed",inset:0,zIndex:9997}} />}
               {isSat&&showSatTooltip&&(
                 <div style={{position:"fixed",top:satTooltipPos.y,left:satTooltipPos.x,background:"rgba(8,12,32,0.97)",border:`1px solid ${col}44`,borderRadius:8,padding:"8px 10px",zIndex:9999,minWidth:180,backdropFilter:"blur(8px)",animation:"slide-in 0.15s ease",pointerEvents:"none"}}>
                   <div style={{fontSize:9,fontWeight:700,color:col,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>😊 {lang==="ko"?"만족도 영향 요인":"Satisfaction Factors"}</div>
