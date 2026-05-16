@@ -3773,7 +3773,7 @@ export default function ParkTycoon(){
         {!isPC&&!isMobile&&<button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#7788BB",cursor:"pointer",fontSize:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?(lang==="ko"?"패널 열기":"Open panel"):(lang==="ko"?"패널 닫기":"Close panel")}>{panelCollapsed?"▶":"◀"}</button>}
 
         {/* ── GRID + LOG ── */}
-        <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:isMobile?2:7,gap:isMobile?2:5,overflow:"hidden",background:"var(--bg-deep)"}}
+        <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:isMobile?2:7,gap:isMobile?2:5,overflow:"hidden",background:"var(--bg-deep)",touchAction:isMobile?"none":"auto"}}
           onTouchStart={(e) => {
             if (e.touches.length === 2) {
               panRef.current.active = false;
@@ -4887,7 +4887,7 @@ export default function ParkTycoon(){
 
       {/* Mobile: collapsible event log overlay above bottom nav */}
       {isMobile&&screen==="game"&&!bottomSheetOpen&&logs.length>0&&(
-        <div style={{position:"fixed",bottom:62,right:8,zIndex:195,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+        <div style={{position:"fixed",bottom:180,right:8,zIndex:195,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
           {logOverlayExpanded&&(
             <div style={{background:"rgba(4,5,16,0.90)",border:"1px solid rgba(100,120,255,0.15)",borderRadius:10,padding:"5px 10px",backdropFilter:"blur(10px)",maxWidth:"80vw",minWidth:160}}>
               {logs.slice(0,3).map((l,i)=>{
