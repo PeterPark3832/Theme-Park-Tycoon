@@ -4904,7 +4904,7 @@ export default function ParkTycoon(){
                 <div className="mobile-hud-bl hud-chip-row">
                   <div className="hud-chip">
                     <span style={{fontSize:13}}>😊</span>
-                    <span style={{fontSize:13,fontWeight:700,color:sat>=70?"#00E5A0":sat>=40?"#FFD93D":"#FF5757"}}>{sat}</span>
+                    <span style={{fontSize:13,fontWeight:700,color:sat>=70?"#00E5A0":sat>=40?"#FFD93D":"#FF5757"}}>{Math.round(sat)}</span>
                     <span style={{fontSize:10,color:"#445580"}}>%</span>
                   </div>
                   <div className="hud-chip">

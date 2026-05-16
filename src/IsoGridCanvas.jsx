@@ -372,10 +372,17 @@ export default function IsoGridCanvas({
       if (sprite) {
         // Anchor at south (front-bottom) corner of footprint
         const anchor = getBuildingAnchorScreen(row, col, size, cam);
-        // Scale: sprite width = footprint diagonal width (1:1)
+        // Scale sprite to footprint diagonal width.
+        // Portrait sprites (h>w, e.g. ferrisWheel) are capped by a max height
+        // to prevent them from towering over neighbouring tiles.
         const fW = (size.w + size.h) * (TILE_W / 2) * cam.zoom;
-        const sW = fW;
-        const sH = (sprite.naturalHeight / sprite.naturalWidth) * sW;
+        const fH = (size.w + size.h) * (TILE_H / 2) * cam.zoom; // footprint screen height
+        const aspect = sprite.naturalHeight / sprite.naturalWidth;
+        let sW = fW;
+        let sH = aspect * sW;
+        // Cap height at 3× footprint height so tall sprites don't dominate
+        const maxH = fH * 3;
+        if (sH > maxH) { sH = maxH; sW = sH / aspect; }
         ctx.drawImage(sprite, anchor.x - sW / 2, anchor.y - sH, sW, sH);
         // Broken: red outline + wrench icon, no fill so sprite stays visible
         if (cell.broken) {
