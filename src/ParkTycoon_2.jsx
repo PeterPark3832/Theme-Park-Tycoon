@@ -4958,10 +4958,9 @@ export default function ParkTycoon(){
             <div style={{display:"grid",
               gridTemplateColumns:`repeat(${GC},1fr)`,
               gridTemplateRows:`repeat(${GR},1fr)`,
-              gap:isMobile?1:2,width:"100%",height:"100%",
-              background:"#020408",borderRadius:isMobile?4:10,padding:isMobile?2:4,boxSizing:"border-box",
-              border:"1px solid rgba(100,120,255,0.08)",
-              boxShadow:"inset 0 0 40px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.6)",
+              gap:1,width:"100%",height:"100%",
+              background:"#06060E",borderRadius:0,padding:0,boxSizing:"border-box",
+              border:"none",
               transform:`scale(${gridScale}) translate(${gridPan.x/gridScale}px,${gridPan.y/gridScale}px)`,
               transformOrigin:`${gridScaleOrigin.x}% ${gridScaleOrigin.y}%`,
               transition:'transform 0.05s linear',
@@ -5000,32 +4999,32 @@ export default function ParkTycoon(){
                 const comboCellColor=cell&&!broken&&!isPath?comboCellMap[`${r},${c}`]:null;
 
                 const OBS_STYLE={rock:{bg:"rgba(70,50,30,0.55)",bd:"rgba(120,90,55,0.6)",emoji:"🪨"},water:{bg:"rgba(10,70,180,0.40)",bd:"rgba(40,130,255,0.55)",emoji:"💧"},rubble:{bg:"rgba(90,80,60,0.50)",bd:"rgba(140,120,90,0.5)",emoji:"🧱"},deadtree:{bg:"rgba(25,55,15,0.50)",bd:"rgba(40,90,25,0.5)",emoji:"🌵"}};
-                let bg="#0A1A0E";
-                if(!owned) bg="#040608";
-                else if(obstacle) bg=OBS_STYLE[obstacle.type]?.bg||"rgba(60,60,40,0.4)";
-                else if(broken) bg="linear-gradient(135deg,rgba(255,87,87,0.28),rgba(255,87,87,0.08))";
-                else if(isPath) bg=isFancy?"linear-gradient(145deg,#3D2E0A,#2A1E05)":"linear-gradient(145deg,#1E1A12,#141008)";
-                else if(isEntrance) bg="linear-gradient(135deg,rgba(255,217,61,0.18),rgba(255,159,67,0.10))";
-                else if(cell) bg=cell.level>=2?`linear-gradient(135deg,${bd.color}44,${bd.color}18)`:cell.level>=1?`linear-gradient(135deg,${bd.color}38,${bd.color}14)`:`linear-gradient(135deg,${bd.color}28,${bd.color}0E)`;
-                else if(zone) bg=ZONES[zone]?.bg||"#0C1410";
-                else if(isInFootprint&&selected) bg=hovFootprintValid?"rgba(0,229,160,0.12)":"rgba(255,87,87,0.12)";
-                else bg="linear-gradient(145deg,#0C1A10,#081208)";
-                if(isMultiSelected) bg="rgba(255,87,87,0.25)";
+                // ── Top-down flat tile colors ────────────────────────────────
+                let bg="#0C0C14";
+                if(!owned)                         bg="#080810";
+                else if(obstacle)                  bg=OBS_STYLE[obstacle.type]?.bg||"rgba(60,60,40,0.4)";
+                else if(isMultiSelected)           bg="#FF475740";
+                else if(isPath)                    bg=isFancy?"#5C4A1A":"#3A3226";
+                else if(isEntrance)                bg="#2A2210";
+                else if(cell)                      bg="#1A1A28";
+                else if(zone)                      bg=ZONES[zone]?.bg||"#1A2A1A";
+                else if(isInFootprint&&selected)   bg=hovFootprintValid?"#0D2B1A":"#2B0D0D";
+                else                               bg="#182818";
 
-                let borderCol="rgba(255,255,255,0.04)";
-                if(!owned) borderCol="rgba(255,255,255,0.02)";
-                else if(obstacle) borderCol=OBS_STYLE[obstacle.type]?.bd||"rgba(100,90,60,0.5)";
-                else if(isSel) borderCol="#FFD93D";
-                else if(isDemolishHov) borderCol="#FF5757";
-                else if(broken) borderCol="rgba(255,87,87,0.5)";
-                else if(tutHighlight) borderCol="#FFD93D";
-                else if(isPath) borderCol=isFancy?"rgba(212,175,55,0.4)":"rgba(139,115,85,0.3)";
-                else if(isEntrance) borderCol="rgba(255,217,61,0.5)";
-                else if(isolated) borderCol="rgba(255,87,87,0.75)";
-                else if(cell) borderCol=cell.level>=2?bd.color+"AA":cell.level>=1?bd.color+"77":bd.color+"55";
-                else if(isInFootprint&&selected) borderCol=hovFootprintValid?"rgba(0,229,160,0.5)":"rgba(255,87,87,0.5)";
-                else borderCol="rgba(255,255,255,0.04)";
-                if(isMultiSelected) borderCol="rgba(255,87,87,0.8)";
+                let borderCol="rgba(255,255,255,0.07)";
+                if(!owned)                         borderCol="rgba(255,255,255,0.03)";
+                else if(obstacle)                  borderCol=OBS_STYLE[obstacle.type]?.bd||"rgba(100,90,60,0.5)";
+                else if(isSel)                     borderCol="#FFD93D";
+                else if(isDemolishHov)             borderCol="#FF5757";
+                else if(broken)                    borderCol="rgba(255,87,87,0.6)";
+                else if(tutHighlight)              borderCol="#FFD93D";
+                else if(isPath)                    borderCol=isFancy?"rgba(212,175,55,0.5)":"rgba(139,115,85,0.4)";
+                else if(isEntrance)                borderCol="rgba(255,217,61,0.6)";
+                else if(isolated)                  borderCol="rgba(255,87,87,0.75)";
+                else if(cell)                      borderCol=cell.level>=2?bd.color+"CC":cell.level>=1?bd.color+"88":bd.color+"55";
+                else if(isInFootprint&&selected)   borderCol=hovFootprintValid?"#00E5A0":"#FF5757";
+                else                               borderCol="rgba(255,255,255,0.07)";
+                if(isMultiSelected)                borderCol="#FF5757";
 
                 return(<div key={`${r}-${c}`}
                   style={{
@@ -5033,7 +5032,7 @@ export default function ParkTycoon(){
                     gridRow:`${r+1} / span ${bh}`,
                     border:`1px solid ${borderCol}`,
                     borderRight:isRightBoundary?`2px solid rgba(168,216,234,0.35)`:`1px solid ${borderCol}`,
-                    borderRadius:5,
+                    borderRadius:2,
                     display:"flex",alignItems:"center",justifyContent:"center",
                     cursor:owned?(obstacle&&selected?"not-allowed":buildMode==="demolish"&&cell?"crosshair":"pointer"):isNextBuyable?"pointer":"default",
                     transition:"border-color 0.12s,background 0.12s",
