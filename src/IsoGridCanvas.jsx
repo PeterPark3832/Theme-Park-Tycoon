@@ -372,22 +372,21 @@ export default function IsoGridCanvas({
       if (sprite) {
         // Anchor at south (front-bottom) corner of footprint
         const anchor = getBuildingAnchorScreen(row, col, size, cam);
-        // Scale sprite so its width fits the footprint's screen-space diagonal
+        // Scale: sprite width = footprint diagonal width (1:1)
         const fW = (size.w + size.h) * (TILE_W / 2) * cam.zoom;
-        const sW = fW * 2.0; // 2× footprint width gives natural visual height
+        const sW = fW;
         const sH = (sprite.naturalHeight / sprite.naturalWidth) * sW;
         ctx.drawImage(sprite, anchor.x - sW / 2, anchor.y - sH, sW, sH);
-        // Broken overlay
+        // Broken: red outline + wrench icon, no fill so sprite stays visible
         if (cell.broken) {
           ctx.save();
-          ctx.globalAlpha = 0.45;
-          ctx.fillStyle = '#FF4757';
-          ctx.fillRect(anchor.x - sW / 2, anchor.y - sH, sW, sH);
+          ctx.strokeStyle = '#FF4757';
+          ctx.lineWidth = 2 * cam.zoom;
+          ctx.strokeRect(anchor.x - sW / 2, anchor.y - sH, sW, sH);
           ctx.restore();
-          const mx = anchor.x, my = anchor.y - sH * 0.55;
-          ctx.font = `${Math.max(12, 16 * cam.zoom)}px sans-serif`;
+          ctx.font = `${Math.max(10, 14 * cam.zoom)}px sans-serif`;
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText('🔧', mx, my);
+          ctx.fillText('🔧', anchor.x, anchor.y - sH * 0.6);
         }
       } else {
         drawBuildingBox(ctx, row, col, size, bd.color || '#4D9FFF', level, !!cell.broken, cam);
