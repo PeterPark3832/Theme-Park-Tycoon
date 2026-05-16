@@ -830,7 +830,7 @@ export default function ParkTycoon(){
     if(academyStep!==16||academyDisasterTriggeredRef.current) return;
     academyDisasterTriggeredRef.current=true;
     const fire=DISASTERS.find(d=>d.id==="fire")||DISASTERS.find(d=>d.id==="breakdown")||DISASTERS[0];
-    setActiveDisaster({...fire});
+    setActiveDisaster({...fire, remaining: fire.dur});
     addLog(lang==="ko"?"🚨 아카데미 훈련: 재난 발생! 즉시 해결하세요":"🚨 Academy: Disaster event! Resolve it now");
   },[academyStep]); // eslint-disable-line
 
@@ -2176,7 +2176,7 @@ export default function ParkTycoon(){
   const buyParcel=p=>{if(currentScenarioData?.noParcels){addLog(lang==="ko"?"🚫 이 시나리오는 토지 매입 불가":"🚫 Land purchase not allowed in this scenario");return;}if(ref.current.money<p.cost){addLog(t("log.noMoney"));return;}if(p.req&&!parcels.includes(p.req)){addLog(t("log.needPrevParcel"));return;}setOwnedGrid(prev=>{const n=prev.map(r=>[...r]);for(let r=0;r<GR;r++) for(let co=p.cols[0];co<=p.cols[1];co++) n[r][co]=true;return n;});setParcels(prev=>[...prev,p.id]);setMoney(m=>m-p.cost);addLog(t("log.parcelBought",{name:p.label?.[lang]||p.label?.ko||p.label}));};
   const launchCampaign=key=>{const c=CAMPAIGNS_DATA[key];if(ref.current.money<c.cost){addLog(t("log.noMoney"));return;}setCampaigns(p=>[...p,{id:Date.now(),key,emoji:c.emoji,boost:c.boost,seg:c.seg,remaining:c.days,days:c.days}]);setMoney(m=>m-c.cost);addLog(t("log.campaignStart", {name: t(`camp.${key}`)}));};
   const acceptVIP=()=>{const evt=pendingVIP;const ok=checkVIPReq(ref.current.grid,evt.req);if(!ok){addLog(t("log.vipReqFail", {name: t(`vip.${evt.id}`)}));setPendingVIP(null);return;}setMoney(m=>m+evt.bonusRev);setPrestigeBonus(s=>s+evt.presBonus);setVipCount(v=>v+1);setPendingVIP(null);addLog(t("log.vipSuccess", {name: t(`vip.${evt.id}`)}));};
-  const resolveDisaster=()=>{if(!activeDisaster?.resolveCost) return;if(ref.current.money<activeDisaster.resolveCost){addLog(t("log.resolveNoMoney"));return;}setMoney(m=>m-activeDisaster.resolveCost);setActiveDisaster(null);addLog(t("log.disasterSolved"));if(soundOn) playSound("fanfare");};
+  const resolveDisaster=()=>{if(!activeDisaster?.resolveCost) return;if(ref.current.money<activeDisaster.resolveCost){addLog(t("log.resolveNoMoney"));return;}setMoney(m=>m-activeDisaster.resolveCost);setActiveDisaster(null);if(ref.current.academyStep===16) academyDisasterResolvedRef.current=true;addLog(t("log.disasterSolved"));if(soundOn) playSound("fanfare");};
   const mitigateDisaster=()=>{
     const cost=800;
     if(money<cost){addLog(t("log.noMoney"));return;}
