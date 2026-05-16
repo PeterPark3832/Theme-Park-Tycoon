@@ -167,7 +167,7 @@ const pathList=Object.entries(B).filter(([,b])=>b.cat==="path");
 const decoList=Object.entries(B).filter(([,b])=>b.cat==="deco");
 
 export default function ParkTycoon(){
-  const ISO_MODE = true; // Phase 1: canvas isometric renderer (set false to revert to CSS grid)
+  const ISO_MODE = false; // top-down CSS grid view
   const [screen,setScreen]=useState("menu");
   const [gameMode,setGameMode]=useState(null);
   const [currentScenario,setCurrentScenario]=useState(null);
@@ -5108,7 +5108,11 @@ export default function ParkTycoon(){
                         ? getBuildingIcon(cell.type, "#FFD93D", 36)
                         : <span style={{fontSize:28,lineHeight:1}}>{bd.levelEmoji?.[cell.level]??bd.emoji}</span>}
                     </div>
-                    {cell.level>0&&<div style={{position:"absolute",top:1,right:1,fontSize:10,color:"#FFD93D",fontWeight:900,zIndex:3,textShadow:"0 0 4px #FFD93D"}}>{"★".repeat(cell.level)}</div>}
+                    <img src={`/sprites/${cell.type}_${cell.level}.png`} alt=""
+                      style={{position:"absolute",inset:"2px",width:"calc(100% - 4px)",height:"calc(100% - 4px)",
+                              objectFit:"contain",pointerEvents:"none",zIndex:5}}
+                      onError={e=>{e.currentTarget.style.display="none";}}/>
+                    {cell.level>0&&<div style={{position:"absolute",top:1,right:1,fontSize:10,color:"#FFD93D",fontWeight:900,zIndex:6,textShadow:"0 0 4px #FFD93D"}}>{"★".repeat(cell.level)}</div>}
                   </>}
 
                   {owned&&cell&&!isPath&&!isEntrance&&<>
@@ -5129,20 +5133,26 @@ export default function ParkTycoon(){
                         ? getBuildingIcon(cell.type, bd.color, bw>=3?46:bw>=2?38:cell.level>=2?34:30)
                         : <span style={{fontSize:bw>=3?34:bw>=2?28:cell.level>=2?24:22,lineHeight:1}}>{bd.levelEmoji?.[cell.level]??bd.emoji}</span>}
                     </div>
+                    {/* 건물 스프라이트 이미지 — 없으면 onError로 숨겨져 이모지 폴백 */}
+                    <img src={`/sprites/${cell.type}_${cell.level}.png`} alt=""
+                      style={{position:"absolute",inset:"2px",width:"calc(100% - 4px)",height:"calc(100% - 4px)",
+                              objectFit:"contain",pointerEvents:"none",zIndex:5,
+                              opacity:broken?0.25:1,filter:broken?"grayscale(0.8)":"none"}}
+                      onError={e=>{e.currentTarget.style.display="none";}}/>
                     {/* 건물 타입 색상 하단 바 */}
                     {!broken&&<div style={{position:"absolute",bottom:0,left:"10%",right:"10%",height:2,borderRadius:"0 0 1px 1px",background:bd.color,opacity:cell.level>=2?0.85:cell.level>=1?0.65:0.45,zIndex:3}}/>}
-                    {cell.level>0&&!broken&&<div style={{position:"absolute",top:2,right:3,fontSize:11,color:"#FFD93D",lineHeight:1.2,fontWeight:900,zIndex:3,textShadow:"0 0 3px #000"}}>{cell.level===2?"★★":"★"}</div>}
-                    {bw>=3&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:10,color:bd.color,opacity:0.7,fontWeight:700,zIndex:3,fontFamily:"'Barlow Condensed',monospace",lineHeight:1}}>{bw}×{bh}</div>}
+                    {cell.level>0&&!broken&&<div style={{position:"absolute",top:2,right:3,fontSize:11,color:"#FFD93D",lineHeight:1.2,fontWeight:900,zIndex:6,textShadow:"0 0 3px #000"}}>{cell.level===2?"★★":"★"}</div>}
+                    {bw>=3&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:10,color:bd.color,opacity:0.7,fontWeight:700,zIndex:6,fontFamily:"'Barlow Condensed',monospace",lineHeight:1}}>{bw}×{bh}</div>}
                     {broken&&<>
                       {/* 균열 오버레이 */}
-                      <div style={{position:"absolute",inset:0,borderRadius:4,zIndex:3,pointerEvents:"none",
+                      <div style={{position:"absolute",inset:0,borderRadius:4,zIndex:6,pointerEvents:"none",
                         background:"repeating-linear-gradient(55deg,transparent,transparent 5px,rgba(255,87,87,0.07) 5px,rgba(255,87,87,0.07) 6px)",
                         animation:"broken-crack 1.4s ease-in-out infinite"}}/>
                       {/* 빨간 테두리 경고 */}
-                      <div style={{position:"absolute",inset:0,borderRadius:4,border:"2px solid rgba(255,87,87,0.6)",zIndex:4,pointerEvents:"none"}}/>
+                      <div style={{position:"absolute",inset:0,borderRadius:4,border:"2px solid rgba(255,87,87,0.6)",zIndex:7,pointerEvents:"none"}}/>
                       {/* 흔들리는 🔧 아이콘 */}
                       <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
-                        fontSize:bw>=2?20:15,zIndex:5,
+                        fontSize:bw>=2?20:15,zIndex:8,
                         background:"rgba(0,0,0,0.5)",borderRadius:4,
                         animation:"broken-shake 0.9s ease-in-out infinite"}}>🔧</div>
                     </>}
