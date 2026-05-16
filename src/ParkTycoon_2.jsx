@@ -283,6 +283,12 @@ export default function ParkTycoon(){
   const disasterDrumRef=useRef(null); // cleanup fn for disaster bass drum
   const [uiSettings,setUiSettings]=useState(()=>{try{return JSON.parse(localStorage.getItem('uiSettings'))||{fontSize:'medium'};}catch{return{fontSize:'medium'};}});
   const [showSettings,setShowSettings]=useState(false);
+  const [bottomSheetOpen,setBottomSheetOpen]=useState(false);
+  const [placementPreview,setPlacementPreview]=useState(null);
+  const [minimapOpen,setMinimapOpen]=useState(false);
+  const [tutCardOffsetY,setTutCardOffsetY]=useState(0); // mobile drag offset (px upward from bottom)
+  const tutCardDragRef=useRef({active:false,startY:0,startOffset:0});
+  const [logOverlayExpanded,setLogOverlayExpanded]=useState(true);
   // Phase 3 new states
   const [weatherForecast,setWeatherForecast]=useState([]);
   const [rivalEventActive,setRivalEventActive]=useState(null); // {event,remaining,rivalName}
@@ -592,6 +598,7 @@ export default function ParkTycoon(){
 
   // 탭 방문 추적: 스텝이 바뀌면 리셋
   useEffect(()=>{ setTutTabVisited(false); },[tutorialStep]);
+  useEffect(()=>{ setTutCardOffsetY(0); },[tutorialStep]);
   // 스텝별 액션 완료 감지: 6=입장료 변경, 7=캠페인 실행, 9=연구탭 방문
   useEffect(()=>{
     if(tutorialStep===6&&fee!==15) setTutTabVisited(true);
@@ -1482,9 +1489,10 @@ export default function ParkTycoon(){
     return Object.fromEntries(currentScenarioData.obstacles.map(o=>[`${o.r},${o.c}`,o]));
   },[currentScenario]);
 
-  const handleGridClick=(r,c)=>{
+  const handleGridClick=(r,c,skipPreview=false)=>{
     const{ownedGrid:og,grid:g,money:m}=ref.current;
     if(!og[r][c]){addLog(t("log.unownedLand"));return;}
+    if(isMobile&&!skipPreview&&buildMode==="build"&&selected){setPlacementPreview({r,c});return;}
     if(obstacleMap[`${r},${c}`]&&buildMode==="build"&&selected){addLog(lang==="ko"?"⛰️ 지형 장애물이 있어 건설 불가":"⛰️ Terrain obstacle — cannot build here");return;}
 
     // 존 페인트 모드 — 멀티셀 건물이면 전체 footprint에 존 적용
@@ -1916,7 +1924,7 @@ export default function ParkTycoon(){
   if(screen==="menu"){
     const slots=saveSlots;
     return(<>
-      <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%, #0D1535 0%, #020510 60%)",color:"var(--text-primary)",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"radial-gradient(ellipse at 50% 0%, #0D1535 0%, #020510 60%)",color:"var(--text-primary)",height:"100%",overflowY:"auto",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
         {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} bgMusicOn={bgMusicOn} setBgMusicOn={setBgMusicOn} bgVolume={bgVolume} setBgVolume={setBgVolume} onClose={()=>setShowSettings(false)} lang={lang}/>}
         <button onClick={()=>setShowSettings(true)} style={{position:"fixed",top:12,right:12,background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.3)",color:"#8899CC",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:16,fontFamily:"inherit",transition:"all 0.15s",zIndex:1000}} title={lang==="ko"?"설정":"Settings"}>⚙️</button>
         <div style={{width:"100%",maxWidth:680}}>
@@ -2208,7 +2216,7 @@ export default function ParkTycoon(){
   // ════════════════════════════════════════════════════════
   // ── GAME SCREEN ─────────────────────────────────────────
   return(
-    <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"var(--bg-deep)",color:"var(--text-primary)",height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"var(--bg-deep)",color:"var(--text-primary)",height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} onClose={()=>setShowSettings(false)} lang={lang}/>}
       {/* 키보드 단축키 도움말 모달 */}
       {showKeyboardHelp&&(
@@ -2285,8 +2293,8 @@ export default function ParkTycoon(){
         </div>
       )}
 
-      {/* TOP BAR — 2행 구조 */}
-      <div style={{background:"linear-gradient(180deg,#0A0D22 0%,#07091A 100%)",borderBottom:"1px solid rgba(100,120,255,0.15)",boxShadow:"0 2px 20px rgba(0,0,0,0.5)",flexShrink:0}}>
+      {/* TOP BAR — 2행 구조 (PC/tablet only) */}
+      {!isMobile&&<div style={{background:"linear-gradient(180deg,#0A0D22 0%,#07091A 100%)",borderBottom:"1px solid rgba(100,120,255,0.15)",boxShadow:"0 2px 20px rgba(0,0,0,0.5)",flexShrink:0}}>
         {/* 1행: 로고 / 모드 / 날씨·별점·단계 / 저장·속도 */}
         <div className="topbar-row1" style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
           <button style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.10)",color:"#6B7CA1",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:10,fontFamily:"inherit",whiteSpace:"nowrap",transition:"all 0.15s"}} onClick={()=>{setSpeed(0);setScreen("menu");}}>{t("btn.menu")}</button>
@@ -2572,17 +2580,24 @@ export default function ParkTycoon(){
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-        {isMobile && !panelCollapsed && (
-          <div onClick={() => setPanelCollapsed(true)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:49}} />
+        {isMobile && bottomSheetOpen && (
+          <div onClick={() => setBottomSheetOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:190}} />
         )}
         <div className="side-panel" style={
-          isMobile?{position:"fixed",top:0,left:0,bottom:0,width:230,zIndex:50,transform:panelCollapsed?"translateX(-100%)":"translateX(0)",transition:"transform 0.25s ease",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",overflowY:"auto"}:
+          isMobile?(bottomSheetOpen?{position:"fixed",left:0,right:0,bottom:56,height:"62vh",background:"linear-gradient(180deg,#0C1030 0%,#08091E 100%)",borderTop:"2px solid rgba(120,140,255,0.25)",borderRadius:"16px 16px 0 0",zIndex:200,display:"flex",flexDirection:"column",animation:"sheet-up 0.28s cubic-bezier(0.32,0.72,0,1)",boxShadow:"0 -8px 40px rgba(0,0,0,0.7)",overflow:"hidden"}:{display:"none"}):
           isPC?{width:216,minWidth:216,overflow:"hidden",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",display:"flex",flexDirection:"column",flexShrink:0}:
           {width:panelCollapsed?0:190,minWidth:panelCollapsed?0:190,overflow:panelCollapsed?"hidden":"visible",transition:"width 0.2s",background:"linear-gradient(180deg,#090C20 0%,#070919 100%)",borderRight:"1px solid rgba(100,120,255,0.10)",boxShadow:"4px 0 20px rgba(0,0,0,0.3)",display:"flex",flexDirection:"column",flexShrink:0}
         }>
+          {/* Mobile: drag handle + close button */}
+          {isMobile&&(
+            <div onClick={()=>setBottomSheetOpen(false)} style={{display:"flex",justifyContent:"center",alignItems:"center",padding:"8px 0 4px",flexShrink:0,cursor:"pointer",position:"relative"}}>
+              <div style={{width:36,height:4,background:"rgba(255,255,255,0.15)",borderRadius:99}}/>
+              <button onClick={(e)=>{e.stopPropagation();setBottomSheetOpen(false);}} style={{position:"absolute",right:12,background:"none",border:"none",color:"#445580",cursor:"pointer",fontSize:18,padding:"4px 8px",lineHeight:1}}>✕</button>
+            </div>
+          )}
           <div style={{display:"flex",background:"rgba(0,0,0,0.3)",borderBottom:"1px solid rgba(255,255,255,0.06)",flexShrink:0,flexWrap:"wrap"}}>
             {[
               {k:"build",    ic:"🏗️", label:{ko:"건설",en:"Build"}},
@@ -3754,11 +3769,11 @@ export default function ParkTycoon(){
           </div>
         </div>
 
-        {/* ── Panel Collapse Toggle (tablet/mobile only) ── */}
-        {!isPC&&<button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:isMobile?36:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#7788BB",cursor:"pointer",fontSize:isMobile?16:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?(lang==="ko"?"패널 열기":"Open panel"):(lang==="ko"?"패널 닫기":"Close panel")}>{panelCollapsed?"▶":"◀"}</button>}
+        {/* ── Panel Collapse Toggle (tablet only, not mobile) ── */}
+        {!isPC&&!isMobile&&<button onClick={()=>setPanelCollapsed(p=>!p)} style={{alignSelf:"stretch",width:14,background:"rgba(100,120,255,0.08)",borderTop:"none",borderBottom:"none",borderLeft:"none",borderRight:"1px solid rgba(100,120,255,0.10)",color:"#7788BB",cursor:"pointer",fontSize:10,fontFamily:"inherit",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}} title={panelCollapsed?(lang==="ko"?"패널 열기":"Open panel"):(lang==="ko"?"패널 닫기":"Close panel")}>{panelCollapsed?"▶":"◀"}</button>}
 
         {/* ── GRID + LOG ── */}
-        <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:7,gap:5,overflow:"hidden",background:"var(--bg-deep)"}}
+        <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:isMobile?2:7,gap:isMobile?2:5,overflow:"hidden",background:"var(--bg-deep)"}}
           onTouchStart={(e) => {
             if (e.touches.length === 2) {
               panRef.current.active = false;
@@ -3809,13 +3824,13 @@ export default function ParkTycoon(){
               {lang==="ko"?`⚠️ 고장 시설 ${stats.brokenCount}개 — 경영 탭에서 수리하거나 정비공을 고용하세요`:`⚠️ ${stats.brokenCount} broken ride${stats.brokenCount>1?"s":""} — repair in Manage tab or hire a mechanic`}
             </div>
           )}
-          {screen==="game"&&hired.mechanic===0&&stats.brokenCount===0&&(cc.rollerCoaster||cc.dropTower||cc.thrillRide)&&(
+          {!isMobile&&screen==="game"&&hired.mechanic===0&&stats.brokenCount===0&&(cc.rollerCoaster||cc.dropTower||cc.thrillRide)&&(
             <div style={{background:"rgba(255,159,67,0.10)",border:"1px solid rgba(255,159,67,0.4)",borderRadius:6,padding:"5px 10px",color:"#FF9F43",fontSize:10,fontWeight:700,display:"flex",gap:6,alignItems:"center",marginBottom:4,flexShrink:0,position:"relative",zIndex:10}}>
               {lang==="ko"?"🔧 정비공 없음 — 고위험 놀이기구 고장 확률이 높습니다":"🔧 No mechanic — high-risk attractions have increased breakdown chance"}
             </div>
           )}
-          {/* 튜토리얼 완료 후 방향 허브 — day 7까지 표시 */}
-          {screen==="game"&&tutDone&&tutorialStep===0&&day<=7&&day>=1&&(()=>{
+          {/* 튜토리얼 완료 후 방향 허브 — day 7까지 표시, 모바일 제외 */}
+          {!isMobile&&screen==="game"&&tutDone&&tutorialStep===0&&day<=7&&day>=1&&(()=>{
             const nextGoals=[
               visitors<50&&{emoji:"👥",text:lang==="ko"?"방문객 50명 달성 — 놀이기구 다양화":"Reach 50 visitors — add variety"},
               sat<70&&{emoji:"😊",text:lang==="ko"?"만족도 70%+ — 청소부 고용 & 입장료 조정":"Satisfaction 70%+ — hire janitor & adjust fee"},
@@ -3837,7 +3852,7 @@ export default function ParkTycoon(){
               </div>
             );
           })()}
-          {screen==="game"&&!ftueGoalDone&&tutorialStep===0&&stats.hasEntrance&&visitors===0&&(
+          {!isMobile&&screen==="game"&&!ftueGoalDone&&tutorialStep===0&&stats.hasEntrance&&visitors===0&&(
             <div style={{background:"rgba(0,229,160,0.08)",border:"1px solid rgba(0,229,160,0.3)",borderRadius:6,padding:"5px 10px",color:"#00E5A0",fontSize:10,fontWeight:700,display:"flex",gap:8,alignItems:"center",marginBottom:4,flexShrink:0}}>
               <span style={{fontSize:14}}>🎯</span>
               <div style={{flex:1}}>
@@ -3847,7 +3862,7 @@ export default function ParkTycoon(){
               <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,fontFamily:"inherit"}} onClick={()=>setFtueGoalDone(true)}>✕</button>
             </div>
           )}
-          {screen==="game"&&tutorialStep===0&&(()=>{
+          {!isMobile&&screen==="game"&&tutorialStep===0&&(()=>{
             const hints=[
               {id:"h_entrance", show:day>=2&&!stats.hasEntrance,
                emoji:"🎪", col:"#FF5757",
@@ -3988,11 +4003,74 @@ export default function ParkTycoon(){
           </>}
 
           <div style={{position:"relative",flex:1,minHeight:0,overflow:"hidden"}}>
+            {/* Mobile HUD corners */}
+            {isMobile&&screen==="game"&&(
+              <div className="mobile-hud">
+                {/* Top-left: money + visitors */}
+                <div className="mobile-hud-tl hud-chip-row">
+                  <div className="hud-chip">
+                    <span style={{fontSize:13}}>💰</span>
+                    <span style={{fontSize:13,fontWeight:700,color:"#FFD93D"}}>${money>=1000?`${(money/1000).toFixed(1)}k`:money.toLocaleString()}</span>
+                  </div>
+                  <div className="hud-chip">
+                    <span style={{fontSize:13}}>👥</span>
+                    <span style={{fontSize:13,fontWeight:700,color:"#4D9FFF"}}>{visitors}</span>
+                  </div>
+                </div>
+                {/* Top-right: speed controls */}
+                <div className="mobile-hud-tr">
+                  <div className="hud-chip" style={{gap:6}}>
+                    {[["⏸",0],["▶",1],["⏩",2],["⚡",3]].map(([ic,sp])=>(
+                      <button key={sp} onClick={()=>setSpeed(sp)} style={{background:speed===sp?"rgba(0,229,160,0.2)":"none",border:"none",color:speed===sp?"#00E5A0":"#445580",borderRadius:6,padding:"3px 5px",cursor:"pointer",fontSize:14,minWidth:28,minHeight:28}}>{ic}</button>
+                    ))}
+                  </div>
+                </div>
+                {/* Bottom-left: sat + stars + day */}
+                <div className="mobile-hud-bl hud-chip-row">
+                  <div className="hud-chip">
+                    <span style={{fontSize:13}}>😊</span>
+                    <span style={{fontSize:13,fontWeight:700,color:sat>=70?"#00E5A0":sat>=40?"#FFD93D":"#FF5757"}}>{sat}</span>
+                    <span style={{fontSize:10,color:"#445580"}}>%</span>
+                  </div>
+                  <div className="hud-chip">
+                    <span style={{fontSize:10,color:"#FFD93D"}}>{"⭐".repeat(parkRating?.stars||0)}{"☆".repeat(5-(parkRating?.stars||0))}</span>
+                    <span style={{fontSize:10,color:"#6B7CA1",marginLeft:2}}>D{day}</span>
+                  </div>
+                </div>
+                {/* Bottom-right: minimap + settings + home */}
+                <div className="mobile-hud-br hud-chip-row" style={{alignItems:"flex-end"}}>
+                  <button onClick={()=>setMinimapOpen(v=>!v)} className="hud-chip" style={{border:`1px solid ${minimapOpen?"rgba(0,229,160,0.4)":"rgba(120,140,255,0.18)"}`,color:minimapOpen?"#00E5A0":"#6B7CA1",cursor:"pointer",fontSize:12,background:"rgba(6,8,22,0.82)"}}>🗺️</button>
+                  <button onClick={()=>setShowSettings(true)} className="hud-chip" style={{cursor:"pointer",fontSize:12,color:"#6B7CA1",background:"rgba(6,8,22,0.82)"}}>⚙️</button>
+                  <button onClick={()=>{setSpeed(0);setScreen("menu");}} className="hud-chip" style={{cursor:"pointer",fontSize:12,color:"#FF6B9D",background:"rgba(6,8,22,0.82)",border:"1px solid rgba(255,107,157,0.3)"}} title={lang==="ko"?"메인으로":"Main Menu"}>🏠</button>
+                </div>
+              </div>
+            )}
+            {/* Minimap canvas (mobile) */}
+            {isMobile&&minimapOpen&&(
+              <div className="minimap-overlay" onClick={()=>setMinimapOpen(false)} title={lang==="ko"?"미니맵 닫기":"Close minimap"}>
+                <canvas ref={el=>{
+                  if(!el) return;
+                  const ctx=el.getContext('2d');
+                  const cw=160,ch=80;
+                  el.width=cw;el.height=ch;
+                  ctx.fillStyle='#070A1A';
+                  ctx.fillRect(0,0,cw,ch);
+                  const cSize=cw/GC;const rSize=ch/GR;
+                  grid.forEach((row,r2)=>row.forEach((cell2,c2)=>{
+                    if(!cell2||cell2.ref) return;
+                    const bd2=B[cell2.type];
+                    const col2=bd2?.cat==="ride"?"#FF6B9D":bd2?.cat==="shop"?"#FFD93D":bd2?.cat==="facility"?"#4D9FFF":bd2?.cat==="path"?"#445580":bd2?.cat==="deco"?"#00E5A0":"#8899BB";
+                    ctx.fillStyle=cell2.broken?"#FF3333":col2;
+                    ctx.fillRect(c2*cSize+0.5,r2*rSize+0.5,cSize-1,rSize-1);
+                  }));
+                }} style={{display:"block",width:160,height:80}}/>
+              </div>
+            )}
             <div style={{display:"grid",
               gridTemplateColumns:`repeat(${GC},1fr)`,
               gridTemplateRows:`repeat(${GR},1fr)`,
-              gap:2,width:"100%",height:"100%",
-              background:"#020408",borderRadius:10,padding:4,boxSizing:"border-box",
+              gap:isMobile?1:2,width:"100%",height:"100%",
+              background:"#020408",borderRadius:isMobile?4:10,padding:isMobile?2:4,boxSizing:"border-box",
               border:"1px solid rgba(100,120,255,0.08)",
               boxShadow:"inset 0 0 40px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.6)",
               transform:`scale(${gridScale}) translate(${gridPan.x/gridScale}px,${gridPan.y/gridScale}px)`,
@@ -4099,6 +4177,8 @@ export default function ParkTycoon(){
                   {isInFootprint&&selected&&hovered?.r===r&&hovered?.c===c&&!cell&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",opacity:0.6,pointerEvents:"none",zIndex:4}}>
                     {hasBuildingIcon(selected)?getBuildingIcon(selected,hovFootprintValid?"#00E5A0":"#FF5757",Math.min(32,Math.max(14,Math.floor(gridScale*(selBd?.size?.w||1)*14)))):B[selected]?.emoji||"🏗️"}
                   </div>}
+                  {/* Mobile placement preview ghost */}
+                  {placementPreview&&placementPreview.r===r&&placementPreview.c===c&&<div style={{position:"absolute",inset:0,borderRadius:4,border:"2px solid rgba(0,229,160,0.8)",boxShadow:"0 0 12px rgba(0,229,160,0.5)",animation:"pulse-glow 1s ease-in-out infinite",zIndex:5,pointerEvents:"none",background:"rgba(0,229,160,0.08)"}}/>}
                   {!owned&&isNextBuyable&&<span style={{fontSize:10,opacity:0.6,color:"#4D9FFF"}}>🔓</span>}
                   {!owned&&!isNextBuyable&&<span style={{fontSize:10,opacity:0.5,color:"#333355"}}>▪</span>}
 
@@ -4331,17 +4411,18 @@ export default function ParkTycoon(){
             {tutorialStep>0&&tutorialStep<=10&&screen==="game"&&(
               <>
                 {/* 배경 오버레이 */}
-                <div style={{position:"absolute",inset:0,zIndex:25,pointerEvents:"none",
-                  background:tutorialStep===10?"rgba(0,0,0,0.75)":"rgba(0,0,0,0.38)",borderRadius:6,transition:"background 0.5s"}}/>
+                <div style={{position:isMobile?"fixed":"absolute",inset:0,zIndex:isMobile?240:25,pointerEvents:"none",
+                  background:tutorialStep===10?"rgba(0,0,0,0.75)":"rgba(0,0,0,0.38)",borderRadius:isMobile?0:6,transition:"background 0.5s"}}/>
                 {/* 단계 완료 flash */}
                 {tutFlash&&<div style={{position:"absolute",inset:0,zIndex:26,pointerEvents:"none",borderRadius:6,
                   background:"rgba(0,229,160,0.20)",animation:"build-flash 0.5s ease-out forwards"}}/>}
 
                 {/* ── 완료 화면 (step 10) ── */}
                 {tutorialStep===10?(
-                  <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
+                  <div style={{position:isMobile?"fixed":"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
                     background:"linear-gradient(135deg,#0D1535,#080B20)",border:"2px solid #00E5A088",
-                    borderRadius:18,padding:"28px 28px 22px",zIndex:30,minWidth:280,maxWidth:360,textAlign:"center",
+                    borderRadius:18,padding:isMobile?"20px 20px 16px":"28px 28px 22px",zIndex:isMobile?250:30,
+                    minWidth:isMobile?Math.min(window.innerWidth-32,300):280,maxWidth:isMobile?Math.min(window.innerWidth-24,340):360,textAlign:"center",
                     boxShadow:"0 12px 60px rgba(0,0,0,0.95),0 0 0 1px rgba(0,229,160,0.2)",
                     animation:"slide-in 0.4s ease",pointerEvents:"auto"}}>
                     <div style={{fontSize:50,marginBottom:8,filter:"drop-shadow(0 0 14px rgba(0,229,160,0.6))"}}>🎊</div>
@@ -4373,11 +4454,32 @@ export default function ParkTycoon(){
                   </div>
                 ):(
                   /* ── 일반 단계 카드 (steps 1-9) ── */
-                  <div style={{position:"absolute",bottom:16,left:"50%",transform:"translateX(-50%)",
+                  <div style={{
+                    position:isMobile?"fixed":"absolute",
+                    bottom:isMobile?64+tutCardOffsetY:16,
+                    left:"50%",transform:"translateX(-50%)",
                     background:"linear-gradient(135deg,#0D1535,#080B20)",border:"2px solid #FFD93D88",
-                    borderRadius:14,padding:"14px 20px",zIndex:30,minWidth:270,maxWidth:350,
+                    borderRadius:14,padding:isMobile?"10px 14px":"14px 20px",
+                    zIndex:isMobile?250:30,
+                    minWidth:isMobile?Math.min(window.innerWidth-32,300):270,maxWidth:isMobile?Math.min(window.innerWidth-24,340):350,
                     boxShadow:"0 8px 40px rgba(0,0,0,0.9),0 0 0 1px rgba(255,217,61,0.15)",
-                    animation:"slide-in 0.3s ease",pointerEvents:"auto"}}>
+                    animation:tutCardOffsetY===0?"slide-in 0.3s ease":"none",pointerEvents:"auto",
+                    touchAction:"none"}}
+                    onTouchStart={isMobile?(e)=>{
+                      tutCardDragRef.current={active:true,startY:e.touches[0].clientY,startOffset:tutCardOffsetY};
+                    }:undefined}
+                    onTouchMove={isMobile?(e)=>{
+                      if(!tutCardDragRef.current.active) return;
+                      const dy=tutCardDragRef.current.startY-e.touches[0].clientY; // positive = dragged up
+                      const next=Math.max(-60,Math.min(window.innerHeight-200,tutCardDragRef.current.startOffset+dy));
+                      setTutCardOffsetY(next);
+                      e.stopPropagation();
+                    }:undefined}
+                    onTouchEnd={isMobile?()=>{tutCardDragRef.current.active=false;}:undefined}>
+                    {/* 드래그 핸들 (모바일) */}
+                    {isMobile&&<div style={{display:"flex",justifyContent:"center",marginBottom:8,marginTop:-4,cursor:"grab"}}>
+                      <div style={{width:32,height:4,borderRadius:99,background:"rgba(255,217,61,0.35)"}}/>
+                    </div>}
 
                     {/* 페이즈 라벨 + progress dots */}
                     <div style={{marginBottom:10}}>
@@ -4525,7 +4627,7 @@ export default function ParkTycoon(){
             )}
           </div>
 
-          {!isPC&&<div style={{background:"linear-gradient(90deg,#05060F,#08091A)",border:"1px solid rgba(100,120,255,0.08)",borderRadius:8,padding:"5px 10px",flexShrink:0}}>
+          {!isPC&&!isMobile&&<div style={{background:"linear-gradient(90deg,#05060F,#08091A)",border:"1px solid rgba(100,120,255,0.08)",borderRadius:8,padding:"5px 10px",flexShrink:0}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:logCollapsed?0:3,cursor:"pointer"}} onClick={()=>setLogCollapsed(v=>!v)}>
               <div style={{fontSize:10,color:"#7788BB",letterSpacing:3,fontWeight:700,textTransform:"uppercase"}}>▸ Event Log</div>
               <span style={{fontSize:10,color:"#7788BB",transition:"transform 0.2s",display:"inline-block",transform:logCollapsed?"rotate(-90deg)":"rotate(0deg)"}}>▾</span>
@@ -4766,20 +4868,64 @@ export default function ParkTycoon(){
           </div>
         )}
 
-      {/* 2-6: 모바일 플로팅 퀵액션 버튼 */}
-      {isMobile&&screen==="game"&&panelCollapsed&&(
-        <div style={{position:"fixed",bottom:12,right:12,zIndex:60,display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
+      {/* Mobile placement confirmation bar */}
+      {isMobile&&placementPreview&&(
+        <div className="placement-bar">
+          <span style={{fontSize:12,color:"#8899BB",fontFamily:"'Rajdhani',sans-serif",whiteSpace:"nowrap"}}>
+            {selected?t(`b.${selected}`):""} ({placementPreview.r},{placementPreview.c})
+          </span>
+          <button onClick={()=>{handleGridClick(placementPreview.r,placementPreview.c,true);setPlacementPreview(null);}}
+            style={{background:"rgba(0,229,160,0.18)",border:"1px solid rgba(0,229,160,0.5)",color:"#00E5A0",borderRadius:20,padding:"6px 14px",cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"inherit",minHeight:36}}>
+            ✅ {lang==="ko"?"배치":"Place"}
+          </button>
+          <button onClick={()=>setPlacementPreview(null)}
+            style={{background:"rgba(255,87,87,0.12)",border:"1px solid rgba(255,87,87,0.4)",color:"#FF5757",borderRadius:20,padding:"6px 14px",cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"inherit",minHeight:36}}>
+            ❌
+          </button>
+        </div>
+      )}
+
+      {/* Mobile: collapsible event log overlay above bottom nav */}
+      {isMobile&&screen==="game"&&!bottomSheetOpen&&logs.length>0&&(
+        <div style={{position:"fixed",bottom:62,right:8,zIndex:195,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+          {logOverlayExpanded&&(
+            <div style={{background:"rgba(4,5,16,0.90)",border:"1px solid rgba(100,120,255,0.15)",borderRadius:10,padding:"5px 10px",backdropFilter:"blur(10px)",maxWidth:"80vw",minWidth:160}}>
+              {logs.slice(0,3).map((l,i)=>{
+                const col=l.startsWith("🚨")||l.startsWith("⚠️")||l.startsWith("💸")?"#FF5757":l.startsWith("✅")||l.startsWith("🎊")||l.startsWith("📣")||l.startsWith("🏗️")?"#00E5A0":l.startsWith("🔬")||l.startsWith("💾")||l.startsWith("⬆️")?"#9B7FFF":l.startsWith("📊")?"#FFD93D":"#5566AA";
+                return <div key={i} style={{fontSize:9,color:col,opacity:i===0?1:0.5,lineHeight:1.5,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{l}</div>;
+              })}
+            </div>
+          )}
+          <button onClick={()=>setLogOverlayExpanded(v=>!v)}
+            style={{background:"rgba(4,5,16,0.88)",border:"1px solid rgba(100,120,255,0.20)",borderRadius:20,padding:"3px 8px",cursor:"pointer",fontSize:10,color:"#5566AA",display:"flex",alignItems:"center",gap:3,backdropFilter:"blur(8px)"}}>
+            📋 {logOverlayExpanded?(lang==="ko"?"접기":"Hide"):(lang==="ko"?"로그":"Log")}
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      {isMobile&&screen==="game"&&(
+        <nav className="mobile-bottom-nav">
           {[
-            {ic:"⚙️",label:lang==="ko"?"경영":"Mgmt",  tab:"manage",  col:"#4ECDC4"},
-            {ic:"🏗️",label:lang==="ko"?"건설":"Build", tab:"build",   col:"#FFD93D"},
-            {ic:"🎯",label:lang==="ko"?"미션":"Quest",  tab:"mission", col:"#A29BFE"},
-          ].map(({ic,label,tab:t2,col})=>(
-            <button key={t2} onClick={()=>{setTab(t2);setPanelCollapsed(false);}}
-              style={{display:"flex",alignItems:"center",gap:6,background:`rgba(5,8,28,0.95)`,border:`1px solid ${col}55`,borderRadius:20,padding:"7px 12px",cursor:"pointer",fontSize:11,fontWeight:700,color:col,fontFamily:"inherit",boxShadow:`0 4px 16px rgba(0,0,0,0.6), 0 0 8px ${col}22`,backdropFilter:"blur(8px)"}}>
-              <span style={{fontSize:14}}>{ic}</span>{label}
+            {k:"build",    ic:"🏗️", label:{ko:"건설",en:"Build"}},
+            {k:"manage",   ic:"⚙️", label:{ko:"경영",en:"Manage"}},
+            {k:"finance",  ic:"💰", label:{ko:"재무",en:"Finance"}},
+            {k:"research", ic:"🔬", label:{ko:"연구",en:"R&D"}},
+            {k:"mission",  ic:"🎯", label:{ko:"미션",en:"Quest"}},
+          ].map(({k,ic,label})=>(
+            <button key={k}
+              className={tab===k&&bottomSheetOpen?"active":""}
+              onClick={()=>{
+                if(tab===k&&bottomSheetOpen){setBottomSheetOpen(false);}
+                else{setTab(k);setBottomSheetOpen(true);}
+              }}
+              style={{fontSize:10,color:tab===k&&bottomSheetOpen?"#00E5A0":"#445580"}}>
+              <span style={{fontSize:20}}>{ic}</span>
+              <span>{label[lang]||label.ko}</span>
+              {k==="research"&&hasResearchAvailable&&<div style={{position:"absolute",top:6,right:"28%",width:7,height:7,borderRadius:"50%",background:"#00E5A0"}}/>}
             </button>
           ))}
-        </div>
+        </nav>
       )}
 
       {scenarioResult&&(()=>{
