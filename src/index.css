@@ -54,9 +54,15 @@
   to   { transform: scale(1);   opacity: 1; }
 }
 @keyframes broken-shake {
-  0%,100% { transform: translateX(0); }
-  25% { transform: translateX(-2px); }
-  75% { transform: translateX(2px); }
+  0%,100% { transform: translateX(0) rotate(0deg); }
+  20%      { transform: translateX(-3px) rotate(-1deg); }
+  40%      { transform: translateX(3px) rotate(1deg); }
+  60%      { transform: translateX(-2px) rotate(-0.5deg); }
+  80%      { transform: translateX(2px) rotate(0.5deg); }
+}
+@keyframes broken-crack {
+  0%,100% { opacity: 0.55; }
+  50%      { opacity: 0.75; }
 }
 
 /* 유틸 클래스 */
@@ -69,7 +75,7 @@ html {
 }
 
 body {
-  font-family: 'Rajdhani', 'Courier New', monospace;
+  font-family: 'Rajdhani', 'Nunito', 'Arial Rounded MT Bold', sans-serif;
   background: var(--bg-deep);
   margin: 0;
   height: 100%;
@@ -203,13 +209,28 @@ body {
 @keyframes roller-shake  { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
 
 .grid-area {
+  background-color: #07110A;
   background-image:
     repeating-linear-gradient(
-      0deg, transparent, transparent 15px, rgba(255,255,255,0.015) 15px, rgba(255,255,255,0.015) 16px
+      0deg, transparent, transparent 15px, rgba(255,255,255,0.012) 15px, rgba(255,255,255,0.012) 16px
     ),
     repeating-linear-gradient(
-      90deg, transparent, transparent 15px, rgba(255,255,255,0.015) 15px, rgba(255,255,255,0.015) 16px
-    );
+      90deg, transparent, transparent 15px, rgba(255,255,255,0.012) 15px, rgba(255,255,255,0.012) 16px
+    ),
+    radial-gradient(ellipse at 25% 35%, rgba(20,80,30,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse at 75% 65%, rgba(15,65,22,0.07) 0%, transparent 50%);
+}
+/* 빈 owned 셀 잔디 도트 텍스처 */
+.cell-grass-tex {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(35,110,45,0.18) 1px, transparent 1px),
+    radial-gradient(circle at 65% 70%, rgba(28,90,36,0.14) 1px, transparent 1px),
+    radial-gradient(circle at 80% 20%, rgba(22,75,30,0.12) 1px, transparent 1px);
+  background-size: 9px 9px, 13px 13px, 7px 7px;
+  pointer-events: none;
 }
 
 /* 모바일 최적화 */

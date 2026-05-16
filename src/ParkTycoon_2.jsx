@@ -1468,7 +1468,9 @@ export default function ParkTycoon(){
         const popTs=Date.now();
         const pr=Math.floor(Math.random()*(GR-4))+2;
         const pc=Math.floor(Math.random()*(GC-4))+2;
-        setGridPopups(prev=>[...prev.slice(-6),{id:popTs,text:`+$${Math.floor(totalRevDay).toLocaleString()}`,color:"#00E5A0",r:pr,c:pc,expires:popTs+2200}]);
+        const revAmt=Math.floor(totalRevDay);
+        const revSz=revAmt>=2000?18:revAmt>=800?15:12;
+        setGridPopups(prev=>[...prev.slice(-6),{id:popTs,text:`+$${revAmt.toLocaleString()}`,color:"#00E5A0",r:pr,c:pc,expires:popTs+2200,fontSize:revSz}]);
       }
 
       // Sandbox goal check
@@ -4609,16 +4611,16 @@ export default function ParkTycoon(){
                 const comboCellColor=cell&&!broken&&!isPath?comboCellMap[`${r},${c}`]:null;
 
                 const OBS_STYLE={rock:{bg:"rgba(70,50,30,0.55)",bd:"rgba(120,90,55,0.6)",emoji:"🪨"},water:{bg:"rgba(10,70,180,0.40)",bd:"rgba(40,130,255,0.55)",emoji:"💧"},rubble:{bg:"rgba(90,80,60,0.50)",bd:"rgba(140,120,90,0.5)",emoji:"🧱"},deadtree:{bg:"rgba(25,55,15,0.50)",bd:"rgba(40,90,25,0.5)",emoji:"🌵"}};
-                let bg="#0C1028";
-                if(!owned) bg="#050710";
+                let bg="#0A1A0E";
+                if(!owned) bg="#040608";
                 else if(obstacle) bg=OBS_STYLE[obstacle.type]?.bg||"rgba(60,60,40,0.4)";
-                else if(broken) bg="linear-gradient(135deg,rgba(255,87,87,0.22),rgba(255,87,87,0.06))";
-                else if(isPath) bg=isFancy?"linear-gradient(135deg,#241C08,#1A1408)":"linear-gradient(135deg,#1A1208,#100C05)";
+                else if(broken) bg="linear-gradient(135deg,rgba(255,87,87,0.28),rgba(255,87,87,0.08))";
+                else if(isPath) bg=isFancy?"linear-gradient(145deg,#3D2E0A,#2A1E05)":"linear-gradient(145deg,#1E1A12,#141008)";
                 else if(isEntrance) bg="linear-gradient(135deg,rgba(255,217,61,0.18),rgba(255,159,67,0.10))";
                 else if(cell) bg=cell.level>=2?`linear-gradient(135deg,${bd.color}44,${bd.color}18)`:cell.level>=1?`linear-gradient(135deg,${bd.color}38,${bd.color}14)`:`linear-gradient(135deg,${bd.color}28,${bd.color}0E)`;
-                else if(zone) bg=ZONES[zone]?.bg||"#0C0F22";
+                else if(zone) bg=ZONES[zone]?.bg||"#0C1410";
                 else if(isInFootprint&&selected) bg=hovFootprintValid?"rgba(0,229,160,0.12)":"rgba(255,87,87,0.12)";
-                else bg="#0C1028";
+                else bg="linear-gradient(145deg,#0C1A10,#081208)";
                 if(isMultiSelected) bg="rgba(255,87,87,0.25)";
 
                 let borderCol="rgba(255,255,255,0.04)";
@@ -4651,7 +4653,7 @@ export default function ParkTycoon(){
                     boxShadow:(()=>{
                       const popCount=bldPopMap[`${r},${c}`]||0;
                       const popGlow=cell&&!broken&&!isPath&&popCount>=3?`, 0 0 ${8+popCount*3}px rgba(255,200,80,${Math.min(0.7,0.3+popCount*0.07)})`:"";
-                      const base=isSel?`0 0 0 2px #FFD93D, 0 0 16px rgba(255,217,61,0.4)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?"0 0 8px rgba(255,87,87,0.3)":isDemolishHov?"0 0 8px rgba(255,87,87,0.4)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 8px rgba(255,159,67,0.3)":isEntrance&&!broken?`0 0 14px rgba(255,217,61,0.3), inset 0 0 14px rgba(255,217,61,0.08)`:cell&&!broken&&!isPath?(comboCellColor?`0 0 0 2px ${comboCellColor}, 0 0 10px ${comboCellColor}88, inset 0 0 8px ${comboCellColor}22`:cell.level>=2?`0 0 12px ${bd.color}77, inset 0 0 12px ${bd.color}33`:cell.level>=1?`0 0 7px ${bd.color}55, inset 0 0 10px ${bd.color}22`:`0 0 5px ${bd.color}33, inset 0 0 8px ${bd.color}14`):"none";
+                      const base=isSel?`0 0 0 2px #FFD93D, 0 0 18px rgba(255,217,61,0.5), inset 0 0 10px rgba(255,217,61,0.1)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?`0 0 10px rgba(255,87,87,0.5), inset 0 0 6px rgba(255,87,87,0.15)`:isDemolishHov?"0 0 8px rgba(255,87,87,0.4)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 8px rgba(255,159,67,0.3)":isEntrance&&!broken?`0 0 14px rgba(255,217,61,0.3), inset 0 0 14px rgba(255,217,61,0.08)`:cell&&!broken&&!isPath?(comboCellColor?`0 0 0 2px ${comboCellColor}, 0 0 14px ${comboCellColor}AA, inset 0 0 10px ${comboCellColor}33`:isSel?`0 0 14px ${bd.color}88, inset 0 0 10px ${bd.color}22`:cell.level>=2?`0 0 6px ${bd.color}44, inset 0 0 6px ${bd.color}18`:cell.level>=1?`0 0 4px ${bd.color}33, inset 0 0 4px ${bd.color}10`:"none"):"none";
                       return base+popGlow;
                     })(),
                     opacity:!owned?0.12:1}}
@@ -4693,15 +4695,21 @@ export default function ParkTycoon(){
                   </>}
 
                   {owned&&!obstacle&&isPath&&<>
-                    <div style={{position:"absolute",inset:0,borderRadius:4,
+                    {/* 돌판 질감 베이스 */}
+                    <div style={{position:"absolute",inset:0,borderRadius:3,
                       background:isFancy
-                        ?"linear-gradient(135deg,#D4AF3718 0%,#D4AF3730 50%,#D4AF3718 100%)"
-                        :"linear-gradient(135deg,#8B735518 0%,#8B735530 50%,#8B735518 100%)"
+                        ?"linear-gradient(145deg,#3D2E0A 0%,#2A1E05 50%,#3A2C09 100%)"
+                        :"linear-gradient(145deg,#1E1A12 0%,#141008 50%,#1C1810 100%)",
+                      boxShadow:"inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,0,0,0.35)"
                     }}/>
-                    <div style={{position:"absolute",top:"42%",left:"15%",right:"15%",height:"16%",borderRadius:99,background:isFancy?"#D4AF3760":"#8B735560"}}/>
-                    <div style={{position:"absolute",left:"42%",top:"15%",bottom:"15%",width:"16%",borderRadius:99,background:isFancy?"#D4AF3760":"#8B735560"}}/>
+                    {/* 중심 교차점 하이라이트 */}
+                    <div style={{position:"absolute",inset:"30%",borderRadius:"50%",background:isFancy?"rgba(212,175,55,0.08)":"rgba(139,115,85,0.06)"}}/>
+                    {/* 세로 줄눈 */}
+                    <div style={{position:"absolute",top:"15%",bottom:"15%",left:"48%",width:"4%",borderRadius:99,background:isFancy?"rgba(212,175,55,0.25)":"rgba(139,115,85,0.2)"}}/>
+                    {/* 가로 줄눈 */}
+                    <div style={{position:"absolute",left:"15%",right:"15%",top:"48%",height:"4%",borderRadius:99,background:isFancy?"rgba(212,175,55,0.25)":"rgba(139,115,85,0.2)"}}/>
                     {/* C: path traffic heat overlay */}
-                    {(()=>{const tc=pathTrafficMap[`${r},${c}`]||0;return tc>0?<div style={{position:"absolute",inset:0,borderRadius:4,background:`rgba(255,200,80,${Math.min(0.18,tc*0.04)})`,pointerEvents:"none",zIndex:4,animation:tc>=3?"path-traffic 2s ease-in-out infinite":undefined}}/>:null;})()}
+                    {(()=>{const tc=pathTrafficMap[`${r},${c}`]||0;return tc>0?<div style={{position:"absolute",inset:0,borderRadius:3,background:`rgba(255,200,80,${Math.min(0.20,tc*0.045)})`,pointerEvents:"none",zIndex:4,animation:tc>=3?"path-traffic 2s ease-in-out infinite":undefined}}/>:null;})()}
                   </>}
 
                   {owned&&isEntrance&&!broken&&<>
@@ -4735,16 +4743,31 @@ export default function ParkTycoon(){
                     {/* 건물 타입 색상 하단 바 */}
                     {!broken&&<div style={{position:"absolute",bottom:0,left:"10%",right:"10%",height:2,borderRadius:"0 0 1px 1px",background:bd.color,opacity:cell.level>=2?0.85:cell.level>=1?0.65:0.45,zIndex:3}}/>}
                     {cell.level>0&&!broken&&<div style={{position:"absolute",top:2,right:3,fontSize:11,color:"#FFD93D",lineHeight:1.2,fontWeight:900,zIndex:3,textShadow:"0 0 3px #000"}}>{cell.level===2?"★★":"★"}</div>}
-                    {bw>=3&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:8,color:bd.color,opacity:0.7,fontWeight:700,zIndex:3,fontFamily:"'Barlow Condensed',monospace",lineHeight:1}}>{bw}×{bh}</div>}
-                    {broken&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:bw>=2?18:14,zIndex:3,background:"rgba(0,0,0,0.4)",borderRadius:4}}>🔧</div>}
+                    {bw>=3&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:10,color:bd.color,opacity:0.7,fontWeight:700,zIndex:3,fontFamily:"'Barlow Condensed',monospace",lineHeight:1}}>{bw}×{bh}</div>}
+                    {broken&&<>
+                      {/* 균열 오버레이 */}
+                      <div style={{position:"absolute",inset:0,borderRadius:4,zIndex:3,pointerEvents:"none",
+                        background:"repeating-linear-gradient(55deg,transparent,transparent 5px,rgba(255,87,87,0.07) 5px,rgba(255,87,87,0.07) 6px)",
+                        animation:"broken-crack 1.4s ease-in-out infinite"}}/>
+                      {/* 빨간 테두리 경고 */}
+                      <div style={{position:"absolute",inset:0,borderRadius:4,border:"2px solid rgba(255,87,87,0.6)",zIndex:4,pointerEvents:"none"}}/>
+                      {/* 흔들리는 🔧 아이콘 */}
+                      <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:bw>=2?20:15,zIndex:5,
+                        background:"rgba(0,0,0,0.5)",borderRadius:4,
+                        animation:"broken-shake 0.9s ease-in-out infinite"}}>🔧</div>
+                    </>}
                     {isolated&&!broken&&<>
                       <div style={{position:"absolute",inset:0,borderRadius:4,border:"2px solid rgba(255,87,87,0.7)",zIndex:3,pointerEvents:"none",animation:"pulse-glow 2s ease-in-out infinite"}}/>
-                      <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(255,87,87,0.82)",borderRadius:"0 0 3px 3px",zIndex:4,textAlign:"center",fontSize:8,fontWeight:700,color:"#fff",lineHeight:"14px",letterSpacing:0.5}}>{lang==="ko"?"통로없음":"No path"}</div>
+                      <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(255,87,87,0.82)",borderRadius:"0 0 3px 3px",zIndex:4,textAlign:"center",fontSize:10,fontWeight:700,color:"#fff",lineHeight:"14px",letterSpacing:0.5}}>{lang==="ko"?"통로없음":"No path"}</div>
                     </>}
-                    {ridePrices[cell.type]&&pricingMode!=="admission"&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:9,color:"#FF9FF3",lineHeight:1.2,zIndex:3,textShadow:"0 0 2px #000"}}>${ridePrices[cell.type]}</div>}
+                    {ridePrices[cell.type]&&pricingMode!=="admission"&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:10,color:"#FF9FF3",lineHeight:1.2,zIndex:3,textShadow:"0 0 2px #000"}}>${ridePrices[cell.type]}</div>}
                     {isDemolishHov&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:bw>=2?20:14,zIndex:4,background:"rgba(255,50,50,0.15)",borderRadius:4}}>🔨</div>}
                     {isCongested&&!broken&&<div style={{position:"absolute",top:2,right:2,fontSize:12,zIndex:5,lineHeight:1,filter:"drop-shadow(0 0 2px #000)"}}>🚶</div>}
                   </>}
+
+                  {/* 빈 owned 셀 잔디 텍스처 */}
+                  {owned&&!cell&&!zone&&!obstacle&&!isPath&&<div className="cell-grass-tex"/>}
 
                   {owned&&zone&&!cell&&<>
                     <div style={{position:"absolute",inset:0,borderRadius:4,background:ZONES[zone]?.color,opacity:0.15,pointerEvents:"none"}}/>
@@ -4882,10 +4905,37 @@ export default function ParkTycoon(){
               {(()=>{
                 const maxDots=isMobile?Math.min(30,Math.max(3,Math.round(visitors/5))):Math.min(60,Math.max(4,Math.round(visitors/3)));
                 const SEG_COLORS={couple:"#FF6B9D",family:"#FF9F43",thrill:"#FF4757",child:"#48DBFB",general:"#C7B8EA"};
-                const SEG_EMOJI={couple:"💑",family:"👨‍👩‍👧",thrill:"🤸",child:"🧒",general:"🧑"};
                 // A: per-segment CSS transition speed
                 const SEG_TRANSITION={thrill:"left 0.35s ease,top 0.35s ease,opacity 0.3s",couple:"left 1.1s ease,top 1.1s ease,opacity 0.4s",family:"left 1.4s ease,top 1.4s ease,opacity 0.4s",child:"left 0.55s ease,top 0.55s ease,opacity 0.3s",general:"left 0.75s ease,top 0.75s ease,opacity 0.4s"};
-                const isSimple=visitors<15;
+                // 세그먼트별 CSS 도트 렌더러 — OS 무관, 일관된 디자인
+                const renderDot=(dot,segColor,isDwelling,isEntering)=>{
+                  const sz=isDwelling?10:dot.segType==="thrill"?7:dot.segType==="child"?6:8;
+                  const glowColor=segColor;
+                  if(dot.segType==="couple"){
+                    // 두 원이 겹친 모양
+                    return <div style={{position:"relative",width:14,height:8,flexShrink:0}}>
+                      <div style={{position:"absolute",left:0,top:0,width:8,height:8,borderRadius:"50%",background:segColor,opacity:0.9,boxShadow:`0 0 ${isDwelling?5:3}px ${glowColor}`}}/>
+                      <div style={{position:"absolute",left:6,top:0,width:8,height:8,borderRadius:"50%",background:segColor,opacity:0.75,boxShadow:`0 0 ${isDwelling?5:3}px ${glowColor}`}}/>
+                    </div>;
+                  }
+                  if(dot.segType==="thrill"){
+                    // 다이아몬드
+                    return <div style={{width:sz,height:sz,background:segColor,transform:"rotate(45deg)",borderRadius:1,boxShadow:`0 0 ${isDwelling?6:3}px ${glowColor}`,flexShrink:0}}/>;
+                  }
+                  if(dot.segType==="family"){
+                    // 큰 원(부모) + 작은 원(아이)
+                    return <div style={{position:"relative",width:13,height:10,flexShrink:0}}>
+                      <div style={{position:"absolute",left:0,top:2,width:9,height:9,borderRadius:"50%",background:segColor,boxShadow:`0 0 ${isDwelling?5:3}px ${glowColor}`}}/>
+                      <div style={{position:"absolute",left:9,top:5,width:5,height:5,borderRadius:"50%",background:segColor,opacity:0.75}}/>
+                    </div>;
+                  }
+                  if(dot.segType==="child"){
+                    // 작고 밝은 원
+                    return <div style={{width:sz,height:sz,borderRadius:"50%",background:segColor,boxShadow:`0 0 4px ${glowColor}, 0 0 2px rgba(255,255,255,0.4)`,border:"1px solid rgba(255,255,255,0.25)",flexShrink:0}}/>;
+                  }
+                  // general — 표준 원
+                  return <div style={{width:sz,height:sz,borderRadius:"50%",background:segColor,boxShadow:`0 0 ${isDwelling?5:2}px ${glowColor}`,border:"1px solid rgba(255,255,255,0.15)",flexShrink:0}}/>;
+                };
                 return dots.slice(0,maxDots).map(dot=>{
                   const segColor=SEG_COLORS[dot.segType]||"#C7B8EA";
                   const isDwelling=dot.state==="dwelling";
@@ -4907,21 +4957,15 @@ export default function ParkTycoon(){
                       width:`${(1/GC)*100}%`,
                       height:`${(1/GR)*100}%`,
                       display:"flex",alignItems:"center",justifyContent:"center",
-                      fontSize:isSimple?8:isDwelling?13:11,
                       transition:SEG_TRANSITION[dot.segType]||SEG_TRANSITION.general,
-                      filter:isDwelling
-                        ?`drop-shadow(0 0 4px ${segColor}) drop-shadow(0 2px 4px rgba(0,0,0,0.9))`
-                        :"drop-shadow(0 2px 4px rgba(0,0,0,0.9))",
+                      filter:`drop-shadow(0 2px 3px rgba(0,0,0,0.85))`,
                       zIndex:isDwelling?7:5,
-                      opacity:isLeaving?0.5:1,
+                      opacity:isLeaving?0.4:1,
                       animation:anim,
                       animationDelay:`${(dot.id*0.3)%2}s`,
                       transform:`scaleX(${facingLeft?-1:1})`,
                     }}>
-                      {isSimple
-                        ?<span style={{color:segColor,fontSize:7,lineHeight:1}}>●</span>
-                        :<span style={{lineHeight:1,userSelect:"none"}}>{SEG_EMOJI[dot.segType]||"🧑"}</span>
-                      }
+                      {renderDot(dot,segColor,isDwelling,isEntering)}
                     </div>
                   );
                 });
@@ -4945,7 +4989,7 @@ export default function ParkTycoon(){
                 </div>
               ))}
               {gridPopups.filter(p=>p.expires>Date.now()).map(p=>(
-                <div key={p.id} style={{position:"absolute",left:`${(p.c/GC)*100}%`,top:`${(p.r/GR)*100}%`,color:p.color,fontSize:14,fontWeight:900,animation:"float-up 2.8s ease-out forwards",pointerEvents:"none",zIndex:20,whiteSpace:"nowrap",textShadow:`0 0 8px ${p.color},0 2px 8px rgba(0,0,0,0.95)`,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{p.text}</div>
+                <div key={p.id} style={{position:"absolute",left:`${(p.c/GC)*100}%`,top:`${(p.r/GR)*100}%`,color:p.color,fontSize:p.fontSize||14,fontWeight:900,animation:"float-up 2.8s ease-out forwards",pointerEvents:"none",zIndex:20,whiteSpace:"nowrap",textShadow:`0 0 10px ${p.color},0 2px 8px rgba(0,0,0,0.95)`,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{p.text}</div>
               ))}
               {bubbles.filter(b=>b.expires>Date.now()).map(b=>(
                 <div key={b.id} style={{
