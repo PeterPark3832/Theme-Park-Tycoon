@@ -288,6 +288,7 @@ export default function ParkTycoon(){
   const [minimapOpen,setMinimapOpen]=useState(false);
   const [tutCardOffsetY,setTutCardOffsetY]=useState(0); // mobile drag offset (px upward from bottom)
   const tutCardDragRef=useRef({active:false,startY:0,startOffset:0});
+  const [logOverlayExpanded,setLogOverlayExpanded]=useState(true);
   // Phase 3 new states
   const [weatherForecast,setWeatherForecast]=useState([]);
   const [rivalEventActive,setRivalEventActive]=useState(null); // {event,remaining,rivalName}
@@ -2215,7 +2216,7 @@ export default function ParkTycoon(){
   // ════════════════════════════════════════════════════════
   // ── GAME SCREEN ─────────────────────────────────────────
   return(
-    <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"var(--bg-deep)",color:"var(--text-primary)",height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <div style={{fontFamily:"'Rajdhani','Barlow Condensed',sans-serif",background:"var(--bg-deep)",color:"var(--text-primary)",height:isMobile?"100dvh":"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {showSettings&&<SettingsModal uiSettings={uiSettings} setUiSettings={setUiSettings} soundOn={soundOn} setSoundOn={setSoundOn} onClose={()=>setShowSettings(false)} lang={lang}/>}
       {/* 키보드 단축키 도움말 모달 */}
       {showKeyboardHelp&&(
@@ -4884,13 +4885,21 @@ export default function ParkTycoon(){
         </div>
       )}
 
-      {/* Mobile: event log strip above bottom nav */}
+      {/* Mobile: collapsible event log overlay above bottom nav */}
       {isMobile&&screen==="game"&&!bottomSheetOpen&&logs.length>0&&(
-        <div style={{position:"fixed",bottom:60,left:8,right:8,background:"rgba(4,5,16,0.88)",border:"1px solid rgba(100,120,255,0.12)",borderRadius:8,padding:"4px 10px",zIndex:195,backdropFilter:"blur(8px)",pointerEvents:"none"}}>
-          {logs.slice(0,2).map((l,i)=>{
-            const col=l.startsWith("🚨")||l.startsWith("⚠️")||l.startsWith("💸")?"#FF5757":l.startsWith("✅")||l.startsWith("🎊")||l.startsWith("📣")||l.startsWith("🏗️")?"#00E5A0":l.startsWith("🔬")||l.startsWith("💾")||l.startsWith("⬆️")?"#9B7FFF":l.startsWith("📊")?"#FFD93D":"#5566AA";
-            return <div key={i} style={{fontSize:9,color:col,opacity:i===0?0.9:0.5,lineHeight:1.5,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{l}</div>;
-          })}
+        <div style={{position:"fixed",bottom:62,right:8,zIndex:195,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+          {logOverlayExpanded&&(
+            <div style={{background:"rgba(4,5,16,0.90)",border:"1px solid rgba(100,120,255,0.15)",borderRadius:10,padding:"5px 10px",backdropFilter:"blur(10px)",maxWidth:"80vw",minWidth:160}}>
+              {logs.slice(0,3).map((l,i)=>{
+                const col=l.startsWith("🚨")||l.startsWith("⚠️")||l.startsWith("💸")?"#FF5757":l.startsWith("✅")||l.startsWith("🎊")||l.startsWith("📣")||l.startsWith("🏗️")?"#00E5A0":l.startsWith("🔬")||l.startsWith("💾")||l.startsWith("⬆️")?"#9B7FFF":l.startsWith("📊")?"#FFD93D":"#5566AA";
+                return <div key={i} style={{fontSize:9,color:col,opacity:i===0?1:0.5,lineHeight:1.5,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{l}</div>;
+              })}
+            </div>
+          )}
+          <button onClick={()=>setLogOverlayExpanded(v=>!v)}
+            style={{background:"rgba(4,5,16,0.88)",border:"1px solid rgba(100,120,255,0.20)",borderRadius:20,padding:"3px 8px",cursor:"pointer",fontSize:10,color:"#5566AA",display:"flex",alignItems:"center",gap:3,backdropFilter:"blur(8px)"}}>
+            📋 {logOverlayExpanded?(lang==="ko"?"접기":"Hide"):(lang==="ko"?"로그":"Log")}
+          </button>
         </div>
       )}
 
