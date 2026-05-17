@@ -6,7 +6,7 @@
   "display": "standalone",
   "background_color": "#080B20",
   "theme_color": "#080B20",
-  "orientation": "landscape-primary",
+  "orientation": "any",
   "lang": "ko",
   "icons": [
     {
@@ -18,9 +18,9 @@
   ],
   "screenshots": [
     {
-      "src": "/og-image.svg",
+      "src": "/og-image.png",
       "sizes": "1280x630",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "label": "Parcadia 메인 화면"
     }
   ],
