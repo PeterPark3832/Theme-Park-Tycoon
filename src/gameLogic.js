@@ -408,6 +408,27 @@ export function playSound(type, bldType) {
       case "mission": note(523, now, 0.12, "sine", 0.20); note(659, now+0.12, 0.12, "sine", 0.18); note(784, now+0.24, 0.18, "sine", 0.16); break;
       case "disaster": note(160, now, 0.12, "square", 0.25); note(120, now+0.10, 0.14, "square", 0.22); note(80, now+0.22, 0.18, "square", 0.18); break;
       case "weather": note(350, now, 0.15, "sine", 0.08); break;
+      case "buyLand":
+        note(261, now,       0.10, "sine",     0.18);
+        note(392, now+0.09,  0.10, "sine",     0.16);
+        note(523, now+0.18,  0.12, "sine",     0.15);
+        note(784, now+0.30,  0.22, "triangle", 0.14);
+        break;
+      case "hire":
+        note(880,  now,      0.06, "triangle", 0.14);
+        note(1108, now+0.07, 0.09, "triangle", 0.12);
+        break;
+      case "combo":
+        [523,659,784,988,1175,1319].forEach((f,i)=>{ note(f, now+i*0.045, 0.20, "sine", Math.max(0.05, 0.13-i*0.015)); });
+        break;
+      case "achievement":
+        note(392,  now,      0.10, "triangle", 0.18);
+        note(494,  now+0.10, 0.10, "triangle", 0.18);
+        note(587,  now+0.20, 0.10, "triangle", 0.18);
+        note(784,  now+0.30, 0.38, "triangle", 0.22);
+        note(523,  now+0.30, 0.38, "sine",     0.12);
+        note(659,  now+0.30, 0.38, "sine",     0.10);
+        break;
       case "fanfare":
         // triumphant fanfare: C-E-G-C arpeggio
         note(523, now,       0.15, "triangle", 0.22);

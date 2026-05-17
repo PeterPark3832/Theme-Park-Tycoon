@@ -759,6 +759,7 @@ export default function ParkTycoon(){
           discoveredCombosRef.current.add(id);
           const combo=COMBOS.find(c=>c.id===id);
           if(combo){
+            if(ref.current.soundOn) playSound("combo");
             setComboToast(t=>{if(t?.timeoutId) clearTimeout(t.timeoutId);
               const tid=setTimeout(()=>setComboToast(null),3500);
               return{combo,timeoutId:tid};
@@ -2009,6 +2010,10 @@ export default function ParkTycoon(){
     return()=>{if(!disasterWarning&&disasterDrumRef.current){disasterDrumRef.current();disasterDrumRef.current=null;}};
   },[disasterWarning,soundOn]);
 
+  useEffect(()=>{
+    if(achievementFlash&&soundOn) playSound("achievement");
+  },[achievementFlash]);
+
   // Tab visibility — pause tick when hidden
   useEffect(()=>{
     const prevSpeedRef={v:0};
@@ -2193,14 +2198,14 @@ export default function ParkTycoon(){
       setMultiSelectedCells(prev=>{const n=new Set(prev);cells.forEach(k=>n.add(k));return n;});
     }
   };
-  const hire=k=>{if(weeklyChallengeMod?.noStaff){addLog(lang==="ko"?"🚫 이번 챌린지: 직원 고용 불가":"🚫 This challenge: no staff allowed");return;}if(ref.current.money<STAFF[k].hire){addLog(t("log.noMoney"));return;}setHired(h=>({...h,[k]:h[k]+1}));setMoney(m=>m-STAFF[k].hire);addLog(t("log.hire", {name: t(`st.${k}`)}));};
+  const hire=k=>{if(weeklyChallengeMod?.noStaff){addLog(lang==="ko"?"🚫 이번 챌린지: 직원 고용 불가":"🚫 This challenge: no staff allowed");return;}if(ref.current.money<STAFF[k].hire){addLog(t("log.noMoney"));return;}setHired(h=>({...h,[k]:h[k]+1}));setMoney(m=>m-STAFF[k].hire);addLog(t("log.hire", {name: t(`st.${k}`)}));if(soundOn) playSound("hire");};
   const fire=k=>{if(hired[k]<=0)return;setHired(h=>({...h,[k]:h[k]-1}));addLog(t("log.fire", {name: t(`st.${k}`)}));};
   const takeLoan=opt=>{
     if(loans.length>=2){addLog(lang==="ko"?"대출은 최대 2개까지만 가능합니다":"Maximum 2 loans at once");return;}
     if(opt.amount>money*2){addLog(lang==="ko"?"대출 한도 초과 (현재 자금의 2배)":"Loan limit exceeded (2× current funds)");return;}
     const total=Math.floor(opt.amount*(1+opt.rate));const daily=Math.ceil(total/opt.days);setLoans(l=>[...l,{id:Date.now(),amount:opt.amount,remaining:total,dailyPayment:daily,rate:opt.rate}]);setMoney(m=>m+opt.amount);addLog(t("log.loan"));
   };
-  const buyParcel=p=>{if(currentScenarioData?.noParcels){addLog(lang==="ko"?"🚫 이 시나리오는 토지 매입 불가":"🚫 Land purchase not allowed in this scenario");return;}if(ref.current.money<p.cost){addLog(t("log.noMoney"));return;}if(p.req&&!parcels.includes(p.req)){addLog(t("log.needPrevParcel"));return;}setOwnedGrid(prev=>{const n=prev.map(r=>[...r]);for(let r=0;r<GR;r++) for(let co=p.cols[0];co<=p.cols[1];co++) n[r][co]=true;return n;});setParcels(prev=>[...prev,p.id]);setMoney(m=>m-p.cost);addLog(t("log.parcelBought",{name:p.label?.[lang]||p.label?.ko||p.label}));};
+  const buyParcel=p=>{if(currentScenarioData?.noParcels){addLog(lang==="ko"?"🚫 이 시나리오는 토지 매입 불가":"🚫 Land purchase not allowed in this scenario");return;}if(ref.current.money<p.cost){addLog(t("log.noMoney"));return;}if(p.req&&!parcels.includes(p.req)){addLog(t("log.needPrevParcel"));return;}setOwnedGrid(prev=>{const n=prev.map(r=>[...r]);for(let r=0;r<GR;r++) for(let co=p.cols[0];co<=p.cols[1];co++) n[r][co]=true;return n;});setParcels(prev=>[...prev,p.id]);setMoney(m=>m-p.cost);addLog(t("log.parcelBought",{name:p.label?.[lang]||p.label?.ko||p.label}));if(soundOn) playSound("buyLand");};
   const launchCampaign=key=>{const c=CAMPAIGNS_DATA[key];if(ref.current.money<c.cost){addLog(t("log.noMoney"));return;}setCampaigns(p=>[...p,{id:Date.now(),key,emoji:c.emoji,boost:c.boost,seg:c.seg,remaining:c.days,days:c.days}]);setMoney(m=>m-c.cost);addLog(t("log.campaignStart", {name: t(`camp.${key}`)}));};
   const acceptVIP=()=>{const evt=pendingVIP;const ok=checkVIPReq(ref.current.grid,evt.req);if(!ok){addLog(t("log.vipReqFail", {name: t(`vip.${evt.id}`)}));setPendingVIP(null);return;}setMoney(m=>m+evt.bonusRev);setPrestigeBonus(s=>s+evt.presBonus);setVipCount(v=>v+1);setPendingVIP(null);addLog(t("log.vipSuccess", {name: t(`vip.${evt.id}`)}));};
   const resolveDisaster=()=>{if(!activeDisaster?.resolveCost) return;if(ref.current.money<activeDisaster.resolveCost){addLog(t("log.resolveNoMoney"));return;}setMoney(m=>m-activeDisaster.resolveCost);setActiveDisaster(null);if(ref.current.academyStep===16) academyDisasterResolvedRef.current=true;addLog(t("log.disasterSolved"));if(soundOn) playSound("fanfare");};
