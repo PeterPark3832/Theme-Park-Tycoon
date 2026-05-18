@@ -19,6 +19,11 @@ import SettingsModal from './SettingsModal.jsx';
 import ScenarioResultModal from './ScenarioResultModal.jsx';
 import ResearchPanel from './ResearchPanel.jsx';
 import MainMenuScreen from './MainMenuScreen.jsx';
+import ManagePanel from './ManagePanel.jsx';
+import MarketingPanel from './MarketingPanel.jsx';
+import FinancePanel from './FinancePanel.jsx';
+import MissionPanel from './MissionPanel.jsx';
+import BuildPanel from './BuildPanel.jsx';
 
 const rideList=Object.entries(B).filter(([,b])=>b.cat==="ride");
 const shopList=Object.entries(B).filter(([,b])=>b.cat==="shop");
@@ -2884,802 +2889,118 @@ export default function ParkTycoon(){
 
           <div style={{flex:1,overflowY:"auto",padding:"5px 7px"}}>
 
-            {tab==="build"&&<>
-              <div style={{display:"flex",gap:2,marginBottom:4}}>
-                {[["build","🏗️","tab.build"],["zone","🎨","zone"],["demolish","🔨","demolish"],["map","🗺️","map"]].map(([m,ic,lk])=>{
-                  const label=lk==="tab.build"?t("tab.build"):lk==="zone"?(lang==="ko"?"구역":"Zone"):lk==="demolish"?(lang==="ko"?"철거":"Demo"):t("map.land");
-                  const active=buildMode===m;
-                  const col=m==="demolish"?"#FF6B6B":sc;
-                  const isZoneTut=tutorialStep===8&&m==="zone";
-                  return(<button key={m} style={{flex:1,padding:"3px 0",background:active?(m==="demolish"?"#FF6B6B18":"#1E1E40"):isZoneTut?"rgba(255,217,61,0.10)":"#181830",border:`1px solid ${active?col:isZoneTut?"#FFD93D":"#2A2A4A"}`,color:active?col:isZoneTut?"#FFD93D":"#6666AA",borderRadius:4,cursor:"pointer",fontSize:10,fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:1,animation:isZoneTut?"pulse 1.5s infinite":"none",boxShadow:isZoneTut?"0 0 8px rgba(255,217,61,0.4)":"none"}} onClick={()=>{setBuildMode(m);setSelected(null);if(m!=="zone")setZonePaint(null);setMultiSelectedCells(new Set());if(m==="zone"&&!zoneFtueShown){setZoneFtueShown(true);setShowZoneFtue(true);}}}>
-                    <span style={{fontSize:11}}>{ic}</span>
-                    <span>{label}</span>
-                  </button>);
-                })}
-              </div>
-
-              {buildMode==="build"&&day>1&&(()=>{
-                const issues=[];
-                if(stats.isolatedCount>0) issues.push({sev:"red",msg:lang==="ko"?`경로 미연결 건물 ${stats.isolatedCount}개 — 통로로 연결하세요`:`${stats.isolatedCount} building(s) not path-connected`});
-                const feeMax=gameMode==="sandbox"?999:(MAX_FEE_BY_STARS[parkRating.stars]+(startPerk==="premiumGate"?10:0));
-                if(fee>feeMax) issues.push({sev:"yellow",msg:lang==="ko"?`입장료($${fee})가 ${parkRating.stars}성 한도($${feeMax}) 초과`:`Admission $${fee} exceeds ${parkRating.stars}★ cap ($${feeMax})`});
-                const hasRestroom=grid.flat().some(c=>c&&c.type==="restroom");
-                if(!hasRestroom&&(segData.family||0)>0.2) issues.push({sev:"yellow",msg:lang==="ko"?"화장실 없음 — 가족 방문객 만족도 페널티":"No restroom — family satisfaction penalty"});
-                if(stats.brokenCount>2) issues.push({sev:"yellow",msg:lang==="ko"?`고장 ${stats.brokenCount}개 — 정비공 필요`:`${stats.brokenCount} broken — hire mechanic`});
-                if(clean<35&&visitors>10) issues.push({sev:"red",msg:lang==="ko"?"청결도 위험 — 방문객 만족도 급감":"Critical cleanliness — satisfaction dropping"});
-                if(stats.attraction<5&&day>3) issues.push({sev:"red",msg:lang==="ko"?"놀이기구 부족 — 방문객 없음":"Need attractions — no visitors"});
-                const top=issues.slice(0,3);
-                if(!top.length) return null;
-                return(<div style={{marginBottom:6,borderRadius:6,overflow:"hidden",border:"1px solid rgba(255,159,67,0.2)"}}>
-                  <div style={{background:"rgba(255,159,67,0.08)",padding:"3px 7px",fontSize:9,color:"#FF9F43",letterSpacing:2,fontWeight:700}}>⚠️ {lang==="ko"?"현재 문제":"ISSUES"} ({top.length})</div>
-                  {top.map((iss,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 7px",background:i%2===0?"rgba(0,0,0,0.15)":"transparent",borderTop:"1px solid rgba(255,255,255,0.03)"}}>
-                      <span style={{fontSize:8,flexShrink:0,color:iss.sev==="red"?"#FF5757":"#FECA57"}}>{iss.sev==="red"?"🔴":"🟡"}</span>
-                      <span style={{fontSize:9,color:"#AABBCC",lineHeight:1.4}}>{iss.msg}</span>
-                    </div>
-                  ))}
-                </div>);
-              })()}
-
-              {buildMode==="demolish"&&<div style={{padding:"6px 5px",background:"#FF6B6B0D",border:"1px solid #FF6B6B33",borderRadius:5,marginBottom:4,textAlign:"center"}}>
-                <div style={{fontSize:13,marginBottom:2}}>🔨</div>
-                <div style={{fontSize:10,color:"#FF6B6B",fontWeight:700}}>{lang==="ko"?"철거 모드":"Demolish Mode"}</div>
-                <div style={{fontSize:10,color:"#FF8888",marginTop:2}}>{lang==="ko"?"건물 클릭 → 선택, 다중 선택 가능":"Click to select, multi-select allowed"}</div>
-                {lastDemolishGrid&&<button style={{marginTop:4,width:"100%",padding:"5px 0",background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.4)",color:"#9B9FFF",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}} onClick={undoDemolish}>↩️ {lang==="ko"?"철거 취소":"Undo Demolish"}</button>}
-                {multiSelectedCells.size>0&&<>
-                  <div style={{fontSize:10,color:"#FF6B6B",marginTop:4}}>{lang==="ko"?`${multiSelectedCells.size}개 선택됨`:`${multiSelectedCells.size} selected`}</div>
-                  <button style={{marginTop:4,width:"100%",padding:"5px 0",background:"rgba(255,87,87,0.18)",border:"2px solid rgba(255,87,87,0.5)",color:"#FF5757",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}}
-                    onClick={()=>{
-                      let totalRefund=0;
-                      setGrid(prev=>{const n=prev.map(row=>[...row]);multiSelectedCells.forEach(key=>{const[r,c]=key.split(",").map(Number);if(n[r][c]){if(!n[r][c].ref) totalRefund+=Math.floor(B[n[r][c].type].baseCost*0.4);n[r][c]=null;}});return n;});
-                      setMoney(m=>m+totalRefund);
-                      addLog(lang==="ko"?`🔨 ${multiSelectedCells.size}개 건물 철거 완료 (+$${totalRefund.toLocaleString()})`:`🔨 Demolished ${multiSelectedCells.size} buildings (+$${totalRefund.toLocaleString()})`);
-                      setMultiSelectedCells(new Set());
-                      if(soundOn) playSound("demolish");
-                    }}>
-                    {lang==="ko"?`🔨 전체 철거 (${multiSelectedCells.size})`:`🔨 Demolish All (${multiSelectedCells.size})`}
-                  </button>
-                </>}
-              </div>}
-              {buildMode==="build"&&<>
-                {lastBuildGrid&&<button style={{marginBottom:4,width:"100%",padding:"5px 0",background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.4)",color:"#9B9FFF",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}} onClick={undoBuild}>↩️ {lang==="ko"?"건설 취소 (30초)":"Undo Build (30s)"}</button>}
-                {selected?<div style={{display:"flex",gap:2,marginBottom:3}}>
-                  <button style={{flex:1,background:"#FF6B6B0E",border:"1px solid #FF6B6B44",color:"#FF6B6B",borderRadius:4,padding:3,cursor:"pointer",fontSize:10,fontFamily:"inherit"}} onClick={()=>setSelected(null)}>{t("bld.cancel", { name: t(`b.${selected}`) })}</button>
-                </div>:<div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:3}}>
-                  <div style={{fontSize:10,color:"#3A4488",textAlign:"center",padding:"2px",background:"#14142A",borderRadius:3}}>{t("bld.hint")}</div>
-                  {lastBuilt&&<div style={{fontSize:9,color:"#556688",textAlign:"center",padding:"2px 4px",background:"#0E0E1E",borderRadius:3,cursor:"pointer"}} onClick={()=>{setSelected(lastBuilt);setBuildMode("build");}} title={lang==="ko"?"R키로도 선택 가능":"Also press R to re-select"}>⟳ R — {t(`b.${lastBuilt}`)}</div>}
-                </div>}
-                {/* 클릭된 건물 패널을 목록 상단에 표시 */}
-                {!selected&&clickedTile?.cell&&(()=>{
-                  const{r,c,cell}=clickedTile;
-                  const bd=B[cell.type];
-                  const st=bd.stats(cell.level);
-                  const upCost=cell.level<2?bd.upgradeCost[cell.level]:null;
-                  const nextSt=cell.level<2?bd.stats(cell.level+1):null;
-                  const attrDelta=nextSt?Math.round(nextSt.attraction-st.attraction):0;
-                  const maintDelta=nextSt?Math.round(nextSt.maintenance-st.maintenance):0;
-                  const capDelta=nextSt&&nextSt.cap>0?(nextSt.cap-st.cap):0;
-                  const rpc=Math.max(500,Math.floor(bd.baseCost*0.15));
-                  const anyPaths2=grid.some(r=>r.some(c=>c?.type==="_path"||c?.type==="_pathFancy"));
-                  const reach3=anyPaths2?getReachablePaths(grid):new Set();
-                  const ok3=bd.cat==="path"||bd.cat==="deco"||!anyPaths2||hasPath(reach3,r,c);
-                  return(<div style={{marginBottom:8,padding:10,background:`linear-gradient(135deg,${bd.color}0A,rgba(255,255,255,0.02))`,border:`2px solid ${cell.broken?"rgba(255,87,87,0.4)":bd.color+"66"}`,borderRadius:10,boxShadow:`0 2px 12px ${cell.broken?"rgba(255,87,87,0.2)":bd.color+"22"}`}}>
-                    {cell.broken&&<div style={{fontSize:10,color:"#FF5757",marginBottom:4,fontWeight:600}}>🔧 {lang==="ko"?"수리비":"Repair"}: ${rpc.toLocaleString()}</div>}
-                    {!ok3&&!cell.broken&&<div style={{fontSize:10,color:"#FF9F43",marginBottom:3,background:"rgba(255,159,67,0.08)",borderRadius:3,padding:"2px 5px"}}>{t("bld.pathNote")}</div>}
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-                      <div style={{width:32,height:32,borderRadius:8,background:`${bd.color}22`,border:`1px solid ${bd.color}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,filter:cell.broken?"grayscale(1) opacity(0.4)":"none"}}>{bd.emoji}</div>
-                      <div>
-                        <div style={{fontSize:11,fontWeight:800,color:"var(--text-primary)"}}>{t(`b.${cell.type}`)}</div>
-                        <div style={{display:"inline-block",fontSize:10,padding:"1px 6px",background:`${bd.color}22`,border:`1px solid ${bd.color}55`,borderRadius:4,color:bd.color,fontWeight:700,marginTop:1}}>Lv{cell.level+1}</div>
-                      </div>
-                      <button style={{marginLeft:"auto",fontSize:10,color:"#7788BB",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}} onClick={()=>setClickedTile(null)}>✕</button>
-                    </div>
-                    <div style={{fontSize:10,color:"#6B7CA1",marginBottom:4}}>
-                      ⭐{Math.round(st.attraction)}{st.maintenance>0&&<> · 💰-${Math.round(st.maintenance)}</>}{st.cap>0&&<> · 👥{st.cap}</>}
-                    </div>
-                    {/* 2-1: 일 수익 예상 */}
-                    {(()=>{
-                      const zone2=zoneGrid[r]?.[c];
-                      const zm2=zone2?zoneMastery[zone2]:null;
-                      const zoneMult=zm2?.mastered?1+zm2.bonus:1;
-                      const admEst=pricingMode!=="per_ride"&&cell.type==="entrance"?Math.round(visitors*fee):0;
-                      const shopEst=st.rpv>0?Math.round(visitors*st.rpv*zoneMult):0;
-                      const rideTicket=pricingMode==="per_ride"&&bd.cat==="ride"&&cell.type!=="entrance"?(ridePrices[cell.type]??DEFAULT_RIDE_PRICES[cell.type]??5):0;
-                      if(!admEst&&!shopEst&&!rideTicket) return null;
-                      return(
-                        <div style={{fontSize:10,color:"#5EF6A0",marginBottom:6,background:"rgba(94,246,160,0.06)",border:"1px solid rgba(94,246,160,0.15)",borderRadius:4,padding:"3px 7px",display:"flex",gap:8,alignItems:"center"}}>
-                          <span>💵</span>
-                          {admEst>0&&<span>~${admEst.toLocaleString()}/{lang==="ko"?"일":"day"}</span>}
-                          {shopEst>0&&<span>~${shopEst.toLocaleString()}/{lang==="ko"?"일":"day"}{zm2?.mastered&&<span style={{color:"#FECA57",marginLeft:3}}>⚡+{Math.round(zm2.bonus*100)}%</span>}</span>}
-                          {rideTicket>0&&<span>🎟️ ${rideTicket}/{lang==="ko"?"인":"pp"}</span>}
-                        </div>
-                      );
-                    })()}
-                    {upCost&&nextSt&&<div style={{display:"flex",gap:6,marginBottom:3,padding:"3px 6px",background:"rgba(255,255,255,0.03)",borderRadius:4,fontSize:10,color:"#6B7CA1"}}>
-                      <span style={{color:"#AABBFF"}}>Lv{cell.level+2}:</span>
-                      {attrDelta>0&&<span>⭐+{attrDelta}</span>}
-                      {maintDelta>0&&<span style={{color:"#FF9F43"}}>💰+${maintDelta}</span>}
-                      {capDelta>0&&<span>👥+{capDelta}</span>}
-                      {nextSt.rpv>st.rpv&&<span style={{color:"#5EF6A0"}}>💵+{Math.round(nextSt.rpv-st.rpv)}</span>}
-                    </div>}
-                    <div style={{display:"flex",gap:3}}>
-                      {cell.broken
-                        ?<button style={{flex:2,padding:"5px 0",background:money>=rpc?"rgba(255,159,67,0.15)":"transparent",border:`1px solid ${money>=rpc?"rgba(255,159,67,0.6)":"rgba(255,255,255,0.08)"}`,color:money>=rpc?"#FF9F43":"#7788BB",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}} onClick={repairBuilding}>{t("bld.repair",{cost:`$${rpc.toLocaleString()}`})}</button>
-                        :cell.level<2&&upCost>0
-                        ?<button style={{flex:2,padding:"5px 0",background:money>=upCost?`${bd.color}22`:"transparent",border:`1px solid ${money>=upCost?bd.color+"77":"rgba(255,255,255,0.08)"}`,color:money>=upCost?bd.color:"#7788BB",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}} onClick={upgradeBuilding}>{t("bld.upgrade",{cost:`$${upCost.toLocaleString()}`})}</button>
-                        :<div style={{flex:2,fontSize:10,color:"#00E5A0",fontWeight:700,display:"flex",alignItems:"center"}}>✅ {t("bld.max")}</div>}
-                      <button style={{flex:1,padding:"5px 0",background:"rgba(255,87,87,0.1)",border:"1px solid rgba(255,87,87,0.4)",color:"#FF5757",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}} onClick={demolish}>🔨</button>
-                    </div>
-                  </div>);
-                })()}
-                {/* Building search */}
-                <input
-                  type="text"
-                  placeholder={lang==="ko"?"건물 검색...":"Search buildings..."}
-                  value={buildSearch}
-                  onChange={e=>setBuildSearch(e.target.value)}
-                  style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:5,padding:"4px 8px",color:"#DDE2FF",fontSize:11,fontFamily:"inherit",outline:"none",marginBottom:6}}
-                />
-                {/* 카테고리 필터 바 */}
-                <div style={{display:"flex",gap:2,marginBottom:6,background:"rgba(0,0,0,0.3)",borderRadius:6,padding:3}}>
-                  <button onClick={()=>setBuildCatFilter(null)}
-                    style={{flex:1,background:!buildCatFilter?"rgba(255,217,61,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${!buildCatFilter?"rgba(255,217,61,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:4,padding:"3px 2px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:1,fontFamily:"inherit",transition:"all 0.15s",boxShadow:!buildCatFilter?"0 0 6px rgba(255,217,61,0.3)":"none"}}>
-                    <span style={{fontSize:12}}>🔍</span>
-                    <span style={{fontSize:7,color:!buildCatFilter?"#FFD93D":"#5566AA",letterSpacing:0.5,fontWeight:!buildCatFilter?700:400}}>{lang==="ko"?"전체":"All"}</span>
-                  </button>
-                  <button onClick={()=>setBuildCatFilter(buildCatFilter==="fav"?null:"fav")}
-                    style={{flex:1,background:buildCatFilter==="fav"?"rgba(255,215,0,0.2)":"rgba(255,255,255,0.04)",border:`1px solid ${buildCatFilter==="fav"?"rgba(255,215,0,0.6)":"rgba(255,255,255,0.08)"}`,borderRadius:4,padding:"3px 2px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:1,fontFamily:"inherit",transition:"all 0.15s",boxShadow:buildCatFilter==="fav"?"0 0 6px rgba(255,215,0,0.4)":"none"}}>
-                    <span style={{fontSize:12}}>⭐</span>
-                    <span style={{fontSize:7,color:buildCatFilter==="fav"?"#FFD700":"#5566AA",letterSpacing:0.5,fontWeight:buildCatFilter==="fav"?700:400}}>{lang==="ko"?"즐겨찾기":"Favs"}</span>
-                  </button>
-                  {[["🎠","ride",t("cat.ride")],["🍔","shop",t("cat.shop")],["🌿","facility",t("cat.facility")],["🛤️","path",t("cat.path")],["🌸","deco",t("cat.deco")]].map(([ic,cat,lbl])=>{
-                    const active=buildCatFilter===cat;
-                    return(
-                      <button key={cat} title={lbl} onClick={()=>setBuildCatFilter(buildCatFilter===cat?null:cat)}
-                        style={{flex:1,background:active?"rgba(255,217,61,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${active?"rgba(255,217,61,0.5)":"rgba(255,255,255,0.08)"}`,borderRadius:4,padding:"3px 2px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:1,fontFamily:"inherit",transition:"all 0.15s",boxShadow:active?"0 0 6px rgba(255,217,61,0.3)":"none"}}>
-                        <span style={{fontSize:13}}>{ic}</span>
-                        <span style={{fontSize:7,color:active?"#FFD93D":"#5566AA",letterSpacing:0.5,fontWeight:active?700:400}}>{lbl.replace(/^[^\s]+ /,"").slice(0,4)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {/* Favorites-only view */}
-                {buildCatFilter==="fav"&&(()=>{
-                  const allBuildings=[...rideList,...shopList,...facilList,...pathList,...decoList];
-                  const favList=allBuildings.filter(([id])=>buildFavs.has(id));
-                  if(favList.length===0) return(<div style={{textAlign:"center",padding:"16px 8px",color:"#5566AA",fontSize:11}}>{lang==="ko"?"⭐ 즐겨찾기한 건물이 없습니다.\n건물 옆 ⭐ 버튼을 눌러 추가하세요.":"⭐ No favorites yet.\nTap ⭐ next to a building to add it."}</div>);
-                  return(<div><div style={{fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:"#FFD700",margin:"4px 0 4px",paddingLeft:4,borderLeft:"2px solid #FFD70066"}}>{lang==="ko"?"즐겨찾기":"Favorites"}</div>
-                  {favList.map(([id,bd])=>{
-                    const isBanned=currentScenarioData?.bannedBuildings?.includes(id)||weeklyChallengeMod?.bannedBuildings?.includes(id);
-                    const isLocked=(bd.locked&&!researched.includes("r4")&&gameMode!=="sandbox")||isBanned;
-                    const ok=money>=bd.baseCost&&!isLocked,sel=selected===id;
-                    return(<div key={id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",marginBottom:2,background:sel?`${bd.color}18`:"rgba(255,255,255,0.03)",border:sel?`1px solid ${bd.color}88`:`1px solid ${bd.color}22`,borderLeft:sel?`3px solid ${bd.color}`:`3px solid ${bd.color}66`,borderRadius:6,cursor:ok?"pointer":"default",opacity:isLocked?0.35:ok?1:0.35}} onClick={()=>ok&&setSelected(sel?null:id)}>
-                      <div style={{width:24,height:24,borderRadius:5,background:`${bd.color}18`,border:`1px solid ${bd.color}33`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        {hasBuildingIcon(id)?getBuildingIcon(id,bd.color,18):<span style={{fontSize:13}}>{bd.emoji}</span>}
-                      </div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:10,fontWeight:700,color:"var(--text-primary)",lineHeight:1.2}}>{t(`b.${id}`)}</div>
-                        <div style={{fontSize:9,color:ok?"#FFD93D":"#FF5757",fontFamily:"'Barlow Condensed',monospace"}}>{bd.baseCost===0?t("bld.free"):`$${bd.baseCost.toLocaleString()}`}</div>
-                      </div>
-                      <button style={{background:"none",border:"none",cursor:"pointer",fontSize:14,padding:2,color:"#FFD700"}} onClick={e=>{e.stopPropagation();setBuildFavs(prev=>{const n=new Set(prev);n.delete(id);try{localStorage.setItem('pt_buildFavs',JSON.stringify([...n]));}catch{}return n;});}} title={lang==="ko"?"즐겨찾기 제거":"Remove favorite"}>⭐</button>
-                    </div>);
-                  })}</div>);
-                })()}
-                {[[t("cat.ride"),"ride",rideList],[t("cat.shop"),"shop",shopList],[t("cat.facility"),"facility",facilList],[t("cat.path"),"path",pathList],[t("cat.deco"),"deco",decoList]].map(([lbl,cat,list])=>{
-                  if(buildCatFilter&&buildCatFilter!==cat&&buildCatFilter!=="fav") return null;
-                  if(buildCatFilter==="fav") return null;
-                  const filteredList=buildSearch.trim()?list.filter(([id])=>{const name=t(`b.${id}`)||id;return name.toLowerCase().includes(buildSearch.toLowerCase())||id.toLowerCase().includes(buildSearch.toLowerCase());}):list;
-                  if(filteredList.length===0) return null;
-                  return(
-                  <div key={lbl} data-cat={cat}>
-                    <div style={{fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:"#7788BB",margin:"8px 0 4px",paddingLeft:4,borderLeft:"2px solid rgba(255,255,255,0.15)"}}>{lbl}</div>
-                    {filteredList.map(([id,bd])=>{
-                      const isBanned=currentScenarioData?.bannedBuildings?.includes(id)||weeklyChallengeMod?.bannedBuildings?.includes(id);
-                      const isLocked=(bd.locked&&!researched.includes("r4")&&gameMode!=="sandbox")||isBanned;
-                      const ok=money>=bd.baseCost&&!isLocked,sel=selected===id;
-                      const isBldHov=hovered===id;
-                      const isTutTarget=(tutorialStep===1&&id==="entrance")||
-                                        (tutorialStep===2&&(id==="_path"||id==="_pathFancy"))||
-                                        (tutorialStep===3&&["ferrisWheel","carousel","thrillRide","miniTrain"].includes(id));
-                      const baseShadow=sel?`0 0 12px ${bd.color}22, inset 0 0 12px ${bd.color}08`:"none";
-                      const segPull=SEG_PULL[id];
-                      const segScore=segPull&&visitors>0?Math.max(1,Math.min(5,Math.round(Object.entries(segPull).reduce((s,[k,w])=>s+w*(segData[k]||0),0)/2.5*4)+1)):null;
-                      return(<div key={id} onMouseEnter={()=>setHovered(id)} onMouseLeave={()=>setHovered(null)}>
-                        <div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 8px",marginBottom:isBldHov?0:2,background:sel?`${bd.color}18`:"rgba(255,255,255,0.03)",border:sel?`1px solid ${bd.color}88`:`1px solid ${bd.color}22`,borderLeft:sel?`3px solid ${bd.color}`:`3px solid ${bd.color}66`,borderRadius:isBldHov?"6px 6px 0 0":6,cursor:ok?"pointer":isLocked?"not-allowed":"default",opacity:isLocked?0.35:ok?1:0.35,transition:"all 0.12s",outline:isTutTarget?"2px solid #FFD93D":"none",outlineOffset:isTutTarget?2:0,animation:isTutTarget?"pulse 1.5s infinite":"none",boxShadow:isTutTarget?`0 0 20px rgba(255,217,61,0.6), ${baseShadow}`:baseShadow}} onClick={()=>ok&&setSelected(sel?null:id)}>
-                          <div style={{width:28,height:28,borderRadius:6,background:`${bd.color}18`,border:`1px solid ${bd.color}33`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
-                            {hasBuildingIcon(id)
-                              ? getBuildingIcon(id, bd.color, 22)
-                              : <span style={{fontSize:15}}>{bd.emoji}</span>}
-                          </div>
-                          <div style={{flex:1,minWidth:0}}>
-                            <div style={{fontSize:10,fontWeight:700,color:"var(--text-primary)",lineHeight:1.2}}>{t(`b.${id}`)}{isBanned?" 🚫":isLocked?" 🔒":""}</div>
-                            <div style={{display:"flex",alignItems:"center",gap:4}}>
-                              <div style={{fontSize:10,fontWeight:600,color:money>=bd.baseCost?"#FFD93D":"#FF5757",fontFamily:"'Barlow Condensed',monospace"}}>{bd.baseCost===0?t("bld.free"):`$${bd.baseCost.toLocaleString()}`}</div>
-                              {segScore&&<div style={{fontSize:8,color:"#FECA57",letterSpacing:0.5,lineHeight:1}}>{'★'.repeat(segScore)+'☆'.repeat(5-segScore)}</div>}
-                            </div>
-                            {bd.stats(0).attraction>0&&<div style={{fontSize:8,color:"#4D9FFF88",lineHeight:1}}>👥 ~+{Math.round(bd.stats(0).attraction*0.8)}{lang==="ko"?"명":"vis"}</div>}
-                          </div>
-                          {bd.stats(0).attraction>0&&<span style={{fontSize:10,padding:"1px 5px",background:"rgba(255,217,61,0.12)",border:"1px solid rgba(255,217,61,0.3)",borderRadius:4,color:"#FFD93D",fontWeight:700,fontFamily:"'Barlow Condensed',monospace",flexShrink:0}}>⭐{bd.stats(0).attraction}</span>}
-                          <button style={{background:"none",border:"none",cursor:"pointer",fontSize:12,padding:"0 2px",color:buildFavs.has(id)?"#FFD700":"#3A4A6A",flexShrink:0,lineHeight:1}} onClick={e=>{e.stopPropagation();setBuildFavs(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);try{localStorage.setItem('pt_buildFavs',JSON.stringify([...n]));}catch{}return n;});}} title={lang==="ko"?"즐겨찾기":"Favorite"}>{buildFavs.has(id)?"⭐":"☆"}</button>
-                          <button style={{background:"none",border:"none",cursor:"pointer",fontSize:11,padding:"0 2px",color:"#4D9FFF88",flexShrink:0,lineHeight:1}} onClick={e=>{e.stopPropagation();setShowBldInfo(id);}} title={lang==="ko"?"건물 정보":"Building info"}>ℹ</button>
-                        </div>
-                        {isBldHov&&<div style={{background:"#1A1A3A",borderRadius:"0 0 5px 5px",padding:"4px 6px",marginBottom:2,fontSize:10,color:"#C7B8EA",lineHeight:1.6,border:`1px solid ${bd.color}22`,borderTop:"none"}}>
-                          {isLocked&&<div style={{color:"#FF9F43",fontWeight:700,marginBottom:2}}>🔒 {lang==="ko"?"연구 탭 → VIP 언락 (r4) 필요":"Research tab → VIP Unlock (r4) required"}</div>}
-                          {bd.flavor&&<div style={{color:"#A29BFE",fontStyle:"italic",marginBottom:3,fontSize:9}}>✨ {bd.flavor[lang]||bd.flavor.ko}</div>}
-                          {bd.personality&&<div style={{display:"flex",gap:4,marginBottom:3,flexWrap:"wrap"}}>
-                            <span style={{fontSize:8,background:"rgba(255,107,157,0.15)",border:"1px solid rgba(255,107,157,0.35)",borderRadius:4,padding:"1px 5px",color:"#FF6B9D"}}>💥{"★".repeat(bd.personality.exc)}{"☆".repeat(5-bd.personality.exc)}</span>
-                            <span style={{fontSize:8,background:"rgba(95,39,205,0.15)",border:"1px solid rgba(95,39,205,0.35)",borderRadius:4,padding:"1px 5px",color:"#A29BFE"}}>👻{"★".repeat(bd.personality.fear)}{"☆".repeat(5-bd.personality.fear)}</span>
-                            <span style={{fontSize:8,background:"rgba(255,159,67,0.15)",border:"1px solid rgba(255,159,67,0.35)",borderRadius:4,padding:"1px 5px",color:"#FF9F43"}}>👨‍👩‍👧{"★".repeat(bd.personality.fam)}{"☆".repeat(5-bd.personality.fam)}</span>
-                            <span style={{fontSize:8,background:"rgba(100,181,246,0.12)",border:"1px solid rgba(100,181,246,0.3)",borderRadius:4,padding:"1px 5px",color:"#64B5F6"}}>🎯 {bd.personality.who[lang]||bd.personality.who.ko}</span>
-                          </div>}
-                          {bd.stats(0).attraction>0&&<div>⭐ {lang==="ko"?"놀이기구":"Attraction"} +{bd.stats(0).attraction}</div>}
-                          {bd.stats(0).maintenance>0&&<div>🔧 {lang==="ko"?"유지비":"Upkeep"} ${bd.stats(0).maintenance}/{lang==="ko"?"일":"day"}</div>}
-                          {bd.stats(0).satBonus>0&&<div>😊 {lang==="ko"?"만족도":"Happiness"} +{bd.stats(0).satBonus}</div>}
-                          {bd.stats(0).rpv>0&&<div>💰 {lang==="ko"?"수익/방문객":"Rev/visitor"} +{bd.stats(0).rpv}</div>}
-                          {bd.stats(0).cap>0&&<div>👥 {lang==="ko"?"수용인원":"Capacity"} +{bd.stats(0).cap}</div>}
-                        </div>}
-                      </div>);
-                    })}
-                  </div>
-                );})}
-                {clickedTile?.cell&&(()=>{
-                  const{r,c,cell}=clickedTile;
-                  const bd=B[cell.type];
-                  const st=bd.stats(cell.level);
-                  const upCost=cell.level<2?bd.upgradeCost[cell.level]:null;
-                  const nextSt=cell.level<2?bd.stats(cell.level+1):null;
-                  const attrDelta=nextSt?Math.round(nextSt.attraction-st.attraction):0;
-                  const maintDelta=nextSt?Math.round(nextSt.maintenance-st.maintenance):0;
-                  const capDelta=nextSt&&nextSt.cap>0?(nextSt.cap-st.cap):0;
-                  const rpc=Math.max(500,Math.floor(bd.baseCost*0.15));
-                  const anyPaths=grid.some(r=>r.some(c=>c?.type==="_path"||c?.type==="_pathFancy"));
-                  const reach2=anyPaths?getReachablePaths(grid):new Set();
-                  const ok2=bd.cat==="path"||bd.cat==="deco"||!anyPaths||hasPath(reach2,r,c);
-                  // 패널을 항상 최상단에 표시 (sticky)
-                  return(<div style={{marginBottom:8,padding:10,background:"linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))",border:`2px solid ${cell.broken?"rgba(255,87,87,0.4)":bd.color+"55"}`,borderRadius:10,backdropFilter:"blur(4px)",boxShadow:`0 4px 16px ${cell.broken?"rgba(255,87,87,0.15)":bd.color+"22"}`}}>
-                    {cell.broken&&<div style={{fontSize:10,color:"#FF5757",marginBottom:4,fontWeight:600}}>{t("log.broken", { cost: rpc.toLocaleString() })}</div>}
-                    {!ok2&&!cell.broken&&<div style={{fontSize:10,color:"#FF9F43",marginBottom:3}}>{t("bld.pathNote")}</div>}
-                    <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
-                      <span style={{fontSize:18,filter:cell.broken?"grayscale(1) opacity(0.4)":"none"}}>{bd.emoji}</span>
-                      <div><div style={{fontSize:12,fontWeight:800,color:"var(--text-primary)"}}>{t(`b.${cell.type}`)}</div><div style={{display:"inline-block",fontSize:10,padding:"2px 7px",background:`${bd.color}22`,border:`1px solid ${bd.color}66`,borderRadius:4,color:bd.color,fontWeight:700,marginTop:2}}>Lv{cell.level+1}</div></div>
-                    </div>
-                    <div style={{fontSize:10,color:"#6B7CA1",marginBottom:6}}>
-                      {t("met.attraction")} <b style={{color:"#FFD93D"}}>{Math.round(st.attraction)}</b>
-                      {st.maintenance>0&&<> · -<b style={{color:"#FF5757"}}>${Math.round(st.maintenance)}</b></>}
-                      {st.cap>0&&<> · {t("mgr.limit")} <b style={{color:"#4D9FFF"}}>{st.cap}</b></>}
-                    </div>
-                    {upCost&&nextSt&&<div style={{display:"flex",gap:6,marginBottom:3,padding:"3px 6px",background:"rgba(255,255,255,0.03)",borderRadius:4,fontSize:10,color:"#6B7CA1"}}>
-                      <span style={{color:"#AABBFF"}}>Lv{cell.level+2}:</span>
-                      {attrDelta>0&&<span>⭐+{attrDelta}</span>}
-                      {maintDelta>0&&<span style={{color:"#FF9F43"}}>💰+${maintDelta}</span>}
-                      {capDelta>0&&<span>👥+{capDelta}</span>}
-                      {nextSt.rpv>st.rpv&&<span style={{color:"#5EF6A0"}}>💵+{Math.round(nextSt.rpv-st.rpv)}</span>}
-                    </div>}
-                    <div style={{display:"flex",gap:3}}>
-                      {cell.broken?<button style={{flex:2,padding:"5px 0",background:money>=rpc?`linear-gradient(135deg,rgba(255,159,67,0.15),rgba(255,159,67,0.05))`:"transparent",border:`1px solid ${money>=rpc?"rgba(255,159,67,0.5)":"rgba(255,255,255,0.08)"}`,color:money>=rpc?"#FF9F43":"#7788BB",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}} onClick={repairBuilding}>{t("bld.repair", { cost: `$${rpc.toLocaleString()}` })}</button>
-                      :cell.level<2&&upCost>0?<button style={{flex:2,padding:"5px 0",background:money>=upCost?`linear-gradient(135deg,${bd.color}22,${bd.color}0A)`:"transparent",border:`1px solid ${money>=upCost?bd.color+"66":"rgba(255,255,255,0.08)"}`,color:money>=upCost?bd.color:"#7788BB",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit",boxShadow:money>=upCost?`0 2px 8px ${bd.color}22`:"none"}} onClick={upgradeBuilding}>{t("bld.upgrade", { cost: `$${upCost.toLocaleString()}` })}</button>
-                      :<div style={{flex:2,fontSize:10,color:"#00E5A0",display:"flex",alignItems:"center",fontWeight:700}}>{t("bld.max")}</div>}
-                      <button style={{flex:1,padding:"5px 0",background:"rgba(255,87,87,0.08)",border:"1px solid rgba(255,87,87,0.3)",color:"#FF5757",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}} onClick={demolish}>{t("bld.demolish").split(" ")[0]}</button>
-                    </div>
-                    <button style={{fontSize:10,color:"#4444AA",background:"none",border:"none",cursor:"pointer",padding:"3px 0 0",fontFamily:"inherit"}} onClick={()=>setClickedTile(null)}>✕</button>
-                  </div>);
-                })()}
-              </>}
-
-              {buildMode==="zone"&&<>
-                {/* Synergy info panel */}
-                {(()=>{
-                  const allZones=new Set();
-                  for(let r=0;r<zoneGrid.length;r++) for(let c=0;c<zoneGrid[0].length;c++) if(zoneGrid[r][c]) allZones.add(zoneGrid[r][c]);
-                  const divBonus=allZones.size>=4?15:allZones.size>=3?8:allZones.size>=2?3:0;
-                  return allZones.size>0&&(<div style={{padding:"5px 6px",background:"rgba(162,155,254,0.08)",border:"1px solid rgba(162,155,254,0.2)",borderRadius:5,marginBottom:6}}>
-                    <div style={{fontSize:10,color:"#A29BFE",fontWeight:700,marginBottom:2}}>⚡ {lang==="ko"?"구역 시너지":"Zone Synergy"}</div>
-                    <div style={{fontSize:9,color:"#8888AA"}}>{lang==="ko"?`활성 구역 ${allZones.size}종 → 다양성 보너스 +${divBonus}%`:`${allZones.size} zone types → Diversity +${divBonus}%`}</div>
-                    <div style={{fontSize:9,color:"#666688",marginTop:2}}>{lang==="ko"?"💡 3칸 이상 연결해야 구역 효과 활성화":"💡 Connect 3+ cells to activate zone bonus"}</div>
-                    <div style={{fontSize:9,color:"#666688"}}>{lang==="ko"?"6칸+: 1.5배, 10칸+: 2배":"6+ cells: 1.5x, 10+ cells: 2x bonus"}</div>
-                  </div>);
-                })()}
-                {[...Object.entries(ZONES),["clear",{emoji:"🚫",color:"#666688",bg:"#66668818"}]].map(([k,z])=>(
-                  <div key={k} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 5px",marginBottom:2,background:zonePaint===k?z.bg:"#181830",border:`1px solid ${zonePaint===k?z.color:z.color+"33"}`,borderRadius:5,cursor:"pointer"}} onClick={()=>setZonePaint(zonePaint===k?null:k)}>
-                    <span style={{fontSize:13}}>{z.emoji}</span>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:10,fontWeight:700,color:z.color}}>{t(`z.${k}`)}</div>
-                      <div style={{fontSize:9,color:"#666688"}}>{t(`z.${k}.desc`)}</div>
-                      {k!=="clear"&&<div style={{fontSize:9,color:"#444466"}}>{lang==="ko"?"3칸↑활성·6칸↑1.5x·10칸↑2x":"3+:active·6+:1.5x·10+:2x"}</div>}
-                    </div>
-                    {zonePaint===k&&<span style={{color:z.color}}>●</span>}
-                  </div>
-                ))}
-                {/* Cross-zone bonus hints */}
-                <div style={{padding:"4px 5px",background:"rgba(0,0,0,0.2)",borderRadius:4,marginTop:4}}>
-                  <div style={{fontSize:9,color:"#444466",marginBottom:2}}>{lang==="ko"?"인접 구역 시너지":"Adjacent Zone Synergy"}</div>
-                  {[
-                    {a:"🎢",b:"🍔",desc:lang==="ko"?"스릴+푸드 → 매출↑12%":"Thrill+Food → Rev↑12%"},
-                    {a:"⭐",b:"🌳",desc:lang==="ko"?"VIP+자연 → 매력·매출↑10%":"VIP+Nature → Attr·Rev↑10%"},
-                    {a:"🌳",b:"👨‍👩‍👧",desc:lang==="ko"?"자연+가족 → 만족도↑15%":"Nature+Family → Sat↑15%"},
-                  ].map(({a,b,desc})=>(
-                    <div key={a+b} style={{fontSize:9,color:"#556688",padding:"1px 0"}}>{a}+{b}: {desc}</div>
-                  ))}
-                </div>
-              </>}
-
-              {buildMode==="map"&&<>
-                <div style={{fontSize:10,color:"#A29BFE",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>{t("map.land")} ({ownedCount})</div>
-                {currentScenarioData?.noParcels&&<div style={{background:"rgba(255,87,87,0.10)",border:"1px solid rgba(255,87,87,0.35)",borderRadius:5,padding:"5px 8px",marginBottom:6,fontSize:10,color:"#FF8888",fontWeight:700}}>🚫 {lang==="ko"?"이 시나리오: 토지 매입 불가":"This scenario: no land purchase"}</div>}
-                {PARCELS.map(p=>{const owned=parcels.includes(p.id),reqOk=!p.req||parcels.includes(p.req);return(<div key={p.id} style={{display:"flex",alignItems:"center",gap:4,padding:5,marginBottom:3,background:"#181828",border:`1px solid ${owned?"#A29BFE33":"#222238"}`,borderRadius:5,opacity:owned?0.5:1}}>
-                  <div style={{fontSize:18}}>{owned?"✅":p.icon}</div>
-                  <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700}}>{p.label?.[lang]||p.label?.ko||p.label}</div><div style={{fontSize:10,color:"#8888AA"}}>${p.cost.toLocaleString()}</div></div>
-                  {!owned&&<button style={{background:reqOk&&money>=p.cost?"#A29BFE11":"transparent",border:`1px solid ${reqOk&&money>=p.cost?"#A29BFE":"#2A2A4A"}`,color:reqOk&&money>=p.cost?"#A29BFE":"#3A3A5A",borderRadius:4,padding:"3px 5px",cursor:reqOk&&money>=p.cost?"pointer":"default",fontSize:10,fontFamily:"inherit"}} onClick={()=>buyParcel(p)}>{t("map.buy")}</button>}
-                </div>);})}
-              </>}
-            </>}
-
-            {tab==="manage"&&<>
-              {!dismissedHints.includes("tab_manage")&&<div style={{background:"rgba(0,229,160,0.06)",border:"1px solid rgba(0,229,160,0.3)",borderRadius:7,padding:"7px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",animation:"slide-in 0.2s ease"}}>
-                <span style={{fontSize:14,flexShrink:0}}>🧹</span>
-                <div style={{flex:1,fontSize:10,color:"#00E5A0",lineHeight:1.6}}>{lang==="ko"?"직원 고용으로 청결도·만족도를 올리세요. 청소부→청결도, 정비공→고장예방, 퍼포머→방문객 보너스":"Hire staff to boost cleanliness & satisfaction. Janitor→cleanliness, Mechanic→prevent breakdowns, Entertainer→visitor bonus"}</div>
-                <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,"tab_manage"];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
-              </div>}
-              <div style={{background:"#0C1128",border:"1px solid #FFD93D33",borderRadius:8,padding:8,marginBottom:8}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                  <div style={{fontSize:10,fontWeight:700,color:"#FFD93D"}}>😊 {lang==="ko"?"만족도 분석":"Satisfaction Analysis"}</div>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{fontSize:18,fontWeight:900,color:sat>=70?"#00E5A0":sat>=45?"#FFD93D":"#FF5757",lineHeight:1}}>{Math.round(sat)}%</div>
-                    <span style={{fontSize:12,color:satTrendColor,fontWeight:700}}>{satTrend}</span>
-                  </div>
-                </div>
-                <div style={{height:6,background:"#1A1A30",borderRadius:99,overflow:"hidden",marginBottom:6}}>
-                  <div style={{height:"100%",width:`${Math.min(100,sat)}%`,borderRadius:99,transition:"width 0.5s",background:sat>=70?"linear-gradient(90deg,#00E5A0,#5EF6A0)":sat>=45?"linear-gradient(90deg,#FFD93D,#FECA57)":"linear-gradient(90deg,#FF5757,#FF8888)"}}/>
-                </div>
-                {satFactors.filter(f=>f.val!==0).map(({label,val})=>(
-                  <div key={label} style={{display:"flex",alignItems:"center",gap:4,fontSize:9,padding:"2px 0",borderBottom:"1px solid #1A1A3088"}}>
-                    <span style={{color:"#8888AA",flex:1}}>{label}</span>
-                    <div style={{height:4,width:Math.max(2,Math.min(40,Math.abs(val)*4)),borderRadius:99,background:val>0?"#00E5A088":"#FF575788",flexShrink:0}}/>
-                    <span style={{color:val>0?"#00E5A0":"#FF5757",fontWeight:700,minWidth:24,textAlign:"right"}}>{val>0?"+":""}{Math.round(val)}</span>
-                  </div>
-                ))}
-                {satFactors.every(f=>f.val>=0)&&sat<50&&<div style={{fontSize:9,color:"#FF9F4388",marginTop:3,textAlign:"center"}}>⚠️ {lang==="ko"?"자연 감소보다 보너스가 부족합니다":"Bonuses not outpacing natural decay"}</div>}
-              </div>
-              <div style={{background:"#0C1128",border:"1px solid #A29BFE33",borderRadius:8,padding:8,marginBottom:8}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                  <div style={{fontSize:10,fontWeight:700,color:"#A29BFE"}}>👥 {lang==="ko"?"방문객 분석":"Visitor Profile"}</div>
-                  {revPerVis&&<div style={{fontSize:9,color:"#FECA57",fontWeight:700}}>💵 ${revPerVis}/{lang==="ko"?"명":"vis"}</div>}
-                </div>
-                <div style={{display:"flex",height:6,borderRadius:99,overflow:"hidden",marginBottom:5,gap:1}}>
-                  {segEntries.map(([k,s])=>{const w=(segs[k]||0)/totalSegW*100;return w>0?<div key={k} style={{width:`${w}%`,background:s.color,opacity:0.85}}/>:null;})}
-                </div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:"2px 8px"}}>
-                  {segEntries.map(([k,s])=>{const pct=Math.round((segs[k]||0)/totalSegW*100);return pct>0?(<div key={k} style={{display:"flex",alignItems:"center",gap:2,fontSize:9}}>
-                    <div style={{width:6,height:6,borderRadius:"50%",background:s.color,flexShrink:0}}/>
-                    <span style={{color:"#8899BB"}}>{s.emoji} {pct}%</span>
-                  </div>):null;})}
-                </div>
-                {varietyWarn&&<div style={{marginTop:5,fontSize:9,color:"#FF9F43",background:"rgba(255,159,67,0.08)",borderRadius:4,padding:"3px 6px"}}>
-                  ⚠️ {lang==="ko"?`"${dominantPersonality[0][0]}" 유형 집중 — 다른 성격의 놀이기구 추가로 방문객 다양화 권장`:`"${dominantPersonality[0][0]}" type dominant — add different personality rides to diversify visitors`}
-                </div>}
-              </div>
-              {tutorialStep===6&&!tutTabVisited&&(
-                <div style={{background:"rgba(255,217,61,0.10)",border:"2px solid rgba(255,217,61,0.5)",borderRadius:7,padding:"6px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"center",animation:"pulse 2s infinite"}}>
-                  <span style={{fontSize:16}}>👆</span>
-                  <div style={{fontSize:10,color:"#FFD93D",fontWeight:700,lineHeight:1.5}}>{lang==="ko"?"아래 ＋ 버튼을 눌러 입장료를 올려보세요!\n입장료 전략이 수익에 직결됩니다.":"Press ＋ to raise the admission fee!\nPricing strategy directly impacts profit."}</div>
-                </div>
-              )}
-              <div style={{background:"#1A1A2A",border:`${tutorialStep===6?"2px solid #FFD93D88":"1px solid #FECA5733"}`,borderRadius:6,padding:8,marginBottom:7,boxShadow:tutorialStep===6?"0 0 12px rgba(255,217,61,0.25)":"none",transition:"all 0.3s"}}>
-                <div style={{fontSize:10,color:"#FECA57",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>🎟️ {t("mgr.admission")} {fee>maxFee&&<span style={{color:"#FF4757"}}>⚠️ ${maxFee} {t("mgr.limit")}</span>}</div>
-                <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
-                  <button style={{...pm,width:26,height:26,fontSize:13,borderColor:"#FECA5744",color:"#FECA57"}} onClick={()=>setFee(f=>Math.max(0,f-5))}>−</button>
-                  <div style={{flex:1,textAlign:"center"}}><div style={{fontSize:22,fontWeight:900,color:fee>maxFee?"#FF4757":"#FECA57",lineHeight:1}}>${fee}</div></div>
-                  <button style={{...pm,width:26,height:26,fontSize:13,borderColor:"#FECA5744",color:"#FECA57"}} onClick={()=>setFee(f=>Math.min(gameMode==="sandbox"?999:70,f+5))}>+</button>
-                </div>
-              </div>
-              <div style={{fontSize:10,color:"#FECA57",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>{t("mgr.staff")}</div>
-              {Object.entries(STAFF).map(([k,s])=>{
-                const lv=staffLevels[k];
-                const nextUpg=lv<3?STAFF_UPGRADES[k][lv]:null;
-                const curUpg=STAFF_UPGRADES[k][lv-1];
-                return(<div key={k} style={{marginBottom:4,background:"#181828",border:"1px solid #222238",borderRadius:5,overflow:"hidden"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:5,padding:5}}>
-                    <div style={{fontSize:17}}>{s.emoji}</div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:10,fontWeight:700}}>{t(`st.${k}`)}</div>
-                      <div style={{fontSize:10,color:"#FECA57"}}>${s.hire}·${s.daily}/d</div>
-                      <div style={{fontSize:10,color:"#A29BFE"}}>Lv.{lv}{lv>1&&curUpg.desc?` ${curUpg.desc[lang]||curUpg.desc.ko}`:""}</div>
-                    </div>
-                    <div style={{display:"flex",alignItems:"center",gap:3}}>
-                      <button style={pm} onClick={()=>fire(k)}>−</button>
-                      <span style={{minWidth:12,textAlign:"center",fontSize:10,fontWeight:700,color:"#FECA57"}}>{hired[k]}</span>
-                      <button style={pm} onClick={()=>hire(k)}>+</button>
-                    </div>
-                  </div>
-                  {/* Skill level dots */}
-                  <div style={{display:"flex",gap:2,padding:"0 5px 3px",alignItems:"center"}}>
-                    {[1,2,3].map(i=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:i<=lv?"#A29BFE":"#2A2A4A",boxShadow:i===lv?"0 0 4px #A29BFE":"none"}}/>)}
-                    <span style={{fontSize:10,color:"#555577",marginLeft:2}}>Lv{lv}/3</span>
-                  </div>
-                  {nextUpg&&<button style={{display:"block",width:"100%",background:money>=nextUpg.upgCost?"#A29BFE11":"transparent",border:`1px solid ${money>=nextUpg.upgCost?"#A29BFE44":"#222238"}`,color:money>=nextUpg.upgCost?"#A29BFE":"#3A3A5A",borderRadius:0,padding:"3px 5px",cursor:money>=nextUpg.upgCost?"pointer":"default",fontSize:10,fontFamily:"inherit",textAlign:"left"}} onClick={()=>upgradeStaff(k)}>
-                    ⬆️ Lv.{lv+1} {nextUpg.desc?`${nextUpg.desc[lang]||nextUpg.desc.ko} `:""} (${nextUpg.upgCost.toLocaleString()})
-                  </button>}
-                </div>);
-              })}
-              {(()=>{const totalMaint=Math.round(stats.maintenance*diffSettings.maintenanceMult);const totalExpenses=totalMaint+wages;return(<div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:6,padding:"3px 5px",background:"rgba(255,87,87,0.06)",border:"1px solid rgba(255,87,87,0.15)",borderRadius:4}}>
-                <span style={{color:"#8888AA"}}>{lang==="ko"?"💸 일일 지출 합계":"💸 Total Daily Costs"}</span>
-                <span style={{color:"#FF8888",fontWeight:700}}>-${totalExpenses.toLocaleString()}/d <span style={{color:"#555577",fontWeight:400}}>({lang==="ko"?"유지비":"Maint."} ${totalMaint} + {lang==="ko"?"인건비":"Wages"} ${wages})</span></span>
-              </div>);})()}
-              <div style={{fontSize:10,color:"#FECA57",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>{t("mgr.loan")}</div>
-              {LOAN_OPTS.map((opt,i)=>{const daily=Math.ceil(opt.amount*(1+opt.rate)/opt.days);const totalInterest=Math.ceil(opt.amount*opt.rate);return(<div key={i} style={{display:"flex",alignItems:"center",gap:4,padding:4,marginBottom:2,background:"#181828",border:"1px solid #222238",borderRadius:5}}>
-                <div style={{fontSize:14}}>{opt.icon}</div>
-                <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700}}>{t(`loan.${opt.id}`)}</div><div style={{fontSize:10,color:"#FF8888"}}>${daily}/d · {lang==="ko"?"총 이자":"interest"} +${totalInterest.toLocaleString()}</div></div>
-                <button style={{background:"#FECA5711",border:"1px solid #FECA5744",color:"#FECA57",borderRadius:3,padding:"2px 5px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}} onClick={()=>takeLoan(opt)}>{t("mgr.take")}</button>
-              </div>);})}
-              {loans.map(l=>{
-                const totalAmount=Math.round(l.amount*(1+l.rate));
-                const paidPct=Math.max(0,Math.min(100,((totalAmount-l.remaining)/totalAmount)*100));
-                const dailyInt=Math.round(l.amount*l.rate/l.days);
-                return(<div key={l.id} style={{padding:5,marginBottom:2,background:"#181828",border:"1px solid #FF6B6B22",borderRadius:4}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:1}}>
-                    <span style={{fontSize:10,color:"#FF8888",fontWeight:700}}>{lang==="ko"?"잔액":"Balance"} ${l.remaining.toLocaleString()}</span>
-                    <span style={{fontSize:10,color:"#8888AA"}}>${l.dailyPayment}/d</span>
-                  </div>
-                  <div style={{fontSize:9,color:"#556066",marginBottom:3}}>{lang==="ko"?"원금":"Principal"} ${l.amount.toLocaleString()} + {lang==="ko"?"이자":"Int"} ${Math.round(l.amount*l.rate).toLocaleString()} · {lang==="ko"?"이자/일":"Int/d"} ${dailyInt}</div>
-                  <div style={{height:3,background:"#1A1A2A",borderRadius:99,overflow:"hidden"}}>
-                    <div style={{height:"100%",borderRadius:99,background:"linear-gradient(90deg,#FF6B6B,#FF9F43)",width:`${paidPct}%`,transition:"width 0.5s"}}/>
-                  </div>
-                </div>);
-              })}
-            </>}
-
-            {tab==="finance"&&<>
-              {!dismissedHints.includes("tab_finance")&&<div style={{background:"rgba(255,217,61,0.06)",border:"1px solid rgba(255,217,61,0.3)",borderRadius:7,padding:"7px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",animation:"slide-in 0.2s ease"}}>
-                <span style={{fontSize:14,flexShrink:0}}>💰</span>
-                <div style={{flex:1,fontSize:10,color:"#FFD93D",lineHeight:1.6}}>{lang==="ko"?"일 순이익 = 수익(입장료+탑승료+상업) - 유지비 - 인건비 - 대출이자. 입장료 전략과 요금 탭을 조정해보세요":"Net/day = Revenue - Maintenance - Wages - Loan interest. Adjust pricing strategy & fee tabs to maximize profit"}</div>
-                <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,"tab_finance"];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
-              </div>}
-              {/* 순이익 히어로 블록 — Enhanced */}
-              {(()=>{
-                const last3net=dailyHistory.slice(-3);
-                const trendDir=last3net.length>=2?(last3net[last3net.length-1].net>last3net[0].net?"up":last3net[last3net.length-1].net<last3net[0].net?"down":"flat"):"flat";
-                const trendArrow=trendDir==="up"?"↑":trendDir==="down"?"↓":"→";
-                const trendCol=trendDir==="up"?"#00E5A0":trendDir==="down"?"#FF5757":"#FFD93D";
-                return(
-                <div style={{background:estNet>=0?"linear-gradient(135deg,rgba(0,229,160,0.14),rgba(0,229,160,0.04))":"linear-gradient(135deg,rgba(255,87,87,0.14),rgba(255,87,87,0.04))",border:`2px solid ${estNet>=0?"#00E5A066":"#FF575766"}`,borderRadius:12,padding:"14px 16px",marginBottom:8,textAlign:"center",boxShadow:`0 4px 20px ${estNet>=0?"rgba(0,229,160,0.08)":"rgba(255,87,87,0.08)"}`}}>
-                  <div style={{fontSize:9,color:"#6B7CA1",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>{lang==="ko"?"오늘":"Today"} · {lang==="ko"?"일 순이익 (추정)":"Est. Daily Net Profit"}</div>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                    <div style={{fontSize:32,fontWeight:900,color:estNet>=0?"#00E5A0":"#FF5757",fontFamily:"'Barlow Condensed',sans-serif",lineHeight:1,letterSpacing:-1}}>
-                      {estNet>=0?"+":""}{estNet.toLocaleString()}
-                    </div>
-                    {last3net.length>=2&&<span style={{fontSize:24,fontWeight:900,color:trendCol,lineHeight:1,fontFamily:"'Barlow Condensed',sans-serif"}}>{trendArrow}</span>}
-                  </div>
-                  <div style={{display:"flex",justifyContent:"center",gap:12,marginTop:6}}>
-                    <span style={{fontSize:9,color:"#556688"}}>{lang==="ko"?"누적 수익":"Total Rev"}: <span style={{color:"#FFD93D",fontWeight:700}}>${totalRev.toLocaleString()}</span></span>
-                    {last3net.length>=2&&<span style={{fontSize:9,color:"#556688"}}>{lang==="ko"?"3일 추세":"3d trend"}: <span style={{color:trendCol,fontWeight:700}}>{trendArrow}</span></span>}
-                  </div>
-                </div>
-                );
-              })()}
-              {/* 수익 상세 아코디언 */}
-              <div style={{background:"#0A1220",border:"1px solid rgba(255,217,61,0.15)",borderRadius:8,marginBottom:6,overflow:"hidden"}}>
-                <div onClick={()=>setFinRevOpen(o=>!o)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",cursor:"pointer",userSelect:"none"}}>
-                  <span style={{fontSize:10,fontWeight:700,color:"#FFD93D",letterSpacing:1}}>📥 {lang==="ko"?"수익 상세":"Revenue Detail"}</span>
-                  <span style={{fontSize:10,color:"#FFD93D44"}}>{finRevOpen?"▲":"▼"}</span>
-                </div>
-                {finRevOpen&&<div style={{padding:"0 10px 8px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
-                  {[
-                    {label:lang==="ko"?"💰 입장료":"💰 Admission", val:Math.round(revBreak.adm), col:"#FFD93D"},
-                    {label:lang==="ko"?"🎢 놀이기구":"🎢 Rides",   val:Math.round(revBreak.ride),col:"#FF6B9D"},
-                    {label:lang==="ko"?"🍔 상업":"🍔 Shops",       val:Math.round(revBreak.shop),col:"#48DBFB"},
-                    {label:lang==="ko"?"🎫 시즌패스":"🎫 Pass",    val:Math.round(revBreak.pass),col:"#5EF6A0"},
-                  ].map(({label,val,col})=>(
-                    <div key={label} style={{background:"rgba(255,255,255,0.03)",border:`1px solid ${col}22`,borderRadius:7,padding:"5px 8px"}}>
-                      <div style={{fontSize:9,color:"#7788BB"}}>{label}</div>
-                      <div style={{fontSize:13,fontWeight:900,color:col,fontFamily:"'Barlow Condensed',sans-serif"}}>+{val.toLocaleString()}</div>
-                    </div>
-                  ))}
-                </div>}
-              </div>
-              {/* 지출 상세 아코디언 */}
-              <div style={{background:"#0A1220",border:"1px solid rgba(255,87,87,0.15)",borderRadius:8,marginBottom:8,overflow:"hidden"}}>
-                <div onClick={()=>setFinExpOpen(o=>!o)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",cursor:"pointer",userSelect:"none"}}>
-                  <span style={{fontSize:10,fontWeight:700,color:"#FF5757",letterSpacing:1}}>📤 {lang==="ko"?"지출 상세":"Expense Detail"}</span>
-                  <span style={{fontSize:10,color:"#FF575744"}}>{finExpOpen?"▲":"▼"}</span>
-                </div>
-                {finExpOpen&&<div style={{padding:"0 10px 8px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
-                  {[
-                    {label:lang==="ko"?"🔧 유지비":"🔧 Maintenance", val:Math.round(stats.maintenance*diffSettings.maintenanceMult), col:"#FF5757"},
-                    {label:lang==="ko"?"👔 인건비":"👔 Wages",        val:wages, col:"#FF9F43"},
-                    ...(loans.length>0?[{label:lang==="ko"?"💳 대출":"💳 Loans", val:loans.reduce((t,l)=>t+l.dailyPayment,0), col:"#FF6B9D"}]:[]),
-                  ].map(({label,val,col})=>(
-                    <div key={label} style={{background:"rgba(255,255,255,0.03)",border:`1px solid ${col}22`,borderRadius:7,padding:"5px 8px"}}>
-                      <div style={{fontSize:9,color:"#7788BB"}}>{label}</div>
-                      <div style={{fontSize:13,fontWeight:900,color:col,fontFamily:"'Barlow Condensed',sans-serif"}}>-{val.toLocaleString()}</div>
-                    </div>
-                  ))}
-                </div>}
-              </div>
-              {visitorFactors&&(
-                <div style={{background:"#0A1220",border:"1px solid rgba(77,159,255,0.15)",borderRadius:8,padding:8,marginBottom:8}}>
-                  <div style={{fontSize:10,fontWeight:700,color:"#4D9FFF",letterSpacing:1,marginBottom:6}}>
-                    📈 {lang==="ko"?"방문객 분석":"Visitor Analysis"}
-                  </div>
-                  <div style={{display:"flex",flexDirection:"column",gap:3}}>
-                    {[
-                      {label:lang==="ko"?"놀이기구":"Attraction", pct:Math.min(100,visitorFactors.attraction*2), col:"#FFD93D"},
-                      {label:lang==="ko"?"날씨":"Weather", pct:Math.round(visitorFactors.weatherMult*100), col:visitorFactors.weatherMult>=1?"#00E5A0":"#FF5757"},
-                      {label:lang==="ko"?"계절":"Season", pct:Math.round(visitorFactors.seasonMult*100), col:"#9B7FFF"},
-                      {label:lang==="ko"?"만족도":"Happiness", pct:Math.round(visitorFactors.satMult*100), col:sat>70?"#00E5A0":sat>40?"#FFD93D":"#FF5757"},
-                      {label:lang==="ko"?"요금 효율":"Fee Eff.", pct:Math.round(visitorFactors.feeMult*100), col:visitorFactors.feeMult>=1?"#00E5A0":"#FF9F43"},
-                    ].map(({label,pct,col})=>(
-                      <div key={label}>
-                        <div style={{display:"flex",justifyContent:"space-between",fontSize:9,marginBottom:1}}>
-                          <span style={{color:"#9BA8CC"}}>{label}</span>
-                          <span style={{color:col,fontWeight:700}}>{pct}%</span>
-                        </div>
-                        <div style={{height:3,background:"#0D1530",borderRadius:99,overflow:"hidden"}}>
-                          <div style={{height:"100%",width:`${Math.min(pct,200)/2}%`,background:col,borderRadius:99,transition:"width 0.5s"}}/>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{marginTop:6,fontSize:10,color:"#4D9FFF",fontWeight:700,textAlign:"right"}}>
-                    {lang==="ko"?"예상":"Est."} ~{visitorFactors.estimated}{lang==="ko"?"명/틱":"/tick"}
-                  </div>
-                </div>
-              )}
-              <div style={{background:"#1A1A2A",border:"1px solid #A29BFE33",borderRadius:7,padding:8,marginBottom:8}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <div><div style={{fontSize:10,color:"#A29BFE",letterSpacing:2,textTransform:"uppercase"}}>{t("fin.rating")}</div><div style={{fontSize:10,color:"#555577",marginTop:1}}>{t("fin.weakest")}</div></div>
-                  <div style={{textAlign:"right"}}><div style={{fontSize:14}}>{starStr}</div><div style={{fontSize:12,fontWeight:900,color:"#A29BFE"}}>{parkRating.final}pt</div></div>
-                </div>
-                {[{key:"attraction",label:t("met.attraction"),icon:"🎡",color:"#FF6B9D"},{key:"scenery",label:t("met.scenery"),icon:"🌳",color:"#1DD1A1"},{key:"satisfaction",label:t("met.satisfaction"),icon:"😊",color:"#5EF6A0"},{key:"operations",label:t("met.operations"),icon:"⚙️",color:"#48DBFB"}].map(m=>{
-                  const score=Math.round(parkRating.scores[m.key]);
-                  const isMin=score===Math.min(...Object.values(parkRating.scores).map(Math.round));
-                  return(<div key={m.key} style={{marginBottom:5}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:1}}>
-                      <div style={{display:"flex",gap:3,alignItems:"center"}}>
-                        <span style={{fontSize:10}}>{m.icon}</span>
-                        <span style={{fontSize:10,color:m.color}}>{m.label}</span>
-                        {isMin&&<span style={{fontSize:10,color:"#FF4757",background:"#FF475718",borderRadius:2,padding:"0 2px"}}>{t("fin.lowest")}</span>}
-                      </div>
-                      <span style={{fontSize:10,fontWeight:700,color:m.color}}>{score}</span>
-                    </div>
-                    <div style={{background:"#0D0D1A",borderRadius:99,overflow:"hidden",height:5}}><div style={{height:"100%",borderRadius:99,background:m.color,width:`${score}%`,transition:"width 0.5s"}}/></div>
-                    {score<10&&m.key==="scenery"&&<div style={{fontSize:10,color:"#1DD1A155",marginTop:2}}>💡 {lang==="ko"?"🌸 장식·분수·정원을 배치해보세요":"🌸 Place decorations, fountains or gardens"}</div>}
-                    {score<10&&m.key==="attraction"&&<div style={{fontSize:10,color:"#FF6B9D55",marginTop:2}}>💡 {lang==="ko"?"🎡 놀이기구를 추가하세요":"🎡 Add more attractions"}</div>}
-                    {score<15&&m.key==="satisfaction"&&<div style={{fontSize:10,color:"#5EF6A055",marginTop:2}}>💡 {lang==="ko"?"🚻 화장실·청소부를 배치하세요":"🚻 Add restrooms & janitors"}</div>}
-                  </div>);
-                })}
-                <div style={{marginTop:5,fontSize:10,color:"#555577",textAlign:"center"}}>💡 {parkRating.stars}★ → {t("mgr.admission")} ${maxFee}</div>
-              </div>
-
-              <div style={{background:"#1A1A2A",border:"1px solid #FF9FF333",borderRadius:6,padding:7,marginBottom:7}}>
-                <div style={{fontSize:10,color:"#FF9FF3",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>💡 {t("fin.pricing")}</div>
-                {[["admission",t("pm.admission"),"🎟️"],["per_ride",t("pm.per_ride"),"🎡"],["hybrid",t("pm.hybrid"),"💎"]].map(([mode,name,ic])=>(
-                  <div key={mode} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 5px",marginBottom:2,background:pricingMode===mode?"#FF9FF318":"#181830",border:`1px solid ${pricingMode===mode?"#FF9FF3":"#222238"}`,borderRadius:5,cursor:"pointer"}} onClick={()=>setPricingMode(mode)}>
-                    <span style={{fontSize:12}}>{ic}</span>
-                    <span style={{fontSize:10,fontWeight:pricingMode===mode?700:400,color:pricingMode===mode?"#FF9FF3":"#8888AA"}}>{name}</span>
-                    {pricingMode===mode&&<span style={{marginLeft:"auto",color:"#FF9FF3",fontSize:10}}>●</span>}
-                  </div>
-                ))}
-              </div>
-
-              {pricingMode!=="admission"&&Object.entries(ridePrices).filter(([k])=>cc[k]>0).length>0&&<>
-                <div style={{fontSize:10,color:"#FECA57",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>{t("fin.ridePrices")}</div>
-                {Object.entries(ridePrices).filter(([k])=>cc[k]>0).map(([k,price])=>{const bd=B[k];if(!bd) return null;return(<div key={k} style={{display:"flex",alignItems:"center",gap:4,padding:"3px 4px",marginBottom:2,background:"#181828",border:"1px solid #2A2A4A",borderRadius:4}}>
-                  <span style={{fontSize:12}}>{bd.emoji}</span>
-                  <div style={{flex:1,fontSize:10,fontWeight:700}}>{t(`b.${k}`)}</div>
-                  <button style={pm} onClick={()=>setRidePrices(p=>({...p,[k]:Math.max(0,price-1)}))}>−</button>
-                  <span style={{fontSize:10,fontWeight:700,color:"#FF9FF3",minWidth:22,textAlign:"center"}}>${price}</span>
-                  <button style={pm} onClick={()=>setRidePrices(p=>({...p,[k]:Math.min(20,price+1)}))}>+</button>
-                </div>);})}
-              </>}
-
-              <div style={{height:1,background:"#2A2A4A",margin:"6px 0"}}/>
-              {revPieData.length>0&&<div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
-                <PieChart width={80} height={80}><Pie data={revPieData} cx={40} cy={40} innerRadius={18} outerRadius={38} dataKey="value" strokeWidth={0}>{revPieData.map((d,i)=><Cell key={i} fill={d.color}/>)}</Pie><Tooltip contentStyle={{background:"#1A1A2A",border:"1px solid #2A2A4A",fontSize:10,fontFamily:"'Courier New',monospace"}} formatter={v=>`$${Math.round(v).toLocaleString()}`}/></PieChart>
-                <div style={{flex:1}}>{revPieData.map((d,i)=><div key={i} style={{display:"flex",gap:4,marginBottom:2,alignItems:"center"}}><div style={{width:5,height:5,borderRadius:"50%",background:d.color}}/><span style={{fontSize:10,color:"#8888AA",flex:1}}>{d.name}</span><span style={{fontSize:10,fontWeight:700,color:d.color}}>${Math.round(d.value).toLocaleString()}</span></div>)}</div>
-              </div>}
-
-              {chartData.length>2&&<>
-                <div style={{fontSize:10,color:"#FECA57",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>{t("fin.revTrend", { days: chartData.length })}</div>
-                <ResponsiveContainer width="100%" height={140}>
-                  <LineChart data={chartData} margin={{top:3,right:3,bottom:0,left:-22}}>
-                    <XAxis dataKey="day" tick={{fontSize:10,fill:"#555577"}} tickLine={false} axisLine={false}/>
-                    <YAxis tick={{fontSize:10,fill:"#555577"}} tickLine={false} axisLine={false} tickFormatter={v=>v>=1000?`${Math.round(v/1000)}k`:v}/>
-                    <Tooltip contentStyle={{background:"#0D1535",border:"1px solid rgba(100,120,255,0.2)",borderRadius:8,fontSize:10}} formatter={v=>`$${Math.round(v).toLocaleString()}`} labelStyle={{color:"#888"}}/>
-                    <Line type="monotone" dataKey="revenue" stroke="#FECA57" dot={false} strokeWidth={2} />
-                    <Line type="monotone" dataKey="net" stroke="#5EF6A0" dot={false} strokeWidth={2} />
-                    <Line type="monotone" dataKey="expenses" stroke="#FF6B6B" dot={false} strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </>}
-
-              <div style={{display:"flex",justifyContent:"space-between",marginTop:5,padding:"4px 0"}}>
-                <span style={{fontSize:10,color:"#8888AA"}}>{t("fin.estProfit")}</span>
-                <span style={{fontSize:13,fontWeight:900,color:estNet>=0?"#5EF6A0":"#FF6B6B"}}>{estNet>=0?"+":""}${estNet.toLocaleString()}</span>
-              </div>
-
-              {/* Phase 2-4: Visitor Ratings */}
-              <div style={{background:"#1A1A2A",border:"1px solid #FECA5733",borderRadius:6,padding:7,marginTop:6}}>
-                <div style={{fontSize:10,color:"#FECA57",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>⭐ {lang==="ko"?"방문객 평점":"Visitor Ratings"}</div>
-                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
-                  <span style={{fontSize:10}}>{[1,2,3,4,5].map(i=>i<=Math.round(avgVisitorRating)?"★":"☆").join("")}</span>
-                  <span style={{fontSize:11,fontWeight:900,color:"#FECA57"}}>{avgVisitorRating.toFixed(1)}</span>
-                  <span style={{fontSize:10,color:"#555577"}}>/5.0</span>
-                  <span style={{fontSize:10,color:"#555577",marginLeft:"auto"}}>({visitorRatings.length})</span>
-                </div>
-                <div style={{height:4,background:"#0A0A14",borderRadius:99,overflow:"hidden"}}>
-                  <div style={{height:"100%",background:avgVisitorRating>=4?"#5EF6A0":avgVisitorRating>=3?"#FECA57":"#FF6B6B",width:`${(avgVisitorRating/5)*100}%`,borderRadius:99,transition:"width 0.5s"}}/>
-                </div>
-                <div style={{fontSize:10,marginTop:3,display:"flex",alignItems:"center",gap:4}}>
-                  {avgVisitorRating>=4.0
-                    ?<span style={{color:"#00E5A0",background:"#00E5A018",borderRadius:3,padding:"1px 5px"}}>▲ +10% {lang==="ko"?"방문객 증가":"visitor boost"}</span>
-                    :avgVisitorRating<2.5
-                    ?<span style={{color:"#FF5757",background:"#FF575718",borderRadius:3,padding:"1px 5px"}}>▼ -10% {lang==="ko"?"방문객 감소":"visitor penalty"}</span>
-                    :<span style={{color:"#7788BB",background:"rgba(255,255,255,0.04)",borderRadius:3,padding:"1px 5px"}}>{lang==="ko"?"— 보통 (3.5↑이면 보너스)":"— Neutral (3.5+ for bonus)"}</span>}
-                  <span style={{color:"#7788BB",fontSize:10}}>({visitorRatings.length}{lang==="ko"?"개 평가":"reviews"})</span>
-                </div>
-              </div>
-
-              {/* Phase 2-3: Recent Press Reviews */}
-              {pressReviews.length>0&&<div style={{background:"#1A1A2A",border:"1px solid #A29BFE33",borderRadius:6,padding:7,marginTop:6}}>
-                <div style={{fontSize:10,color:"#A29BFE",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>📰 {lang==="ko"?"최근 언론 평가":"Recent Press Reviews"}</div>
-                {pressReviews.slice(-3).reverse().map((r,i)=>(
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:4,padding:"3px 4px",marginBottom:2,background:"#14142A",borderRadius:4}}>
-                    <span style={{fontSize:11}}>{r.emoji}</span>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:10,fontWeight:700,color:r.grade==="S"?"#FECA57":r.grade==="A"?"#5EF6A0":r.grade==="B"?"#48DBFB":r.grade==="C"?"#8888AA":"#FF6B6B"}}>{r.grade}{lang==="ko"?"등급":"grade"} · Day {r.day}</div>
-                      <div style={{fontSize:10,color:"#666688"}}>{r.headline}</div>
-                    </div>
-                    <span style={{fontSize:10,color:"#8888AA"}}>{r.score}pt</span>
-                  </div>
-                ))}
-              </div>}
-
-              {/* Phase 2-6: Zone Mastery */}
-              <div style={{background:"#1A1A2A",border:"1px solid #1DD1A133",borderRadius:6,padding:7,marginTop:6}}>
-                <div style={{fontSize:10,color:"#1DD1A1",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>🎪 Zone Mastery</div>
-                {Object.values(zoneMastery).every(zm=>zm.zoneTiles===0)&&(
-                  <div style={{textAlign:"center",padding:"6px 0",color:"#7788BB",fontSize:10}}>
-                    <div style={{fontSize:12,marginBottom:3}}>🎨</div>
-                    {lang==="ko"?"건설 탭 → 구역 탭에서 구역을 지정하면 보너스 발동!":"Set zones in Build → Zone tab for bonuses!"}
-                  </div>
-                )}
-                {Object.entries(zoneMastery).map(([ztype,zm])=>{
-                  const z=ZONES[ztype];
-                  if(zm.zoneTiles===0) return null; // 구역 없으면 숨김
-                  return(<div key={ztype} style={{display:"flex",alignItems:"center",gap:4,marginBottom:3}}>
-                    <span style={{fontSize:10}}>{z.emoji}</span>
-                    <div style={{flex:1}}>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:1}}>
-                        <span style={{fontSize:10,color:zm.mastered?"#1DD1A1":z.color}}>{t(`z.${ztype}`)}</span>
-                        <span style={{fontSize:10,color:zm.mastered?"#1DD1A1":"#555577"}}>{zm.mastered?`✅ +${Math.round(zm.bonus*100)}%`:`${zm.matchBlds}/${zm.minBld}`}</span>
-                      </div>
-                      <div style={{height:3,background:"#0A0A14",borderRadius:99,overflow:"hidden"}}>
-                        <div style={{height:"100%",background:zm.mastered?"#1DD1A1":z.color,width:`${Math.min(1,zm.matchBlds/zm.minBld)*100}%`,borderRadius:99,transition:"width 0.5s"}}/>
-                      </div>
-                    </div>
-                  </div>);
-                })}
-              </div>
-
-              {/* ── 시너지 조합 패널 ── */}
-              <div style={{marginTop:10}}>
-                <div style={{fontSize:10,color:"#9B7FFF",letterSpacing:2,textTransform:"uppercase",marginBottom:6,display:"flex",alignItems:"center",gap:6}}>
-                  <span>✨</span>
-                  <span>{lang==="ko"?"시너지 조합":"Synergy Combos"}</span>
-                  {activeCombos.length>0&&<span style={{background:"#9B7FFF33",border:"1px solid #9B7FFF55",borderRadius:20,padding:"1px 6px",fontSize:9,color:"#9B7FFF",marginLeft:"auto"}}>{activeCombos.length} {lang==="ko"?"활성":"active"}</span>}
-                </div>
-                {COMBOS.map(combo=>{
-                  const isActive=activeCombos.includes(combo.id);
-                  return(
-                    <div key={combo.id} style={{display:"flex",alignItems:"flex-start",gap:6,padding:"5px 7px",marginBottom:3,
-                      background:isActive?`${combo.color}12`:"rgba(255,255,255,0.02)",
-                      border:`1px solid ${isActive?combo.color+"55":"rgba(255,255,255,0.06)"}`,
-                      borderRadius:6,transition:"all 0.2s",opacity:isActive?1:0.45}}>
-                      <div style={{fontSize:16,lineHeight:1,marginTop:1}}>{combo.emoji}</div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:4}}>
-                          <span style={{fontSize:11,fontWeight:700,color:isActive?combo.color:"#8899BB"}}>{combo.name[lang]||combo.name.ko}</span>
-                          {combo.tier===3&&<span style={{fontSize:8,background:combo.color+"33",color:combo.color,borderRadius:3,padding:"1px 4px",flexShrink:0}}>{lang==="ko"?"TRIPLE":"TRIPLE"}</span>}
-                          {isActive&&<span style={{fontSize:8,color:"#00E5A0",flexShrink:0}}>✅</span>}
-                        </div>
-                        <div style={{fontSize:10,color:isActive?"#DDE2FF":"#445566",marginTop:1}}>{combo.desc[lang]||combo.desc.ko}</div>
-                        <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:3}}>
-                          {combo.buildings.map(b=>(
-                            <span key={b} style={{fontSize:9,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:3,padding:"1px 5px",color:"#6677AA"}}>
-                              {B[b]?.emoji} {t(`b.${b}`)}
-                            </span>
-                          ))}
-                          <span style={{fontSize:9,color:"#334455",padding:"1px 0"}}>({lang==="ko"?"반경":"radius"} {combo.radius})</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>}
-
-            {tab==="marketing"&&<>
-              {!dismissedHints.includes("tab_marketing")&&<div style={{background:"rgba(255,107,157,0.06)",border:"1px solid rgba(255,107,157,0.3)",borderRadius:7,padding:"7px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",animation:"slide-in 0.2s ease"}}>
-                <span style={{fontSize:14,flexShrink:0}}>📣</span>
-                <div style={{flex:1,fontSize:10,color:"#FF6B9D",lineHeight:1.6}}>{lang==="ko"?"캠페인으로 특정 방문객 세그먼트를 공략하고 방문객 수를 늘리세요. TV→일반, SNS→커플, 이벤트→가족":"Run campaigns to target visitor segments. TV→General, SNS→Couples, Event→Families"}</div>
-                <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,"tab_marketing"];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
-              </div>}
-              {gameMode!=="sandbox"&&rivals.length===0&&<div style={{background:"#FF475708",border:"1px solid #FF475722",borderRadius:6,padding:"6px 8px",marginBottom:6}}>
-                <div style={{fontSize:10,color:"#FF4757",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>🏟️ {lang==="ko"?"경쟁 공원":"Rival Parks"}</div>
-                <div style={{fontSize:10,color:"#7788BB",marginBottom:4}}>{lang==="ko"?`Day 20에 첫 경쟁자 등장 예정`:`First rival appears at Day 20`}</div>
-                <div style={{height:3,background:"#0D0F1E",borderRadius:99,overflow:"hidden"}}>
-                  <div style={{height:"100%",borderRadius:99,background:"#FF4757",width:`${Math.min(100,(day/20)*100)}%`,transition:"width 0.5s"}}/>
-                </div>
-                <div style={{fontSize:10,color:"#FF475788",marginTop:3,textAlign:"right"}}>Day {day} / 20</div>
-              </div>}
-              {rivals.length>0&&<div style={{background:"#FF475711",border:"1px solid #FF475733",borderRadius:6,padding:7,marginBottom:6}}>
-                <div style={{fontSize:10,color:"#FF4757",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>🏟️ {lang==="ko"?"경쟁 공원":"Rival Parks"}</div>
-                {rivals.map(r=>{
-                  const myPres=parkRating.final;
-                  const total=myPres+r.prestige;
-                  const myPct=total>0?Math.round(myPres/total*100):50;
-                  return(<div key={r.id} style={{marginBottom:5,padding:"4px 5px",background:"#1A1A2A",borderRadius:4}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-                      <span style={{fontSize:10,fontWeight:700}}>{r.emoji} {r.name[lang]||r.name.ko}</span>
-                      <span style={{fontSize:10,color:"#FF6B6B"}}>Prestige: {Math.round(r.prestige)}</span>
-                    </div>
-                    <div style={{height:4,background:"#0A0A14",borderRadius:99,overflow:"hidden",display:"flex"}}>
-                      <div style={{height:"100%",background:"#5EF6A0",width:`${myPct}%`,borderRadius:"99px 0 0 99px",transition:"width 0.5s"}}/>
-                      <div style={{height:"100%",background:"#FF4757",flex:1,borderRadius:"0 99px 99px 0"}}/>
-                    </div>
-                    <div style={{display:"flex",justifyContent:"space-between",marginTop:1}}>
-                      <span style={{fontSize:10,color:"#5EF6A0"}}>{lang==="ko"?"내 공원":"My Park"}: {myPres}pt</span>
-                      <span style={{fontSize:10,color:"#FF6B6B"}}>{r.name[lang]||r.name.ko}: {Math.round(r.prestige)}pt</span>
-                    </div>
-                  </div>);
-                })}
-              </div>}
-              {campaigns.length>0&&<div style={{marginBottom:5}}>{campaigns.map(c=><div key={c.id} style={{display:"flex",alignItems:"center",gap:4,padding:"3px 5px",marginBottom:2,background:"#FF9FF318",border:"1px solid #FF9FF333",borderRadius:4}}>
-                <span style={{fontSize:11}}>{c.emoji}</span>
-                <div style={{flex:1}}><div style={{fontSize:10,color:"#FF9FF3"}}>{t(`camp.${c.key}`)}</div><div style={{height:3,background:"#1A1A2A",borderRadius:99,marginTop:2,overflow:"hidden"}}><div style={{height:"100%",borderRadius:99,background:"#FF9FF3",width:`${(c.remaining/c.days)*100}%`}}/></div></div>
-                <div style={{fontSize:10,color:"#FF9FF3"}}>{c.remaining}d</div>
-              </div>)}</div>}
-              {currentScenarioData?.allowedCampaigns&&(
-                <div style={{background:"rgba(255,87,87,0.06)",border:"1px solid rgba(255,87,87,0.2)",borderRadius:5,padding:"4px 7px",marginBottom:5,fontSize:9,color:"#FF8888"}}>
-                  🚫 {lang==="ko"?`캠페인 제한: ${currentScenarioData.allowedCampaigns.join(', ')} 만 허용`:`Restricted: ${currentScenarioData.allowedCampaigns.join(', ')} only`}
-                </div>
-              )}
-              {tutorialStep===7&&campaigns.length===0&&(
-                <div style={{background:"rgba(255,107,157,0.10)",border:"2px solid rgba(255,107,157,0.5)",borderRadius:7,padding:"6px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"center",animation:"pulse 2s infinite"}}>
-                  <span style={{fontSize:16}}>👆</span>
-                  <div style={{fontSize:10,color:"#FF6B9D",fontWeight:700,lineHeight:1.5}}>{lang==="ko"?"아래 '실행' 버튼을 눌러 첫 캠페인을 시작해보세요!\n광고 효과로 방문객이 늘어납니다.":"Click '실행' below to launch your first campaign!\nAd campaigns bring in more visitors."}</div>
-                </div>
-              )}
-              {Object.entries(CAMPAIGNS_DATA).map(([key,camp],idx)=>{
-                const scnAllowed=currentScenarioData?.allowedCampaigns;
-                const banned=scnAllowed&&!scnAllowed.includes(key);
-                const ok=money>=camp.cost&&!banned;
-                const isTutCamp=tutorialStep===7&&campaigns.length===0&&idx===0&&ok;
-                return(<div key={key} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 5px",marginBottom:2,background:"#181828",border:`${isTutCamp?"2px solid rgba(255,107,157,0.6)":"1px solid #222238"}`,borderRadius:5,opacity:banned?0.3:ok?1:0.5,boxShadow:isTutCamp?"0 0 10px rgba(255,107,157,0.3)":"none",transition:"all 0.3s"}}>
-                  <span style={{fontSize:14}}>{camp.emoji}</span>
-                  <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700}}>{t(`camp.${key}`)}{banned?<span style={{color:"#FF5757",fontSize:9}}> 🚫</span>:""}</div><div style={{fontSize:10,color:"#8888AA"}}>+{Math.round(camp.boost*100)}% · {camp.days}d · ${camp.cost.toLocaleString()}</div></div>
-                  <button style={{background:ok?(isTutCamp?"rgba(255,107,157,0.25)":"#FF9FF311"):"transparent",border:`1px solid ${ok?(isTutCamp?"#FF6B9D":"#FF9FF3"):"#2A2A4A"}`,color:ok?(isTutCamp?"#FF6B9D":"#FF9FF3"):"#3A3A5A",borderRadius:3,padding:"2px 5px",cursor:ok?"pointer":"default",fontSize:10,fontWeight:isTutCamp?700:400,fontFamily:"inherit",animation:isTutCamp?"pulse 1.5s infinite":"none"}} onClick={()=>ok&&launchCampaign(key)}>{t("btn.start")}</button>
-                </div>);
-              })}
-              <div style={{height:1,background:"#2A2A4A",margin:"5px 0"}}/>
-              <div style={{background:"#1A1A2A",border:`1px solid ${passOn?"#5EF6A044":"#2A2A4A"}`,borderRadius:6,padding:7}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:passOn?5:0}}>
-                  <div style={{fontSize:10,fontWeight:700}}>🎫 {t("mkt.pass")}</div>
-                  <button style={{background:passOn?"#5EF6A022":"#1A1A2A",border:`1px solid ${passOn?"#5EF6A0":"#3A3A5A"}`,color:passOn?"#5EF6A0":"#6666AA",borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}} onClick={()=>setPassOn(p=>!p)}>{passOn?"ON":"OFF"}</button>
-                </div>
-                {passOn&&<>
-                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
-                    <button style={{...pm,borderColor:"#FECA5744",color:"#FECA57"}} onClick={()=>setPassPrice(p=>Math.max(50,p-50))}>−</button>
-                    <div style={{flex:1,textAlign:"center"}}><div style={{fontSize:16,fontWeight:900,color:"#5EF6A0",lineHeight:1}}>${passPrice}</div></div>
-                    <button style={{...pm,borderColor:"#FECA5744",color:"#FECA57"}} onClick={()=>setPassPrice(p=>Math.min(500,p+50))}>+</button>
-                  </div>
-                  <div style={{display:"flex",gap:3}}>
-                    {[[t("mkt.holders"),passHolders,"#5EF6A0"],[t("mkt.income"),"$"+passIncome,"#FECA57"]].map(([l,v,c])=><div key={l} style={{flex:1,padding:"3px 5px",background:"#14142A",borderRadius:4}}><div style={{fontSize:10,color:"#666688"}}>{l}</div><div style={{fontSize:10,fontWeight:700,color:c}}>{v}</div></div>)}
-                  </div>
-                </>}
-              </div>
-            </>}
-
+            {tab==="build"&&<BuildPanel
+              lang={lang} t={t}
+              tutorialStep={tutorialStep}
+              sc={sc}
+              buildMode={buildMode} setBuildMode={setBuildMode}
+              selected={selected} setSelected={setSelected}
+              zonePaint={zonePaint} setZonePaint={setZonePaint}
+              multiSelectedCells={multiSelectedCells} setMultiSelectedCells={setMultiSelectedCells}
+              zoneFtueShown={zoneFtueShown} setZoneFtueShown={setZoneFtueShown}
+              setShowZoneFtue={setShowZoneFtue}
+              lastDemolishGrid={lastDemolishGrid}
+              undoDemolish={undoDemolish}
+              lastBuildGrid={lastBuildGrid} lastBuilt={lastBuilt}
+              undoBuild={undoBuild}
+              clickedTile={clickedTile} setClickedTile={setClickedTile}
+              grid={grid} setGrid={setGrid}
+              zoneGrid={zoneGrid}
+              zoneMastery={zoneMastery}
+              pricingMode={pricingMode}
+              ridePrices={ridePrices}
+              stats={stats}
+              day={day}
+              parkRating={parkRating}
+              fee={fee}
+              gameMode={gameMode}
+              startPerk={startPerk}
+              segData={segData}
+              clean={clean}
+              visitors={visitors}
+              soundOn={soundOn}
+              addLog={addLog}
+              setMoney={setMoney}
+              money={money}
+              buildCatFilter={buildCatFilter} setBuildCatFilter={setBuildCatFilter}
+              buildFavs={buildFavs} setBuildFavs={setBuildFavs}
+              buildSearch={buildSearch} setBuildSearch={setBuildSearch}
+              buyParcel={buyParcel}
+              hovered={hovered} setHovered={setHovered}
+              setShowBldInfo={setShowBldInfo}
+              currentScenarioData={currentScenarioData}
+              weeklyChallengeMod={weeklyChallengeMod}
+              researched={researched}
+              parcels={parcels}
+              ownedGrid={ownedGrid}
+              ownedCount={ownedCount}
+              repairBuilding={repairBuilding}
+              upgradeBuilding={upgradeBuilding}
+              demolish={demolish}
+            />}
+            {tab==="manage"&&<ManagePanel
+              dismissedHints={dismissedHints} setDismissedHints={setDismissedHints}
+              lang={lang} t={t}
+              sat={sat} satTrend={satTrend} satTrendColor={satTrendColor}
+              satFactors={satFactors}
+              segEntries={segEntries} segs={segs} totalSegW={totalSegW}
+              revPerVis={revPerVis}
+              varietyWarn={varietyWarn} dominantPersonality={dominantPersonality}
+              tutorialStep={tutorialStep} tutTabVisited={tutTabVisited}
+              fee={fee} setFee={setFee}
+              maxFee={maxFee} gameMode={gameMode}
+              hired={hired} hire={hire} fire={fire}
+              staffLevels={staffLevels}
+              stats={stats} diffSettings={diffSettings} wages={wages}
+              money={money}
+              upgradeStaff={upgradeStaff}
+              loans={loans} takeLoan={takeLoan}
+            />}
+            {tab==="finance"&&<FinancePanel
+              dismissedHints={dismissedHints} setDismissedHints={setDismissedHints}
+              lang={lang} t={t}
+              dailyHistory={dailyHistory}
+              estNet={estNet}
+              totalRev={totalRev}
+              finRevOpen={finRevOpen} setFinRevOpen={setFinRevOpen}
+              revBreak={revBreak}
+              finExpOpen={finExpOpen} setFinExpOpen={setFinExpOpen}
+              stats={stats}
+              diffSettings={diffSettings}
+              wages={wages}
+              loans={loans}
+              visitorFactors={visitorFactors}
+              sat={sat}
+              starStr={starStr}
+              parkRating={parkRating}
+              maxFee={maxFee}
+              pricingMode={pricingMode} setPricingMode={setPricingMode}
+              ridePrices={ridePrices} setRidePrices={setRidePrices}
+              cc={cc}
+              revPieData={revPieData}
+              chartData={chartData}
+              avgVisitorRating={avgVisitorRating}
+              visitorRatings={visitorRatings}
+              pressReviews={pressReviews}
+              zoneMastery={zoneMastery}
+              activeCombos={activeCombos}
+            />}
+            {tab==="marketing"&&<MarketingPanel
+              dismissedHints={dismissedHints} setDismissedHints={setDismissedHints}
+              lang={lang} t={t}
+              gameMode={gameMode}
+              rivals={rivals}
+              day={day}
+              parkRating={parkRating}
+              campaigns={campaigns}
+              currentScenarioData={currentScenarioData}
+              tutorialStep={tutorialStep}
+              money={money}
+              passOn={passOn} setPassOn={setPassOn}
+              passPrice={passPrice} setPassPrice={setPassPrice}
+              passHolders={passHolders} passIncome={passIncome}
+              launchCampaign={launchCampaign}
+            />}
             {tab==="research"&&<ResearchPanel
               dismissedHints={dismissedHints} setDismissedHints={setDismissedHints}
               lang={lang} t={t}
@@ -3693,426 +3014,52 @@ export default function ParkTycoon(){
               startGame={startGame} addLog={addLog}
             />}
 
-            {tab==="mission"&&<>
-              {!dismissedHints.includes("tab_mission")&&<div style={{background:"rgba(94,246,160,0.06)",border:"1px solid rgba(94,246,160,0.3)",borderRadius:7,padding:"7px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",animation:"slide-in 0.2s ease"}}>
-                <span style={{fontSize:14,flexShrink:0}}>🎯</span>
-                <div style={{flex:1,fontSize:10,color:"#5EF6A0",lineHeight:1.6}}>{lang==="ko"?"미션을 달성하면 RP와 보너스 자금을 얻어요. 달성률이 높을수록 리그 등급이 오릅니다!":"Complete missions for RP & bonus cash. Higher completion rate = higher league rank!"}</div>
-                <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,"tab_mission"];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
-              </div>}
-              {day>=30&&!dismissedHints.includes("late_systems")&&(
-                <div style={{background:"rgba(255,159,67,0.06)",border:"1px solid rgba(255,159,67,0.3)",borderRadius:7,padding:"7px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",animation:"slide-in 0.2s ease"}}>
-                  <span style={{fontSize:14,flexShrink:0}}>💡</span>
-                  <div style={{flex:1,fontSize:10,color:"#FF9F43",lineHeight:1.7}}>{lang==="ko"?"후반 시스템: VIP 이벤트(경영→VIP탭), 라이벌(마케팅탭), 건물 콤보(같은 카테고리 인접 배치), 구역 숙련도(구역 탭)를 활용하면 수익이 크게 오릅니다!":"Late-game: VIP Events (Manage→VIP), Rival Parks (Marketing), Building Combos (place same category adjacent), Zone Mastery (Zone tab) — these multiply income significantly!"}</div>
-                  <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,"late_systems"];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
-                </div>
-              )}
-              {day<=30&&(()=>{
-                const anyPaths2=grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy");
-                const rideTypes=['ferrisWheel','rollerCoaster','carousel','thrillRide','waterRide','bumperCars','dropTower','miniTrain','hauntedHouse','cinema4D','balloonRide','miniGolf','amphitheater'];
-                const rideCount=grid.flat().filter(c=>c&&!c.ref&&rideTypes.includes(c.type)).length;
-                const hasStaff=Object.values(hired).some(v=>v>0);
-                const steps=[
-                  {done:stats.hasEntrance,ko:"입구 게이트 배치",       en:"Place entrance gate"},
-                  {done:anyPaths2,         ko:"통로로 건물 연결",        en:"Connect buildings with paths"},
-                  {done:rideCount>=3,      ko:"놀이기구 3개 이상 건설",  en:"Build 3+ attractions"},
-                  {done:hasStaff,          ko:"직원 1명 이상 고용",      en:"Hire at least 1 staff"},
-                ];
-                if(steps.every(s=>s.done)) return null;
-                return(<div style={{background:"linear-gradient(135deg,rgba(0,229,160,0.06),rgba(0,229,160,0.02))",border:"1px solid rgba(0,229,160,0.2)",borderRadius:8,padding:8,marginBottom:6}}>
-                  <div style={{fontSize:9,color:"#00E5A0",letterSpacing:2,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>📋 {lang==="ko"?"시작 가이드":"START GUIDE"}</div>
-                  {steps.map((s,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-                      <span style={{fontSize:11,flexShrink:0}}>{s.done?"✅":"⬜"}</span>
-                      <span style={{fontSize:10,color:s.done?"#00E5A0":"#8899BB",textDecoration:s.done?"line-through":"none"}}>{lang==="ko"?s.ko:s.en}</span>
-                    </div>
-                  ))}
-                </div>);
-              })()}
-              {gameMode==="sandbox"&&!sandboxGoal&&(
-                <div style={{background:"rgba(77,159,255,0.06)",border:"1px solid rgba(77,159,255,0.2)",borderRadius:8,padding:8,marginBottom:6}}>
-                  <div style={{fontSize:9,color:"#4D9FFF",letterSpacing:2,textTransform:"uppercase",marginBottom:5,fontWeight:700}}>🎮 {lang==="ko"?"샌드박스 목표":"SANDBOX GOALS"}</div>
-                  {[
-                    {done:visitors>=100,  label:{ko:"방문객 100명 달성",    en:"Reach 100 visitors"}},
-                    {done:parkRating.stars>=3, label:{ko:"별점 3성 달성",   en:"Reach 3-star rating"}},
-                    {done:researched.length>=Math.floor(RESEARCH.length/2),label:{ko:"연구 절반 이상 완료",en:"Complete half the research tree"}},
-                    {done:parkRating.stars>=5&&researched.length>=RESEARCH.length,label:{ko:"5성+전체 연구 → 프레스티지!",en:"5★+all research → Prestige!"}},
-                  ].map((g,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-                      <span style={{fontSize:10,flexShrink:0}}>{g.done?"✅":"⬜"}</span>
-                      <span style={{fontSize:10,color:g.done?"#4D9FFF":"#8899BB",textDecoration:g.done?"line-through":"none"}}>{g.label[lang]||g.label.ko}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {/* 상업화 단계 패널 */}
-              <div style={{background:`linear-gradient(135deg,${currentStage.gradFrom},${currentStage.gradTo})`,border:`2px solid ${currentStage.color}55`,borderRadius:8,padding:8,marginBottom:6}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
-                  <span style={{fontSize:22,filter:`drop-shadow(0 0 6px ${currentStage.color}88)`}}>{currentStage.emoji}</span>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:10,color:currentStage.color,letterSpacing:2,textTransform:"uppercase",marginBottom:1}}>STAGE {currentStage.id}/5</div>
-                    <div style={{fontSize:10,fontWeight:900,color:currentStage.color}}>{currentStage.name[lang]||currentStage.name.ko}</div>
-                    <div style={{fontSize:10,color:"#8888AA",marginTop:1}}>{currentStage.desc[lang]||currentStage.desc.ko}</div>
-                  </div>
-                </div>
-                <div style={{fontSize:10,color:currentStage.color,background:currentStage.color+"18",borderRadius:3,padding:"2px 5px",marginBottom:5,display:"inline-block"}}>
-                  ✨ {lang==="ko"?"보너스":"Bonus"}: {currentStage.bonus[lang]||currentStage.bonus.ko}
-                </div>
-                {/* 단계 바 */}
-                <div style={{display:"flex",gap:2,marginBottom:currentStage.next?5:0}}>
-                  {STAGES.map((st,i)=>(
-                    <div key={st.id} style={{flex:1,height:4,borderRadius:99,background:st.id<=currentStage.id?st.color:"#1A1A2A",boxShadow:st.id===currentStage.id?`0 0 6px ${st.color}`:"none",transition:"all 0.3s"}}/>
-                  ))}
-                </div>
-                {currentStage.next&&(()=>{
-                  const nx=currentStage.next;
-                  const nextSt=STAGES.find(s=>s.id===currentStage.id+1);
-                  const bldPct=Math.min(1,totalBldCount/nx.bld);
-                  const starPct=Math.min(1,parkRating.stars/nx.stars);
-                  const monPct=Math.min(1,money/nx.money);
-                  return(<div style={{fontSize:10,color:"#666688"}}>
-                    <div style={{marginBottom:2}}>{lang==="ko"?"다음 단계":"Next"}: <span style={{color:nextSt?.color}}>{nextSt?.name[lang]||nextSt?.name.ko}</span></div>
-                    {[
-                      [lang==="ko"?"건물":"Bld",totalBldCount,nx.bld,bldPct,"#48DBFB"],
-                      [lang==="ko"?"별점":"Stars",parkRating.stars,nx.stars,starPct,"#FECA57"],
-                      [lang==="ko"?"자금":"$",`$${(money/1000).toFixed(0)}k`,`$${(nx.money/1000).toFixed(0)}k`,monPct,"#5EF6A0"],
-                    ].map(([lbl,cur,req,pct,col])=>(
-                      <div key={lbl} style={{display:"flex",alignItems:"center",gap:3,marginBottom:2}}>
-                        <span style={{minWidth:22,color:"#555577"}}>{lbl}</span>
-                        <div style={{flex:1,height:3,background:"#1A1A2A",borderRadius:99,overflow:"hidden"}}>
-                          <div style={{height:"100%",width:`${pct*100}%`,background:pct>=1?col:col+"99",borderRadius:99,transition:"width 0.5s"}}/>
-                        </div>
-                        <span style={{minWidth:28,textAlign:"right",color:pct>=1?"#5EF6A0":"#555577"}}>{pct>=1?"✅":`${cur}/${req}`}</span>
-                      </div>
-                    ))}
-                  </div>);
-                })()}
-                {!currentStage.next&&<div style={{fontSize:10,color:currentStage.color,fontWeight:700,textAlign:"center"}}>🏆 {lang==="ko"?"최고 단계 달성!":"Max Stage Reached!"}</div>}
-              </div>
-
-              {/* Phase 3-1: Holiday Event Panel */}
-              {(activeHoliday||holidayHistory.length>0)&&<div style={{background:"#FECA5711",border:"1px solid #FECA5733",borderRadius:7,padding:7,marginBottom:6}}>
-                <div style={{fontSize:10,color:"#FECA57",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>🎉 {lang==="ko"?"특별 이벤트":"Special Events"}</div>
-                {activeHoliday?<div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3,padding:"4px 5px",background:"#FECA5718",borderRadius:5}}>
-                  <span style={{fontSize:16}}>{activeHoliday.emoji}</span>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:10,fontWeight:700,color:"#FECA57"}}>{activeHoliday.name[lang]||activeHoliday.name.ko}</div>
-                    <div style={{fontSize:10,color:"#C7B8EA"}}>{activeHoliday.desc[lang]||activeHoliday.desc.ko}</div>
-                    <div style={{fontSize:10,color:"#FECA57"}}>👥×{activeHoliday.visMult}{activeHoliday.actionBoosted?`×${activeHoliday.actionVisMult||1.15}`:""} · 😊+{activeHoliday.satMod} · {activeHoliday.remaining}d</div>
-                    {activeHoliday.actionBoosted&&<div style={{fontSize:9,color:"#5EF6A0",fontWeight:700}}>✨ {lang==="ko"?"이벤트 부스트 활성":"Event boost active"}!</div>}
-                  </div>
-                </div>:<div style={{fontSize:10,color:"#666688",marginBottom:3}}>{lang==="ko"?"현재 이벤트 없음":"No active event"}</div>}
-                {holidayHistory.slice(-3).reverse().map((h,i)=>{const ev=HOLIDAY_EVENTS.find(e=>e.id===h.id);return ev?(<div key={i} style={{fontSize:10,color:"#555577",padding:"1px 0"}}>✓ {ev.emoji} {ev.name[lang]||ev.name.ko} (Day {h.day})</div>):null;})}
-              </div>}
-
-              {/* Phase 3-2: Active Investment Panel */}
-              {activeInvestment&&<div style={{background:"#5EF6A011",border:"1px solid #5EF6A033",borderRadius:7,padding:7,marginBottom:6}}>
-                <div style={{fontSize:10,color:"#5EF6A0",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>💼 {lang==="ko"?"활성 투자":"Active Investment"}</div>
-                {(()=>{const offer=INVESTOR_OFFERS.find(o=>o.id===activeInvestment.offerId);if(!offer) return null;
-                  const goal=activeInvestment.goal;
-                  const daysLeft=Math.max(0,activeInvestment.deadline-day);
-                  const curVal=goal.target==="vis"?visitors:goal.target==="stars"?parkRating.stars:estNet;
-                  const pct=Math.min(1,curVal/goal.value);
-                  return(<>
-                    <div style={{fontSize:10,fontWeight:700,color:offer.emoji==="💼"?"#5EF6A0":"#C7B8EA",marginBottom:2}}>{offer.emoji} {offer.name[lang]||offer.name.ko}</div>
-                    <div style={{fontSize:10,color:"#C7B8EA",marginBottom:2}}>🎯 {goal.desc[lang]||goal.desc.ko}</div>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-                      <span style={{fontSize:10,color:pct>=1?"#5EF6A0":"#FECA57"}}>{curVal}/{goal.value}</span>
-                      <span style={{fontSize:10,color:daysLeft<5?"#FF4757":"#8888AA"}}>⏱ {daysLeft}d</span>
-                    </div>
-                    <div style={{height:4,background:"#0A0A14",borderRadius:99,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${pct*100}%`,background:pct>=1?"#5EF6A0":"#FECA57",borderRadius:99,transition:"width 0.5s"}}/>
-                    </div>
-                  </>);
-                })()}
-              </div>}
-
-              {/* 재난 보험 */}
-              <div style={{background:isInsured?"rgba(0,229,160,0.06)":"rgba(255,87,87,0.04)",border:`1px solid ${isInsured?"rgba(0,229,160,0.3)":"rgba(255,87,87,0.2)"}`,borderRadius:7,padding:"7px 9px",marginBottom:6,display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:18}}>{isInsured?"🛡️":"🚨"}</span>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:10,fontWeight:700,color:isInsured?"#00E5A0":"#FF9F43"}}>{lang==="ko"?isInsured?"재난 보험 가입중":"재난 보험 미가입":isInsured?"Insurance Active":"No Insurance"}</div>
-                  <div style={{fontSize:9,color:"#5566AA"}}>{lang==="ko"?isInsured?"피해 50% 감소 · 기간 50% 단축 · $200/일":"$8,000 일시불 · 피해 50% 감소 · $200/일 유지비":isInsured?"50% damage reduction · 50% shorter · $200/day":"$8,000 upfront · 50% damage reduction · $200/day"}</div>
-                </div>
-                <button style={{background:isInsured?"rgba(255,87,87,0.12)":"rgba(0,229,160,0.12)",border:`1px solid ${isInsured?"rgba(255,87,87,0.4)":"rgba(0,229,160,0.4)"}`,color:isInsured?"#FF5757":"#00E5A0",borderRadius:5,padding:"3px 9px",cursor:(!isInsured&&money<8000)?"default":"pointer",fontSize:9,fontWeight:700,fontFamily:"inherit",opacity:(!isInsured&&money<8000)?0.4:1}} onClick={()=>{if(isInsured){setIsInsured(false);addLog(lang==="ko"?"🛡️ 재난 보험 해지":"🛡️ Insurance cancelled");}else if(money>=8000){setMoney(m=>m-8000);setIsInsured(true);addLog(lang==="ko"?"🛡️ 재난 보험 가입! 재난 피해 50% 감소":"🛡️ Insurance activated! 50% disaster damage reduction");}}}>{isInsured?(lang==="ko"?"해지":"Cancel"):(lang==="ko"?"-$8,000 가입":"-$8,000 Insure")}</button>
-              </div>
-              {activeDisaster&&<div style={{background:"#FF475711",border:"2px solid #FF475788",borderRadius:7,padding:7,marginBottom:6}}>
-                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
-                  <span style={{fontSize:22}}>{activeDisaster.emoji}</span>
-                  <div style={{flex:1}}><div style={{fontSize:10,fontWeight:900,color:"#FF4757"}}>{t(`dis.${activeDisaster.id}`)}</div><div style={{fontSize:10,color:"#FF9F43"}}>{t(`dis.${activeDisaster.id}.desc`)}</div></div>
-                  <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:900,color:"#FF4757"}}>{activeDisaster.remaining}d</div></div>
-                </div>
-                {activeDisaster.resolveCost>0&&<button style={{width:"100%",background:money>=activeDisaster.resolveCost?"#FF475722":"transparent",border:`2px solid ${money>=activeDisaster.resolveCost?"#FF4757":"#3A3A5A"}`,color:money>=activeDisaster.resolveCost?"#FF4757":"#3A3A5A",borderRadius:5,padding:"4px 0",cursor:money>=activeDisaster.resolveCost?"pointer":"default",fontSize:10,fontWeight:700,fontFamily:"inherit"}} onClick={resolveDisaster}>{t("mis.resolve")} -${activeDisaster.resolveCost.toLocaleString()}</button>}
-              </div>}
-
-              {gameMode==="campaign"&&currentScenarioData&&<>
-                <div style={{background:`${currentScenarioData.color}11`,border:`1px solid ${currentScenarioData.color}33`,borderRadius:7,padding:8,marginBottom:7}}>
-                  <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
-                    <span style={{fontSize:20}}>{currentScenarioData.emoji}</span>
-                    <div><div style={{fontSize:10,fontWeight:800,color:currentScenarioData.color}}>{t(`scn.${currentScenarioData.id}`)}</div><div style={{fontSize:10,color:"#666688"}}>⏱ {t("mis.timeLeft", { days: Math.max(0,scenarioTimeLimit-day) })}</div></div>
-                  </div>
-                  {currentScenarioData.goals.map(g=>{
-                    const checkS={vis:visitors,sat,stars:parkRating.stars,net:estNet,brokenCount:stats.brokenCount,fee,coupleRatio:segs.couple||0,childRatio:segs.child||0,pres:parkRating.stars,debt:loans.reduce((t,l)=>t+l.remaining,0)};
-                    const achieved=g.check(checkS);
-                    return(<div key={g.id} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 6px",marginBottom:2,background:achieved?"#5EF6A011":"#14142A",border:`1px solid ${achieved?"#5EF6A033":"#2A2A4A"}`,borderRadius:5}}>
-                      <span style={{fontSize:14}}>{g.medal}</span>
-                      <div style={{flex:1,fontSize:10,color:achieved?"#5EF6A0":"#8888AA"}}>{g.desc?.[lang]||g.desc?.ko||""}</div>
-                      {achieved&&<span style={{fontSize:10}}>✅</span>}
-                    </div>);
-                  })}
-                  {currentScenarioData.hiddenGoals?.map(hg=>{
-                    const secretKey=`${currentScenario}_${hg.id}`;
-                    const unlocked=discoveredSecrets.has(secretKey);
-                    return(<div key={hg.id} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 6px",marginBottom:2,background:unlocked?"rgba(162,155,254,0.08)":"rgba(255,255,255,0.02)",border:`1px solid ${unlocked?"rgba(162,155,254,0.3)":"rgba(255,255,255,0.06)"}`,borderRadius:5}}>
-                      <span style={{fontSize:14}}>🔮</span>
-                      <div style={{flex:1,fontSize:10,color:unlocked?"#A29BFE":"#4A5A7A"}}>{unlocked?(hg.desc?.[lang]||hg.desc?.ko):(hg.hint?.[lang]||hg.hint?.ko)}</div>
-                      {unlocked&&<span style={{fontSize:10}}>✅</span>}
-                    </div>);
-                  })}
-                </div>
-                {/* Phase 1-4: Scenario constraint rules panel */}
-                {currentScenarioData.constraints&&(currentScenarioData.constraints.breakChanceMemo||currentScenarioData.constraints.satRules?.length>0||currentScenarioData.constraints.admFeeCap)&&(
-                  <div style={{background:"rgba(162,155,254,0.06)",border:"1px solid rgba(162,155,254,0.2)",borderRadius:7,padding:8,marginBottom:7}}>
-                    <div style={{fontSize:9,fontWeight:700,color:"#A29BFE",letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>⚖️ {lang==="ko"?"시나리오 규칙":"Scenario Rules"}</div>
-                    {currentScenarioData.constraints.breakChanceMemo&&(
-                      <div style={{display:"flex",alignItems:"center",gap:5,padding:"3px 5px",marginBottom:3,background:"rgba(255,159,67,0.08)",border:"1px solid rgba(255,159,67,0.2)",borderRadius:4}}>
-                        <span style={{fontSize:11}}>🔧</span>
-                        <span style={{fontSize:9,color:"#FF9F43",flex:1}}>{currentScenarioData.constraints.breakChanceMemo[lang]||currentScenarioData.constraints.breakChanceMemo.ko}</span>
-                      </div>
-                    )}
-                    {currentScenarioData.constraints.admFeeCap&&(
-                      <div style={{display:"flex",alignItems:"center",gap:5,padding:"3px 5px",marginBottom:3,background:fee>currentScenarioData.constraints.admFeeCap?"rgba(255,87,87,0.10)":"rgba(94,246,160,0.06)",border:`1px solid ${fee>currentScenarioData.constraints.admFeeCap?"rgba(255,87,87,0.3)":"rgba(94,246,160,0.2)"}`,borderRadius:4}}>
-                        <span style={{fontSize:11}}>{fee>currentScenarioData.constraints.admFeeCap?"⚠️":"✅"}</span>
-                        <span style={{fontSize:9,color:fee>currentScenarioData.constraints.admFeeCap?"#FF5757":"#5EF6A0",flex:1}}>{lang==="ko"?`입장료 상한 $${currentScenarioData.constraints.admFeeCap} — 현재 $${fee}`:`Fee cap $${currentScenarioData.constraints.admFeeCap} — current $${fee}`}</span>
-                        {fee>currentScenarioData.constraints.admFeeCap&&<span style={{fontSize:9,color:"#FF5757",fontWeight:700}}>{currentScenarioData.constraints.admFeeCapPenalty}/일</span>}
-                      </div>
-                    )}
-                    {currentScenarioData.constraints.satRules?.map((rule,ri)=>{
-                      const coupleRatio=segs.couple||0;
-                      const familyRatio=segs.family||0;
-                      const hasRestroom=!!(grid.flat().some(c=>c&&!c.ref&&c.type==="restroom"));
-                      const hasWaterRide=!!(grid.flat().some(c=>c&&!c.ref&&c.type==="waterRide"));
-                      let active=false;
-                      if(rule.type==="coupleBelow") active=coupleRatio<rule.threshold;
-                      else if(rule.type==="coupleAbove") active=coupleRatio>=rule.threshold;
-                      else if(rule.type==="feeLow") active=fee<rule.threshold;
-                      else if(rule.type==="feeHigh") active=fee>=rule.threshold;
-                      else if(rule.type==="noRestroom") active=!hasRestroom;
-                      else if(rule.type==="noWaterRide") active=!hasWaterRide;
-                      else if(rule.type==="familyAbove") active=familyRatio>rule.threshold;
-                      else if(rule.type==="starBelow") active=day>=(rule.afterDay||0)&&parkRating.stars<rule.threshold;
-                      const isBad=active&&(rule.penalty!==undefined);
-                      const isGood=active&&(rule.bonus!==undefined&&!rule.penalty);
-                      const col=isBad?"#FF5757":isGood?"#00E5A0":"#666688";
-                      const bg=isBad?"rgba(255,87,87,0.08)":isGood?"rgba(0,229,160,0.06)":"rgba(255,255,255,0.02)";
-                      const border=isBad?"rgba(255,87,87,0.25)":isGood?"rgba(0,229,160,0.2)":"rgba(255,255,255,0.06)";
-                      return(
-                        <div key={ri} style={{display:"flex",alignItems:"center",gap:5,padding:"3px 5px",marginBottom:3,background:bg,border:`1px solid ${border}`,borderRadius:4}}>
-                          <span style={{fontSize:11}}>{isBad?"⚠️":isGood?"✅":"⬜"}</span>
-                          <span style={{fontSize:9,color:col,flex:1}}>{rule.desc[lang]||rule.desc.ko}</span>
-                          {active&&rule.penalty&&<span style={{fontSize:9,color:"#FF5757",fontWeight:700}}>{rule.penalty}/일</span>}
-                          {active&&rule.bonus&&<span style={{fontSize:9,color:"#00E5A0",fontWeight:700}}>+{rule.bonus}/일</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>}
-
-              {activeDailyChallenge&&(
-                <div style={{background:"linear-gradient(135deg,#0A1820,#081420)",border:`2px solid ${activeDailyChallenge.claimed?"#00E5A044":"#FFD93D44"}`,borderRadius:8,padding:8,marginBottom:8}}>
-                  <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:4}}>
-                    <span style={{fontSize:16}}>🎯</span>
-                    <div style={{fontSize:11,fontWeight:900,color:activeDailyChallenge.claimed?"#00E5A0":"#FFD93D"}}>
-                      {lang==="ko"?"일일 챌린지":"Daily Challenge"}
-                    </div>
-                    {activeDailyChallenge.claimed&&<span style={{fontSize:10,color:"#00E5A0",marginLeft:"auto"}}>✅ {lang==="ko"?"완료!":"Done!"}</span>}
-                  </div>
-                  <div style={{fontSize:10,color:"#C7B8EA",marginBottom:5}}>
-                    {activeDailyChallenge.emoji} {activeDailyChallenge.name[lang]||activeDailyChallenge.name.ko}
-                  </div>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:10}}>
-                    <span style={{color:"#8888AA"}}>{lang==="ko"?"보상":"Reward"}</span>
-                    <span style={{color:"#FFD93D",fontWeight:700}}>
-                      +${activeDailyChallenge.reward.$.toLocaleString()} +{activeDailyChallenge.reward.rp}RP
-                    </span>
-                  </div>
-                  {!activeDailyChallenge.claimed&&(()=>{
-                    const dcMs={vis:visitors,sat,net:estNet,clean,pres:parkRating.stars};
-                    const cur=dcMs[activeDailyChallenge.goal.type]||0;
-                    const tgt=activeDailyChallenge.goal.value;
-                    const pct=Math.min(100,Math.round(cur/tgt*100));
-                    return(
-                      <div style={{marginTop:5}}>
-                        <div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:2}}>
-                          <span style={{color:"#8888AA"}}>{lang==="ko"?"진행도":"Progress"}</span>
-                          <span style={{color:"#FFD93D"}}>{cur}/{tgt} ({pct}%)</span>
-                        </div>
-                        <div style={{height:4,background:"#1A1A30",borderRadius:99,overflow:"hidden"}}>
-                          <div style={{height:"100%",width:`${pct}%`,background:"linear-gradient(90deg,#FFD93D,#FF9F43)",borderRadius:99,transition:"width 0.5s"}}/>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-              {/* 첫 게임 시작 체크리스트 — day 8 이전 또는 미완료 단계 있을 때만 표시 */}
-              {day<=8&&(()=>{
-                const hasEntrance=stats.hasEntrance;
-                const hasRide=grid.flat().some(c=>c&&!c.ref&&B[c.type]?.cat==="ride"&&c.type!=="entrance");
-                const hasPath=grid.flat().some(c=>c?.type==="_path"||c?.type==="_pathFancy");
-                const hasStaff=hired.janitor>0||hired.mechanic>0;
-                const isRunning=speed>0;
-                const steps=[
-                  {done:hasEntrance, ko:"입구 게이트 배치", en:"Place Entrance Gate"},
-                  {done:hasRide,     ko:"놀이기구 1개 건설", en:"Build 1 Attraction"},
-                  {done:hasPath,     ko:"통로로 연결",       en:"Connect with Paths"},
-                  {done:hasStaff,    ko:"직원 1명 고용",     en:"Hire 1 Staff Member"},
-                  {done:isRunning,   ko:"▶ 눌러서 개장",    en:"Press ▶ to Open"},
-                ];
-                const allDone=steps.every(s=>s.done);
-                if(allDone) return null;
-                return(<div style={{background:"rgba(0,229,160,0.06)",border:"1px solid rgba(0,229,160,0.2)",borderRadius:8,padding:"7px 8px",marginBottom:8}}>
-                  <div style={{fontSize:9,fontWeight:700,color:"#5EF6A0",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>🚀 {lang==="ko"?"시작 가이드":"START GUIDE"}</div>
-                  {steps.map((s,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:5,padding:"2px 0",fontSize:9,color:s.done?"#5EF6A0":"#8899BB",textDecoration:s.done?"line-through":"none"}}>
-                      <span style={{fontSize:10}}>{s.done?"✅":"⬜"}</span>
-                      <span>{lang==="ko"?s.ko:s.en}</span>
-                    </div>
-                  ))}
-                </div>);
-              })()}
-              {/* 샌드박스 목표 선택 */}
-              {gameMode==="sandbox"&&<div style={{background:"rgba(155,127,255,0.07)",border:"1px solid rgba(155,127,255,0.2)",borderRadius:8,padding:"8px 10px",marginBottom:8}}>
-                <div style={{fontSize:10,fontWeight:700,color:"#9B7FFF",letterSpacing:1,marginBottom:6}}>🎯 {lang==="ko"?"목표 선택":"Choose Goal"}</div>
-                {[
-                  {type:"vis",  target:200, label:lang==="ko"?"👥 방문객 200명 달성":"👥 Reach 200 visitors"},
-                  {type:"sat",  target:90,  label:lang==="ko"?"😊 만족도 90% 달성":"😊 Reach 90% satisfaction"},
-                  {type:"money",target:100000,label:lang==="ko"?"💰 자금 $100,000 달성":"💰 Accumulate $100,000"},
-                  {type:"stars",target:5,   label:lang==="ko"?"⭐ 5성급 공원 달성":"⭐ Achieve 5-star rating"},
-                ].map(goal=>{
-                  const isActive=sandboxGoal?.type===goal.type;
-                  const isAchieved=sandboxGoal?.type===goal.type&&sandboxGoal?.achieved;
-                  return(
-                    <div key={goal.type} onClick={()=>setSandboxGoal(isActive?null:{...goal,achieved:false})} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 6px",marginBottom:3,background:isAchieved?"rgba(0,229,160,0.12)":isActive?"rgba(155,127,255,0.12)":"rgba(255,255,255,0.03)",border:`1px solid ${isAchieved?"#00E5A0":isActive?"#9B7FFF":"rgba(255,255,255,0.08)"}`,borderRadius:5,cursor:"pointer",transition:"all 0.15s"}}>
-                      <span style={{fontSize:9,color:isAchieved?"#00E5A0":isActive?"#9B7FFF":"#6677AA",flex:1}}>{goal.label}</span>
-                      {isAchieved&&<span style={{fontSize:10}}>✅</span>}
-                      {isActive&&!isAchieved&&<span style={{fontSize:8,color:"#9B7FFF"}}>●</span>}
-                    </div>
-                  );
-                })}
-              </div>}
-              {/* 주간 배지 */}
-              {weeklyBadges.length>0&&<div style={{background:"rgba(255,217,61,0.06)",border:"1px solid rgba(255,217,61,0.2)",borderRadius:8,padding:"8px 10px",marginBottom:8}}>
-                <div style={{fontSize:10,fontWeight:700,color:"#FFD93D",letterSpacing:1,marginBottom:6}}>🏅 {lang==="ko"?"획득 배지":"Earned Badges"} ({weeklyBadges.length})</div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                  {weeklyBadges.map(b=>(
-                    <div key={b.id} title={`${b.name} (Day ${b.earned})`} style={{display:"flex",alignItems:"center",gap:3,background:"rgba(255,217,61,0.1)",border:"1px solid rgba(255,217,61,0.3)",borderRadius:4,padding:"2px 5px"}}>
-                      <span style={{fontSize:11}}>{b.emoji}</span>
-                      <span style={{fontSize:8,color:"#FFD93D",maxWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>}
-              <div style={{fontSize:10,color:"#FECA57",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>{t("mis.title")} ({completedMissions.length}/{MISSIONS.length})</div>
-              {activeMissions.map(mId=>{
-                const m=MISSIONS.find(x=>x.id===mId);if(!m) return null;
-                const cc2=bldCounts(grid);
-                const ms2={vis:visitors,sat,clean,pres:parkRating.stars,pass:passHolders,rides:Object.entries(cc2).filter(([k])=>B[k]?.cat==="ride"&&k!=="entrance").reduce((t,[,v])=>t+v,0),vips:vipCount,zones:zoneGrid.reduce((t,row)=>t+row.filter(Boolean).length,0),net:estNet,research:researched.length,debt:totalDebt,paths:Object.entries(cc2).filter(([k])=>B[k]?.cat==="path").reduce((t,[,v])=>t+v,0),profitStreak:profitStreakDays,totalVis,staffMaxed:Object.values(staffLevels).every(v=>v>=3)};
-                const ready=m.check(ms2);
-                return(<div key={mId} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 6px",marginBottom:3,background:ready?"#0A1A14":"#14142A",border:`2px solid ${ready?"#5EF6A0":"#2A2A4A"}`,borderRadius:6}}>
-                  <span style={{fontSize:14}}>{m.emoji}</span>
-                  <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700,color:ready?"#5EF6A0":"#E8E8F0"}}>{t(`mis.${m.id}`)}</div>
-                    {m.desc&&<div style={{fontSize:9,color:"#6B7CA1",marginTop:1,lineHeight:1.3}}>{m.desc[lang]||m.desc.ko}</div>}
-                    <div style={{display:"flex",gap:3,marginTop:2}}><span style={{fontSize:10,color:"#5EF6A0",background:"#5EF6A013",borderRadius:2,padding:"1px 3px"}}>+${m.reward.$.toLocaleString()}</span><span style={{fontSize:10,color:"#A29BFE",background:"#A29BFE13",borderRadius:2,padding:"1px 3px"}}>+{m.reward.rp}RP</span></div>
-                  </div>
-                  {ready&&<span style={{fontSize:13}}>🏆</span>}
-                </div>);
-              })}
-
-              {/* Stage 5 Legendary Park panel */}
-              {currentStage.id>=5&&(
-                <div style={{background:"linear-gradient(135deg,rgba(255,107,157,0.08),rgba(155,127,255,0.06))",border:"1px solid rgba(255,107,157,0.35)",borderRadius:8,padding:"8px 10px",marginTop:6,marginBottom:6}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
-                    <span style={{fontSize:20,filter:"drop-shadow(0 0 8px #FF6B9D)"}}>🌟</span>
-                    <div>
-                      <div style={{fontSize:11,fontWeight:800,color:"#FF6B9D",letterSpacing:2,textTransform:"uppercase"}}>{lang==="ko"?"전설적인 공원":"LEGENDARY PARK"}</div>
-                      <div style={{fontSize:9,color:"#9B7FFF"}}>{lang==="ko"?"스테이지 5 달성! 세계가 주목합니다":"Stage 5 achieved! World is watching"}</div>
-                    </div>
-                  </div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3,marginBottom:5}}>
-                    {[
-                      {ic:"📈",lbl:lang==="ko"?"수익":"Revenue",val:"+30%",col:"#5EF6A0"},
-                      {ic:"👥",lbl:lang==="ko"?"방문객":"Visitors",val:"+40%",col:"#4D9FFF"},
-                      {ic:"⭐",lbl:lang==="ko"?"명성":"Prestige",val:"MAX",col:"#FFD93D"},
-                      {ic:"🏆",lbl:lang==="ko"?"단계":"Stage",val:"MAX",col:"#FF6B9D"},
-                    ].map(({ic,lbl,val,col})=>(
-                      <div key={lbl} style={{background:`${col}10`,border:`1px solid ${col}33`,borderRadius:5,padding:"3px 6px",display:"flex",alignItems:"center",gap:4}}>
-                        <span style={{fontSize:11}}>{ic}</span>
-                        <div>
-                          <div style={{fontSize:8,color:col,opacity:0.7,lineHeight:1}}>{lbl}</div>
-                          <div style={{fontSize:10,fontWeight:700,color:col,lineHeight:1}}>{val}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{fontSize:9,color:"#6B7CA1",textAlign:"center"}}>{lang==="ko"?"남은 미션을 완료해 전설의 이름을 남기세요":"Complete remaining missions to cement your legacy"}</div>
-                </div>
-              )}
-
-              {/* Phase 3-5: League System Panel — show after day 20 or when medals earned */}
-              {(earnedMedals.length>0||day>=20)&&(()=>{
-                const curLeague=calcLeague(earnedMedals);
-                const bronzeC=earnedMedals.filter(m=>["bronze","silver","gold","platinum"].includes(m.medalId)).length;
-                const silverC=earnedMedals.filter(m=>["silver","gold","platinum"].includes(m.medalId)).length;
-                const goldC=earnedMedals.filter(m=>["gold","platinum"].includes(m.medalId)).length;
-                const platinumC=earnedMedals.filter(m=>m.medalId==="platinum").length;
-                const goldScen=new Set(earnedMedals.filter(m=>["gold","platinum"].includes(m.medalId)).map(m=>m.scenarioId)).size;
-                let nextLeague=LEAGUES[0];let nextDesc="";let nextPct=0;
-                if(!curLeague){nextLeague=LEAGUES[0];nextDesc=`🥉 1${lang==="ko"?"개 필요":"needed"}`;nextPct=Math.min(1,bronzeC/1);}
-                else if(curLeague.id==="bronze"){nextLeague=LEAGUES[1];nextDesc=`🥈 3${lang==="ko"?"개 필요":"needed"} (${silverC}/3)`;nextPct=Math.min(1,silverC/3);}
-                else if(curLeague.id==="silver"){nextLeague=LEAGUES[2];nextDesc=`🥇 5${lang==="ko"?"개 필요":"needed"} (${goldC}/5)`;nextPct=Math.min(1,goldC/5);}
-                else if(curLeague.id==="gold"){nextLeague=LEAGUES[3];nextDesc=`💎 ${lang==="ko"?"5개+전시나리오":"5 gold+all scenarios"} (${goldC}/5, ${goldScen}/5)`;nextPct=Math.min(1,Math.min(goldC/5,goldScen/5));}
-                return(<div style={{background:"#1A1A2A",border:`1px solid ${curLeague?curLeague.color+"44":"#2A2A4A"}`,borderRadius:6,padding:7,marginTop:6}}>
-                  <div style={{fontSize:10,color:curLeague?curLeague.color:"#666688",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>💎 {lang==="ko"?"리그 시스템":"League System"}</div>
-                  <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:4}}>
-                    <span style={{fontSize:18}}>{curLeague?curLeague.emoji:"🏅"}</span>
-                    <div>
-                      <div style={{fontSize:10,fontWeight:700,color:curLeague?curLeague.color:"#666688"}}>{curLeague?(curLeague.name[lang]||curLeague.name.ko):(lang==="ko"?"리그 미가입":"No League")}</div>
-                      <div style={{fontSize:10,color:"#666688"}}>🥉×{bronzeC} 🥈×{silverC} 🥇×{goldC}{platinumC>0?` 🏅×${platinumC}`:""}</div>
-                    </div>
-                  </div>
-                  {curLeague?.id!=="diamond"&&<>
-                    <div style={{fontSize:10,color:"#8888AA",marginBottom:2}}>{lang==="ko"?"다음":"Next"}: {nextLeague.name[lang]||nextLeague.name.ko} — {nextDesc}</div>
-                    <div style={{height:3,background:"#0A0A14",borderRadius:99,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${nextPct*100}%`,background:nextLeague.color,borderRadius:99,transition:"width 0.5s"}}/>
-                    </div>
-                  </>}
-                  {curLeague?.id==="diamond"&&<div style={{fontSize:10,color:"#A8D8EA",fontWeight:700,textAlign:"center"}}>💎 {lang==="ko"?"최고 리그 달성!":"Diamond League reached!"}</div>}
-                </div>);
-              })()}
-
-              {/* Phase 3-5: 업적 목록 — day 10+ 또는 업적 달성 시 표시 */}
-              {(earnedAchievements.length>0||day>=10)&&<div style={{marginTop:6}}>
-                <div style={{fontSize:10,color:"#FFD93D",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>
-                  🏅 {lang==="ko"?"업적":"Achievements"} ({earnedAchievements.length}/{ACHIEVEMENTS.length})
-                </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3}}>
-                  {ACHIEVEMENTS.map(a=>{
-                    const earned=earnedAchievements.includes(a.id);
-                    return(
-                      <div key={a.id} style={{display:"flex",alignItems:"flex-start",gap:4,padding:"4px 5px",background:earned?`${a.col}18`:"#0E0E1E",border:`1px solid ${earned?a.col+"44":"#1E1E2E"}`,borderRadius:5,opacity:earned?1:0.45,transition:"opacity 0.2s"}}>
-                        <span style={{fontSize:13,flexShrink:0,filter:earned?`drop-shadow(0 0 4px ${a.col})`:"grayscale(1) opacity(0.4)"}}>{a.emoji}</span>
-                        <div style={{minWidth:0}}>
-                          <div style={{fontSize:9,fontWeight:earned?700:400,color:earned?a.col:"#555577",lineHeight:1.3,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{a.name[lang]||a.name.ko}</div>
-                          {earned&&a.desc&&<div style={{fontSize:8,color:"#4A5A7A",lineHeight:1.3,marginTop:1,whiteSpace:"normal"}}>{a.desc[lang]||a.desc.ko}</div>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>}
-            </>}
-
+            {tab==="mission"&&<MissionPanel
+              dismissedHints={dismissedHints} setDismissedHints={setDismissedHints}
+              lang={lang} t={t}
+              day={day}
+              grid={grid}
+              stats={stats}
+              hired={hired}
+              gameMode={gameMode}
+              sandboxGoal={sandboxGoal} setSandboxGoal={setSandboxGoal}
+              visitors={visitors}
+              parkRating={parkRating}
+              researched={researched}
+              currentStage={currentStage}
+              totalBldCount={totalBldCount}
+              money={money}
+              setMoney={setMoney}
+              activeHoliday={activeHoliday} holidayHistory={holidayHistory}
+              activeInvestment={activeInvestment}
+              estNet={estNet}
+              isInsured={isInsured} setIsInsured={setIsInsured}
+              addLog={addLog}
+              activeDisaster={activeDisaster}
+              resolveDisaster={resolveDisaster}
+              currentScenario={currentScenario} currentScenarioData={currentScenarioData}
+              scenarioTimeLimit={scenarioTimeLimit}
+              sat={sat}
+              segs={segs}
+              fee={fee}
+              loans={loans}
+              discoveredSecrets={discoveredSecrets}
+              activeDailyChallenge={activeDailyChallenge}
+              clean={clean}
+              activeMissions={activeMissions}
+              completedMissions={completedMissions}
+              passHolders={passHolders}
+              vipCount={vipCount}
+              zoneGrid={zoneGrid}
+              profitStreakDays={profitStreakDays}
+              totalVis={totalVis}
+              staffLevels={staffLevels}
+              totalDebt={totalDebt}
+              weeklyBadges={weeklyBadges}
+              speed={speed}
+              earnedMedals={earnedMedals}
+              earnedAchievements={earnedAchievements}
+            />}
           </div>
         </div>
 
