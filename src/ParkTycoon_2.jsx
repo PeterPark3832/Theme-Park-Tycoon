@@ -12,6 +12,8 @@ import {
   ACADEMY_STEPS, ACADEMY_CHAPTERS,
 } from './gameData.js';
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
+import IsoGridCanvas from './IsoGridCanvas.jsx';
+import { preloadSprites } from './spriteLoader.js';
 import {
   tFn, pickWeather, getReachablePaths, hasPath, hasBuildingPath, getZM, calcStats, calcSegs,
   segSatMod, checkVIPReq, bldCounts, calcParkRating, calcRideTicketRev, avgShopMult,
@@ -165,6 +167,7 @@ const pathList=Object.entries(B).filter(([,b])=>b.cat==="path");
 const decoList=Object.entries(B).filter(([,b])=>b.cat==="deco");
 
 export default function ParkTycoon(){
+  const ISO_MODE = false; // top-down CSS grid view
   const [screen,setScreen]=useState("menu");
   const [gameMode,setGameMode]=useState(null);
   const [currentScenario,setCurrentScenario]=useState(null);
@@ -756,6 +759,7 @@ export default function ParkTycoon(){
           discoveredCombosRef.current.add(id);
           const combo=COMBOS.find(c=>c.id===id);
           if(combo){
+            if(ref.current.soundOn) playSound("combo");
             setComboToast(t=>{if(t?.timeoutId) clearTimeout(t.timeoutId);
               const tid=setTimeout(()=>setComboToast(null),3500);
               return{combo,timeoutId:tid};
@@ -881,6 +885,8 @@ export default function ParkTycoon(){
     handleResize(); // call once on mount
     return()=>window.removeEventListener('resize',handleResize);
   },[]);
+
+  useEffect(()=>{ if(ISO_MODE) preloadSprites(Object.keys(B)); },[]);
 
   // Phase 2-6: Zone Mastery calculation (must be before useEffect that depends on it)
   const zoneMastery=useMemo(()=>{
@@ -2004,6 +2010,10 @@ export default function ParkTycoon(){
     return()=>{if(!disasterWarning&&disasterDrumRef.current){disasterDrumRef.current();disasterDrumRef.current=null;}};
   },[disasterWarning,soundOn]);
 
+  useEffect(()=>{
+    if(achievementFlash&&soundOn) playSound("achievement");
+  },[achievementFlash]);
+
   // Tab visibility — pause tick when hidden
   useEffect(()=>{
     const prevSpeedRef={v:0};
@@ -2171,14 +2181,31 @@ export default function ParkTycoon(){
       setMultiSelectedCells(prev=>{const n=new Set(prev);cells.forEach(k=>n.add(k));return n;});
     }
   };
-  const hire=k=>{if(weeklyChallengeMod?.noStaff){addLog(lang==="ko"?"🚫 이번 챌린지: 직원 고용 불가":"🚫 This challenge: no staff allowed");return;}if(ref.current.money<STAFF[k].hire){addLog(t("log.noMoney"));return;}setHired(h=>({...h,[k]:h[k]+1}));setMoney(m=>m-STAFF[k].hire);addLog(t("log.hire", {name: t(`st.${k}`)}));};
+  // ISO_MODE drag handler — called by IsoGridCanvas on pointer drag
+  const handleDragBuild=(r,c)=>{
+    if(buildMode==="build"&&selected){
+      const bd=B[selected];if(!bd||(bd.size?.w||1)!==1||(bd.size?.h||1)!==1) return;
+      const{ownedGrid:og,grid:g,money:m}=ref.current;
+      if(!og[r][c]||g[r][c]||obstacleMap[`${r},${c}`]||m<bd.baseCost) return;
+      setGrid(prev=>{const n=prev.map(row=>[...row]);n[r][c]={type:selected,level:0,broken:false};return n;});
+      setMoney(mo=>mo-bd.baseCost);setLastBuilt(selected);
+    } else if(buildMode==="demolish"){
+      const{grid:g}=ref.current;if(!g[r][c]) return;
+      let ar=r,ac=c;if(g[r][c].ref)[ar,ac]=g[r][c].ref;
+      const anchorCell=g[ar][ac];
+      const bw=B[anchorCell?.type]?.size?.w||1,bh=B[anchorCell?.type]?.size?.h||1;
+      const cells=[];for(let dr=0;dr<bh;dr++) for(let dc=0;dc<bw;dc++) cells.push(`${ar+dr},${ac+dc}`);
+      setMultiSelectedCells(prev=>{const n=new Set(prev);cells.forEach(k=>n.add(k));return n;});
+    }
+  };
+  const hire=k=>{if(weeklyChallengeMod?.noStaff){addLog(lang==="ko"?"🚫 이번 챌린지: 직원 고용 불가":"🚫 This challenge: no staff allowed");return;}if(ref.current.money<STAFF[k].hire){addLog(t("log.noMoney"));return;}setHired(h=>({...h,[k]:h[k]+1}));setMoney(m=>m-STAFF[k].hire);addLog(t("log.hire", {name: t(`st.${k}`)}));if(soundOn) playSound("hire");};
   const fire=k=>{if(hired[k]<=0)return;setHired(h=>({...h,[k]:h[k]-1}));addLog(t("log.fire", {name: t(`st.${k}`)}));};
   const takeLoan=opt=>{
     if(loans.length>=2){addLog(lang==="ko"?"대출은 최대 2개까지만 가능합니다":"Maximum 2 loans at once");return;}
     if(opt.amount>money*2){addLog(lang==="ko"?"대출 한도 초과 (현재 자금의 2배)":"Loan limit exceeded (2× current funds)");return;}
     const total=Math.floor(opt.amount*(1+opt.rate));const daily=Math.ceil(total/opt.days);setLoans(l=>[...l,{id:Date.now(),amount:opt.amount,remaining:total,dailyPayment:daily,rate:opt.rate}]);setMoney(m=>m+opt.amount);addLog(t("log.loan"));
   };
-  const buyParcel=p=>{if(currentScenarioData?.noParcels){addLog(lang==="ko"?"🚫 이 시나리오는 토지 매입 불가":"🚫 Land purchase not allowed in this scenario");return;}if(ref.current.money<p.cost){addLog(t("log.noMoney"));return;}if(p.req&&!parcels.includes(p.req)){addLog(t("log.needPrevParcel"));return;}setOwnedGrid(prev=>{const n=prev.map(r=>[...r]);for(let r=0;r<GR;r++) for(let co=p.cols[0];co<=p.cols[1];co++) n[r][co]=true;return n;});setParcels(prev=>[...prev,p.id]);setMoney(m=>m-p.cost);addLog(t("log.parcelBought",{name:p.label?.[lang]||p.label?.ko||p.label}));};
+  const buyParcel=p=>{if(currentScenarioData?.noParcels){addLog(lang==="ko"?"🚫 이 시나리오는 토지 매입 불가":"🚫 Land purchase not allowed in this scenario");return;}if(ref.current.money<p.cost){addLog(t("log.noMoney"));return;}if(p.req&&!parcels.includes(p.req)){addLog(t("log.needPrevParcel"));return;}setOwnedGrid(prev=>{const n=prev.map(r=>[...r]);for(let r=0;r<GR;r++) for(let co=p.cols[0];co<=p.cols[1];co++) n[r][co]=true;return n;});setParcels(prev=>[...prev,p.id]);setMoney(m=>m-p.cost);addLog(t("log.parcelBought",{name:p.label?.[lang]||p.label?.ko||p.label}));if(soundOn) playSound("buyLand");};
   const launchCampaign=key=>{const c=CAMPAIGNS_DATA[key];if(ref.current.money<c.cost){addLog(t("log.noMoney"));return;}setCampaigns(p=>[...p,{id:Date.now(),key,emoji:c.emoji,boost:c.boost,seg:c.seg,remaining:c.days,days:c.days}]);setMoney(m=>m-c.cost);addLog(t("log.campaignStart", {name: t(`camp.${key}`)}));};
   const acceptVIP=()=>{const evt=pendingVIP;const ok=checkVIPReq(ref.current.grid,evt.req);if(!ok){addLog(t("log.vipReqFail", {name: t(`vip.${evt.id}`)}));setPendingVIP(null);return;}setMoney(m=>m+evt.bonusRev);setPrestigeBonus(s=>s+evt.presBonus);setVipCount(v=>v+1);setPendingVIP(null);addLog(t("log.vipSuccess", {name: t(`vip.${evt.id}`)}));};
   const resolveDisaster=()=>{if(!activeDisaster?.resolveCost) return;if(ref.current.money<activeDisaster.resolveCost){addLog(t("log.resolveNoMoney"));return;}setMoney(m=>m-activeDisaster.resolveCost);setActiveDisaster(null);if(ref.current.academyStep===16) academyDisasterResolvedRef.current=true;addLog(t("log.disasterSolved"));if(soundOn) playSound("fanfare");};
@@ -4619,6 +4646,7 @@ export default function ParkTycoon(){
         {/* ── GRID + LOG ── */}
         <div className="grid-area" style={{flex:1,display:"flex",flexDirection:"column",padding:isMobile?2:7,gap:isMobile?2:5,overflow:"hidden",background:"var(--bg-deep)",touchAction:isMobile?"none":"auto"}}
           onTouchStart={(e) => {
+            if (ISO_MODE) return;
             if (e.touches.length === 2) {
               panRef.current.active = false;
               const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -4640,6 +4668,7 @@ export default function ParkTycoon(){
             }
           }}
           onTouchMove={(e) => {
+            if (ISO_MODE) return;
             if (pinchRef.current.active && e.touches.length === 2) {
               const dx = e.touches[0].clientX - e.touches[1].clientX;
               const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -4658,7 +4687,7 @@ export default function ParkTycoon(){
               e.preventDefault();
             }
           }}
-          onTouchEnd={() => { pinchRef.current.active = false; panRef.current.active = false; }}
+          onTouchEnd={() => { if(ISO_MODE) return; pinchRef.current.active = false; panRef.current.active = false; }}
         >
           {/* Banners + event popups — in grid-area on tablet/mobile, in right panel on PC */}
           {!isPC&&<>
@@ -4880,7 +4909,7 @@ export default function ParkTycoon(){
                 <div className="mobile-hud-bl hud-chip-row">
                   <div className="hud-chip">
                     <span style={{fontSize:13}}>😊</span>
-                    <span style={{fontSize:13,fontWeight:700,color:sat>=70?"#00E5A0":sat>=40?"#FFD93D":"#FF5757"}}>{sat}</span>
+                    <span style={{fontSize:13,fontWeight:700,color:sat>=70?"#00E5A0":sat>=40?"#FFD93D":"#FF5757"}}>{Math.round(sat)}</span>
                     <span style={{fontSize:10,color:"#445580"}}>%</span>
                   </div>
                   <div className="hud-chip">
@@ -4918,13 +4947,28 @@ export default function ParkTycoon(){
                 }} style={{display:"block",width:160,height:80}}/>
               </div>
             )}
+            {ISO_MODE ? (
+              <IsoGridCanvas
+                grid={grid} zoneGrid={zoneGrid} ownedGrid={ownedGrid}
+                obstacleMap={obstacleMap} dots={dots}
+                clickedTile={clickedTile} selected={selected} selBd={selBd}
+                buildMode={buildMode} hovFootprintValid={hovFootprintValid}
+                multiSelectedCells={multiSelectedCells} isMobile={isMobile}
+                onCellClick={(row,col)=>handleGridClick(row,col)}
+                onCellHover={(rc)=>setHovered({r:rc.row,c:rc.col})}
+                onCellLeave={()=>setHovered(null)}
+                onDragBuild={handleDragBuild}
+              />
+            ) : (
             <div style={{display:"grid",
               gridTemplateColumns:`repeat(${GC},1fr)`,
               gridTemplateRows:`repeat(${GR},1fr)`,
               gap:isMobile?1:2,width:"100%",height:"100%",
-              background:"#020408",borderRadius:isMobile?4:10,padding:isMobile?2:4,boxSizing:"border-box",
-              border:"1px solid rgba(100,120,255,0.08)",
-              boxShadow:"inset 0 0 40px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.6)",
+              background:`radial-gradient(circle, rgba(50,70,180,0.07) 1px, transparent 1px), linear-gradient(145deg,#010205 0%,#020810 55%,#010205 100%)`,
+              backgroundSize:`${isMobile?8:11}px ${isMobile?8:11}px, 100% 100%`,
+              borderRadius:isMobile?4:10,padding:isMobile?2:4,boxSizing:"border-box",
+              border:"1px solid rgba(100,130,255,0.13)",
+              boxShadow:"inset 0 0 60px rgba(0,0,0,0.95), inset 0 0 20px rgba(10,30,100,0.2), 0 0 40px rgba(0,0,0,0.7)",
               transform:`scale(${gridScale}) translate(${gridPan.x/gridScale}px,${gridPan.y/gridScale}px)`,
               transformOrigin:`${gridScaleOrigin.x}% ${gridScaleOrigin.y}%`,
               transition:'transform 0.05s linear',
@@ -4963,32 +5007,32 @@ export default function ParkTycoon(){
                 const comboCellColor=cell&&!broken&&!isPath?comboCellMap[`${r},${c}`]:null;
 
                 const OBS_STYLE={rock:{bg:"rgba(70,50,30,0.55)",bd:"rgba(120,90,55,0.6)",emoji:"🪨"},water:{bg:"rgba(10,70,180,0.40)",bd:"rgba(40,130,255,0.55)",emoji:"💧"},rubble:{bg:"rgba(90,80,60,0.50)",bd:"rgba(140,120,90,0.5)",emoji:"🧱"},deadtree:{bg:"rgba(25,55,15,0.50)",bd:"rgba(40,90,25,0.5)",emoji:"🌵"}};
-                let bg="#0A1A0E";
-                if(!owned) bg="#040608";
-                else if(obstacle) bg=OBS_STYLE[obstacle.type]?.bg||"rgba(60,60,40,0.4)";
-                else if(broken) bg="linear-gradient(135deg,rgba(255,87,87,0.28),rgba(255,87,87,0.08))";
-                else if(isPath) bg=isFancy?"linear-gradient(145deg,#3D2E0A,#2A1E05)":"linear-gradient(145deg,#1E1A12,#141008)";
-                else if(isEntrance) bg="linear-gradient(135deg,rgba(255,217,61,0.18),rgba(255,159,67,0.10))";
-                else if(cell) bg=cell.level>=2?`linear-gradient(135deg,${bd.color}44,${bd.color}18)`:cell.level>=1?`linear-gradient(135deg,${bd.color}38,${bd.color}14)`:`linear-gradient(135deg,${bd.color}28,${bd.color}0E)`;
-                else if(zone) bg=ZONES[zone]?.bg||"#0C1410";
-                else if(isInFootprint&&selected) bg=hovFootprintValid?"rgba(0,229,160,0.12)":"rgba(255,87,87,0.12)";
-                else bg="linear-gradient(145deg,#0C1A10,#081208)";
-                if(isMultiSelected) bg="rgba(255,87,87,0.25)";
+                let bg="linear-gradient(160deg,#142418 0%,#0D1C12 45%,#070E08 100%)";
+                if(!owned)                         bg="repeating-linear-gradient(-45deg,#020406 0px,#020406 5px,#030508 5px,#030508 6px)";
+                else if(obstacle)                  bg=OBS_STYLE[obstacle.type]?.bg||"rgba(60,60,40,0.4)";
+                else if(broken)                    bg="linear-gradient(135deg,rgba(255,87,87,0.32),rgba(255,87,87,0.10))";
+                else if(isPath)                    bg=isFancy?"linear-gradient(160deg,#3F3008 0%,#2E2206 50%,#1E1604 100%)":"linear-gradient(160deg,#201C14 0%,#161209 50%,#0E0C06 100%)";
+                else if(isEntrance)                bg="linear-gradient(160deg,rgba(255,217,61,0.22) 0%,rgba(255,159,67,0.12) 60%,rgba(255,100,30,0.06) 100%)";
+                else if(cell)                      bg=cell.level>=2?`linear-gradient(160deg,${bd.color}58 0%,${bd.color}30 50%,${bd.color}14 100%)`:cell.level>=1?`linear-gradient(160deg,${bd.color}44 0%,${bd.color}22 50%,${bd.color}0E 100%)`:`linear-gradient(160deg,${bd.color}2E 0%,${bd.color}16 50%,${bd.color}08 100%)`;
+                else if(zone)                      bg=`linear-gradient(160deg,${ZONES[zone]?.color||"#1DD1A1"}28 0%,${ZONES[zone]?.color||"#1DD1A1"}10 60%,transparent 100%)`;
+                else if(isInFootprint&&selected)   bg=hovFootprintValid?"rgba(0,229,160,0.14)":"rgba(255,87,87,0.14)";
+                else                               bg="linear-gradient(160deg,#142418 0%,#0D1C12 45%,#070E08 100%)";
+                if(isMultiSelected)                bg="rgba(255,87,87,0.28)";
 
                 let borderCol="rgba(255,255,255,0.04)";
-                if(!owned) borderCol="rgba(255,255,255,0.02)";
-                else if(obstacle) borderCol=OBS_STYLE[obstacle.type]?.bd||"rgba(100,90,60,0.5)";
-                else if(isSel) borderCol="#FFD93D";
-                else if(isDemolishHov) borderCol="#FF5757";
-                else if(broken) borderCol="rgba(255,87,87,0.5)";
-                else if(tutHighlight) borderCol="#FFD93D";
-                else if(isPath) borderCol=isFancy?"rgba(212,175,55,0.4)":"rgba(139,115,85,0.3)";
-                else if(isEntrance) borderCol="rgba(255,217,61,0.5)";
-                else if(isolated) borderCol="rgba(255,87,87,0.75)";
-                else if(cell) borderCol=cell.level>=2?bd.color+"AA":cell.level>=1?bd.color+"77":bd.color+"55";
-                else if(isInFootprint&&selected) borderCol=hovFootprintValid?"rgba(0,229,160,0.5)":"rgba(255,87,87,0.5)";
-                else borderCol="rgba(255,255,255,0.04)";
-                if(isMultiSelected) borderCol="rgba(255,87,87,0.8)";
+                if(!owned)                         borderCol="rgba(255,255,255,0.02)";
+                else if(obstacle)                  borderCol=OBS_STYLE[obstacle.type]?.bd||"rgba(100,90,60,0.5)";
+                else if(isSel)                     borderCol="#FFD93D";
+                else if(isDemolishHov)             borderCol="#FF5757";
+                else if(broken)                    borderCol="rgba(255,87,87,0.5)";
+                else if(tutHighlight)              borderCol="#FFD93D";
+                else if(isPath)                    borderCol=isFancy?"rgba(212,175,55,0.4)":"rgba(139,115,85,0.3)";
+                else if(isEntrance)                borderCol="rgba(255,217,61,0.5)";
+                else if(isolated)                  borderCol="rgba(255,87,87,0.75)";
+                else if(cell)                      borderCol=cell.level>=2?bd.color+"AA":cell.level>=1?bd.color+"77":bd.color+"55";
+                else if(isInFootprint&&selected)   borderCol=hovFootprintValid?"rgba(0,229,160,0.5)":"rgba(255,87,87,0.5)";
+                else                               borderCol="rgba(255,255,255,0.04)";
+                if(isMultiSelected)                borderCol="rgba(255,87,87,0.8)";
 
                 return(<div key={`${r}-${c}`}
                   style={{
@@ -4999,16 +5043,17 @@ export default function ParkTycoon(){
                     borderRadius:5,
                     display:"flex",alignItems:"center",justifyContent:"center",
                     cursor:owned?(obstacle&&selected?"not-allowed":buildMode==="demolish"&&cell?"crosshair":"pointer"):isNextBuyable?"pointer":"default",
-                    transition:"border-color 0.12s,background 0.12s",
+                    transition:"border-color 0.15s,background 0.15s,box-shadow 0.15s",
                     minHeight:0,overflow:"hidden",position:"relative",
-                    background:isNextBuyable?"rgba(77,159,255,0.04)":bg,
+                    background:isNextBuyable?"linear-gradient(160deg,rgba(77,159,255,0.13),rgba(77,159,255,0.05))":bg,
                     boxShadow:(()=>{
                       const popCount=bldPopMap[`${r},${c}`]||0;
                       const popGlow=cell&&!broken&&!isPath&&popCount>=3?`, 0 0 ${8+popCount*3}px rgba(255,200,80,${Math.min(0.7,0.3+popCount*0.07)})`:"";
-                      const base=isSel?`0 0 0 2px #FFD93D, 0 0 18px rgba(255,217,61,0.5), inset 0 0 10px rgba(255,217,61,0.1)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?`0 0 10px rgba(255,87,87,0.5), inset 0 0 6px rgba(255,87,87,0.15)`:isDemolishHov?"0 0 8px rgba(255,87,87,0.4)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 8px rgba(255,159,67,0.3)":isEntrance&&!broken?`0 0 14px rgba(255,217,61,0.3), inset 0 0 14px rgba(255,217,61,0.08)`:cell&&!broken&&!isPath?(comboCellColor?`0 0 0 2px ${comboCellColor}, 0 0 14px ${comboCellColor}AA, inset 0 0 10px ${comboCellColor}33`:isSel?`0 0 14px ${bd.color}88, inset 0 0 10px ${bd.color}22`:cell.level>=2?`0 0 6px ${bd.color}44, inset 0 0 6px ${bd.color}18`:cell.level>=1?`0 0 4px ${bd.color}33, inset 0 0 4px ${bd.color}10`:"none"):"none";
-                      return base+popGlow;
+                      const tileRaise=owned&&!broken?", inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,0,0,0.5), inset 1px 0 rgba(255,255,255,0.03)":"";
+                      const base=isSel?`0 0 0 2px #FFD93D, 0 0 20px rgba(255,217,61,0.55), inset 0 0 12px rgba(255,217,61,0.12)`:isRightBoundary?"4px 0 8px rgba(168,216,234,0.15)":broken?`0 0 12px rgba(255,87,87,0.55), inset 0 0 8px rgba(255,87,87,0.18)`:isDemolishHov?"0 0 10px rgba(255,87,87,0.45)":isCongested?"0 0 0 2px rgba(255,159,67,0.5),0 0 10px rgba(255,159,67,0.35)":isEntrance&&!broken?`0 0 16px rgba(255,217,61,0.35), inset 0 0 16px rgba(255,217,61,0.10)`:cell&&!broken&&!isPath?(comboCellColor?`0 0 0 2px ${comboCellColor}, 0 0 16px ${comboCellColor}BB, inset 0 0 12px ${comboCellColor}40`:cell.level>=2?`0 0 8px ${bd.color}55, inset 0 0 8px ${bd.color}20`:cell.level>=1?`0 0 5px ${bd.color}44, inset 0 0 5px ${bd.color}14`:`0 0 3px ${bd.color}22`):isNextBuyable?"0 0 0 1px rgba(77,159,255,0.3), 0 0 10px rgba(77,159,255,0.15)":"none";
+                      return base+popGlow+tileRaise;
                     })(),
-                    opacity:!owned?0.12:1}}
+                    opacity:!owned?(isNextBuyable?0.75:0.18):1}}
                   onMouseDown={(e)=>{
                     if(e.button!==0) return;
                     const isSingle=(B[selected]?.size?.w||1)===1&&(B[selected]?.size?.h||1)===1;
@@ -5071,7 +5116,11 @@ export default function ParkTycoon(){
                         ? getBuildingIcon(cell.type, "#FFD93D", 36)
                         : <span style={{fontSize:28,lineHeight:1}}>{bd.levelEmoji?.[cell.level]??bd.emoji}</span>}
                     </div>
-                    {cell.level>0&&<div style={{position:"absolute",top:1,right:1,fontSize:10,color:"#FFD93D",fontWeight:900,zIndex:3,textShadow:"0 0 4px #FFD93D"}}>{"★".repeat(cell.level)}</div>}
+                    <img src={`/sprites/${cell.type}_${cell.level}.png`} alt=""
+                      style={{position:"absolute",inset:"2px",width:"calc(100% - 4px)",height:"calc(100% - 4px)",
+                              objectFit:"contain",pointerEvents:"none",zIndex:5}}
+                      onError={e=>{e.currentTarget.style.display="none";}}/>
+                    {cell.level>0&&<div style={{position:"absolute",top:1,right:1,fontSize:10,color:"#FFD93D",fontWeight:900,zIndex:6,textShadow:"0 0 4px #FFD93D"}}>{"★".repeat(cell.level)}</div>}
                   </>}
 
                   {owned&&cell&&!isPath&&!isEntrance&&<>
@@ -5092,20 +5141,28 @@ export default function ParkTycoon(){
                         ? getBuildingIcon(cell.type, bd.color, bw>=3?46:bw>=2?38:cell.level>=2?34:30)
                         : <span style={{fontSize:bw>=3?34:bw>=2?28:cell.level>=2?24:22,lineHeight:1}}>{bd.levelEmoji?.[cell.level]??bd.emoji}</span>}
                     </div>
+                    {/* 건물 스프라이트 이미지 — 없으면 onError로 숨겨져 이모지 폴백 */}
+                    <img src={`/sprites/${cell.type}_${cell.level}.png`} alt=""
+                      style={{position:"absolute",inset:"2px",width:"calc(100% - 4px)",height:"calc(100% - 4px)",
+                              objectFit:"contain",pointerEvents:"none",zIndex:5,
+                              opacity:broken?0.25:1,filter:broken?"grayscale(0.8)":"none"}}
+                      onError={e=>{e.currentTarget.style.display="none";}}/>
+                    {/* 건물 타입 색상 상단 하이라이트 */}
+                    {!broken&&<div style={{position:"absolute",top:0,left:0,right:0,height:1,borderRadius:"4px 4px 0 0",background:`linear-gradient(90deg,transparent,${bd.color}55,transparent)`,zIndex:3}}/>}
                     {/* 건물 타입 색상 하단 바 */}
-                    {!broken&&<div style={{position:"absolute",bottom:0,left:"10%",right:"10%",height:2,borderRadius:"0 0 1px 1px",background:bd.color,opacity:cell.level>=2?0.85:cell.level>=1?0.65:0.45,zIndex:3}}/>}
-                    {cell.level>0&&!broken&&<div style={{position:"absolute",top:2,right:3,fontSize:11,color:"#FFD93D",lineHeight:1.2,fontWeight:900,zIndex:3,textShadow:"0 0 3px #000"}}>{cell.level===2?"★★":"★"}</div>}
-                    {bw>=3&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:10,color:bd.color,opacity:0.7,fontWeight:700,zIndex:3,fontFamily:"'Barlow Condensed',monospace",lineHeight:1}}>{bw}×{bh}</div>}
+                    {!broken&&<div style={{position:"absolute",bottom:0,left:"8%",right:"8%",height:3,borderRadius:"0 0 2px 2px",background:`linear-gradient(90deg,transparent,${bd.color},transparent)`,opacity:cell.level>=2?0.95:cell.level>=1?0.75:0.55,zIndex:3,boxShadow:`0 0 6px ${bd.color}88`}}/>}
+                    {cell.level>0&&!broken&&<div style={{position:"absolute",top:2,right:3,fontSize:11,color:"#FFD93D",lineHeight:1.2,fontWeight:900,zIndex:6,textShadow:"0 0 3px #000"}}>{cell.level===2?"★★":"★"}</div>}
+                    {bw>=3&&!broken&&<div style={{position:"absolute",top:2,left:3,fontSize:10,color:bd.color,opacity:0.7,fontWeight:700,zIndex:6,fontFamily:"'Barlow Condensed',monospace",lineHeight:1}}>{bw}×{bh}</div>}
                     {broken&&<>
                       {/* 균열 오버레이 */}
-                      <div style={{position:"absolute",inset:0,borderRadius:4,zIndex:3,pointerEvents:"none",
+                      <div style={{position:"absolute",inset:0,borderRadius:4,zIndex:6,pointerEvents:"none",
                         background:"repeating-linear-gradient(55deg,transparent,transparent 5px,rgba(255,87,87,0.07) 5px,rgba(255,87,87,0.07) 6px)",
                         animation:"broken-crack 1.4s ease-in-out infinite"}}/>
                       {/* 빨간 테두리 경고 */}
-                      <div style={{position:"absolute",inset:0,borderRadius:4,border:"2px solid rgba(255,87,87,0.6)",zIndex:4,pointerEvents:"none"}}/>
+                      <div style={{position:"absolute",inset:0,borderRadius:4,border:"2px solid rgba(255,87,87,0.6)",zIndex:7,pointerEvents:"none"}}/>
                       {/* 흔들리는 🔧 아이콘 */}
                       <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
-                        fontSize:bw>=2?20:15,zIndex:5,
+                        fontSize:bw>=2?20:15,zIndex:8,
                         background:"rgba(0,0,0,0.5)",borderRadius:4,
                         animation:"broken-shake 0.9s ease-in-out infinite"}}>🔧</div>
                     </>}
@@ -5145,6 +5202,7 @@ export default function ParkTycoon(){
                 </div>);
               }))}
             </div>
+            )}
 
             {/* 주야간 오버레이 — s7 야간 공포 분위기 */}
             {screen==="game"&&nightPhase&&(
@@ -5253,7 +5311,7 @@ export default function ParkTycoon(){
                 </div>
               </div>
             )}
-            {visitors>0&&<div style={{position:"absolute",inset:3,pointerEvents:"none",overflow:"hidden",borderRadius:6}}>
+            {!ISO_MODE&&visitors>0&&<div style={{position:"absolute",inset:3,pointerEvents:"none",overflow:"hidden",borderRadius:6}}>
               {(()=>{
                 const maxDots=isMobile?Math.min(30,Math.max(3,Math.round(visitors/5))):Math.min(60,Math.max(4,Math.round(visitors/3)));
                 const SEG_COLORS={couple:"#FF6B9D",family:"#FF9F43",thrill:"#FF4757",child:"#48DBFB",general:"#C7B8EA"};

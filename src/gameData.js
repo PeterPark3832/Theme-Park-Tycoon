@@ -91,7 +91,7 @@ export const RESEARCH = [
   {id:"c1",branch:"commerce",tier:1,emoji:"📈",cost:5,req:null}, {id:"c2",branch:"commerce",tier:1,emoji:"🎫",cost:7,req:null}, {id:"c3",branch:"commerce",tier:2,emoji:"💎",cost:10,req:"c1"}, {id:"c4",branch:"commerce",tier:3,emoji:"🏆",cost:11,req:"c3"},
   {id:"o1",branch:"ops",tier:1,emoji:"⚙️",cost:5,req:null}, {id:"o2",branch:"ops",tier:1,emoji:"🤖",cost:6,req:null}, {id:"o3",branch:"ops",tier:2,emoji:"🌱",cost:10,req:"o1"}, {id:"o4",branch:"ops",tier:3,emoji:"🧠",cost:11,req:"o3"},
   {id:"p1",branch:"prestige",tier:1,emoji:"📺",cost:5,req:null}, {id:"p2",branch:"prestige",tier:1,emoji:"📱",cost:6,req:null}, {id:"p3",branch:"prestige",tier:2,emoji:"🥇",cost:10,req:"p1"}, {id:"p4",branch:"prestige",tier:3,emoji:"🌍",cost:11,req:"p3"},
-  {id:"ex1",branch:"expansion",tier:1,emoji:"🎪",cost:8,req:null}, {id:"ex2",branch:"expansion",tier:2,emoji:"🌐",cost:12,req:"ex1"}, {id:"ex3",branch:"expansion",tier:2,emoji:"🤖",cost:12,req:"ex1"}, {id:"ex4",branch:"expansion",tier:3,emoji:"🔮",cost:13,req:"ex2"},
+  {id:"ex1",branch:"expansion",tier:1,emoji:"🎪",cost:6,req:null}, {id:"ex2",branch:"expansion",tier:2,emoji:"🌐",cost:12,req:"ex1"}, {id:"ex3",branch:"expansion",tier:2,emoji:"🤖",cost:12,req:"ex1"}, {id:"ex4",branch:"expansion",tier:3,emoji:"🔮",cost:13,req:"ex2"},
   {id:"r5", branch:"ride",      tier:4,emoji:"🎭",cost:18,req:"r4"},
   {id:"c5", branch:"commerce",  tier:4,emoji:"📊",cost:18,req:"c4"},
   {id:"o5", branch:"ops",       tier:4,emoji:"🔮",cost:17,req:"o4"},
@@ -126,7 +126,7 @@ export const MISSIONS = [
   {id:"m24",emoji:"👷",reward:{$:25000,rp:6},check:s=>!!s.staffMaxed,    desc:{ko:"전 직원 레벨 3 달성",               en:"Upgrade all staff to level 3"}},
   {id:"m25",emoji:"💸",reward:{$:40000,rp:8},check:s=>s.net>=20000,      desc:{ko:"일 순이익 $20,000 달성",            en:"Earn $20,000 net profit in a day"}},
 ];
-export const DISASTERS = [{id:"fire",emoji:"🔥",dur:5,resolveCost:3000,visMult:0.5,revMult:0.7,satPen:15},{id:"power",emoji:"⚡",dur:4,resolveCost:1500,visMult:0.6,revMult:0,satPen:10},{id:"storm",emoji:"🌪️",dur:3,resolveCost:0,visMult:0.1,revMult:0.1,satPen:5},{id:"accident",emoji:"🚨",dur:7,resolveCost:5000,visMult:0.3,revMult:0.4,satPen:25},{id:"strike",emoji:"✊",dur:5,resolveCost:4000,visMult:0.8,revMult:0.8,satPen:8}];
+export const DISASTERS = [{id:"fire",emoji:"🔥",dur:5,resolveCost:3000,visMult:0.5,revMult:0.7,satPen:15},{id:"power",emoji:"⚡",dur:4,resolveCost:1500,visMult:0.6,revMult:0,satPen:10},{id:"storm",emoji:"🌪️",dur:3,resolveCost:0,visMult:0.1,revMult:0.1,satPen:5},{id:"accident",emoji:"🚨",dur:5,resolveCost:5000,visMult:0.3,revMult:0.4,satPen:18},{id:"strike",emoji:"✊",dur:5,resolveCost:4000,visMult:0.8,revMult:0.8,satPen:8}];
 export const WEATHERS = [
   {id:"sunny",emoji:"☀️",name:{ko:"맑음",en:"Sunny"},visMult:1.12,satMod:3,maintMod:0.9,dur:[2,4]},
   {id:"cloudy",emoji:"⛅",name:{ko:"흐림",en:"Cloudy"},visMult:0.95,satMod:0,maintMod:1.0,dur:[1,3]},
