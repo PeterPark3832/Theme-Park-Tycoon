@@ -2556,7 +2556,12 @@ export default function ParkTycoon(){
             <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(120,140,255,0.1)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:10,color:"#6B7CA1",lineHeight:1.8}}>
               <div>🎮 {lang==="ko"?"개발":"Dev"}: PeterPark3832</div>
               <div>🌐 {lang==="ko"?"지원 언어":"Languages"}: 한국어 · English</div>
-              <div>⚙️ {lang==="ko"?"기술 스택":"Stack"}: React · Vite · Recharts</div>
+              <div>⚙️ {lang==="ko"?"기술 스택":"Stack"}: React · Vite · Web Audio API</div>
+              <div>🎵 {lang==="ko"?"사운드":"Sound"}: Procedural BGM + SFX</div>
+              <div>📦 {lang==="ko"?"완전 무료 · 오프라인 지원 (PWA)":"Free forever · Offline ready (PWA)"}</div>
+            </div>
+            <div style={{textAlign:"center",fontSize:10,color:"#3A4A70",marginBottom:12}}>
+              {lang==="ko"?"즐거운 공원 경영 되세요 🎢":"Have fun running your park 🎢"}
             </div>
             <button style={{width:"100%",padding:"8px 0",background:"rgba(100,120,255,0.1)",border:"1px solid rgba(100,120,255,0.25)",color:"#8899CC",borderRadius:7,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:600}} onClick={()=>setShowAbout(false)}>{lang==="ko"?"닫기":"Close"}</button>
           </div>
@@ -2669,9 +2674,17 @@ export default function ParkTycoon(){
             </div>}
 
             {/* 저장 공간 부족 경고 */}
-            {saveQuotaWarning&&<div style={{marginTop:8,background:"rgba(255,87,87,0.10)",border:"1px solid rgba(255,87,87,0.4)",borderRadius:8,padding:"8px 12px",display:"flex",alignItems:"center",gap:8}}>
+            {saveQuotaWarning&&<div style={{marginTop:8,background:"rgba(255,87,87,0.10)",border:"1px solid rgba(255,87,87,0.4)",borderRadius:8,padding:"8px 12px",display:"flex",alignItems:"flex-start",gap:8,flexWrap:"wrap"}}>
               <span style={{fontSize:16}}>⚠️</span>
-              <div style={{flex:1,fontSize:10,color:"#FF5757",fontWeight:700}}>{lang==="ko"?"저장 공간이 부족합니다. 브라우저 설정에서 사이트 데이터를 정리하거나 저장 슬롯을 삭제하세요.":"Storage quota exceeded. Clear browser site data or delete a save slot."}</div>
+              <div style={{flex:1,minWidth:160}}>
+                <div style={{fontSize:10,color:"#FF5757",fontWeight:700,marginBottom:4}}>{lang==="ko"?"저장 공간이 부족합니다.":"Storage quota exceeded."}</div>
+                <button onClick={()=>{
+                  const oldest=saveSlots.map((s,i)=>({s,i})).filter(x=>x.s).sort((a,b)=>(a.s.meta?.savedAt||0)-(b.s.meta?.savedAt||0))[0];
+                  if(oldest){const n=[...saveSlots];n[oldest.i]=null;const sr=writeSaveSlots(n);if(!sr||sr.ok){setSaveSlots(n);setSaveQuotaWarning(false);}}
+                }} style={{background:"rgba(255,87,87,0.15)",border:"1px solid rgba(255,87,87,0.5)",color:"#FF7F7F",borderRadius:5,padding:"3px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit",fontWeight:600}}>
+                  {lang==="ko"?"가장 오래된 슬롯 삭제":"Delete oldest save"}
+                </button>
+              </div>
               <button onClick={()=>setSaveQuotaWarning(false)} style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:14}}>✕</button>
             </div>}
           </>}
@@ -6242,6 +6255,12 @@ export default function ParkTycoon(){
               return(
                 <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
                   <button style={{background:"rgba(255,217,61,0.12)",border:"2px solid rgba(255,217,61,0.5)",color:"#FFD93D",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(0);setScreen("menu");}}>{t("res.backMenu")}</button>
+                  {!scenarioResult?.medal&&currentScenario&&(
+                    <button style={{background:"linear-gradient(135deg,rgba(255,87,87,0.18),rgba(255,159,67,0.10))",border:"2px solid rgba(255,87,87,0.6)",color:"#FF7F7F",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:800,fontFamily:"inherit",transition:"all 0.15s",letterSpacing:1}}
+                      onClick={()=>{setScenarioResult(null);startGame("campaign",currentScenario,difficulty,startPerk,null);}}>
+                      🔄 {lang==="ko"?"다시 시도":"Retry"}
+                    </button>
+                  )}
                   {scenarioResult?.medal&&nextScenario&&(
                     <button style={{background:"linear-gradient(135deg,rgba(0,229,160,0.2),rgba(77,159,255,0.1))",border:"2px solid rgba(0,229,160,0.7)",color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:800,fontFamily:"inherit",transition:"all 0.15s",letterSpacing:1}}
                       onClick={()=>{setScenarioResult(null);startGame("campaign",nextScenario.id,difficulty,startPerk,null);}}>

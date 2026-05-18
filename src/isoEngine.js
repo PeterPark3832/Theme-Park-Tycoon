@@ -227,6 +227,7 @@ export function calcMinCanvasSize(padding = 80) {
 // ─── Dev: unit test (call in browser console to verify math) ─────────────────
 
 export function runIsoMathTests() {
+  if (!import.meta.env.DEV) return;
   const cam = { originX: 0, originY: 0, zoom: 1, panX: 0, panY: 0 };
   const cases = [
     [0,  0],
