@@ -14,151 +14,10 @@ import {
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
 import IsoGridCanvas from './IsoGridCanvas.jsx';
 import { preloadSprites } from './spriteLoader.js';
-import {
-  tFn, pickWeather, getReachablePaths, hasPath, hasBuildingPath, getZM, calcStats, calcSegs,
-  segSatMod, checkVIPReq, bldCounts, calcParkRating, calcRideTicketRev, avgShopMult,
-  calcStage, stageVisBonus, stageRevBonus, calcLeague, getRB,
-  loadSaveSlots, writeSaveSlots, mkGrid, mkOwned, timeAgoL, playSound, startDisasterDrum, startCrowdNoise, setSfxVolume,
-} from './gameLogic.js';
-
-// ── Background Music Engine ──────────────────────────────────────────────────
-const _BPM=110,_BEAT=60/_BPM,_N=_BEAT/2;
-const _HZ={F2:87.31,G2:98.00,A2:110.00,C3:130.81,D3:146.83,E3:164.81,F3:174.61,G3:196.00,A3:220.00,B3:246.94,C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392.00,A4:440.00,B4:493.88,C5:523.25,D5:587.33,E5:659.25,G5:783.99};
-// Phase 0 — Early (days 1-20): light, cheerful
-const _CHORDS0=[
-  {a:[_HZ.C4,_HZ.E4,_HZ.G4,_HZ.C5,_HZ.G4,_HZ.E4,_HZ.C4,_HZ.E4],b:_HZ.C3,m:[_HZ.E5,_HZ.D5,_HZ.C5,_HZ.G4]},
-  {a:[_HZ.A3,_HZ.C4,_HZ.E4,_HZ.A4,_HZ.E4,_HZ.C4,_HZ.A3,_HZ.C4],b:_HZ.A2,m:[_HZ.A4,_HZ.A4,_HZ.G4,_HZ.A4]},
-  {a:[_HZ.F3,_HZ.A3,_HZ.C4,_HZ.F4,_HZ.C4,_HZ.A3,_HZ.F3,_HZ.A3],b:_HZ.F2,m:[_HZ.C5,_HZ.A4,_HZ.G4,_HZ.F4]},
-  {a:[_HZ.G3,_HZ.B3,_HZ.D4,_HZ.G4,_HZ.D4,_HZ.B3,_HZ.G3,_HZ.B3],b:_HZ.G2,m:[_HZ.G4,_HZ.A4,_HZ.B4,_HZ.C5]},
-];
-// Phase 1 — Mid (days 21-60): energetic, syncopated
-const _CHORDS1=[
-  {a:[_HZ.C4,_HZ.G4,_HZ.C5,_HZ.E5,_HZ.C5,_HZ.G4,_HZ.E4,_HZ.G4],b:_HZ.C3,m:[_HZ.G5,_HZ.E5,_HZ.D5,_HZ.C5]},
-  {a:[_HZ.D4,_HZ.A4,_HZ.D5,_HZ.F4,_HZ.D4,_HZ.A3,_HZ.D4,_HZ.F4],b:_HZ.D3,m:[_HZ.A4,_HZ.D5,_HZ.A4,_HZ.F4]},
-  {a:[_HZ.A3,_HZ.E4,_HZ.A4,_HZ.C5,_HZ.A4,_HZ.E4,_HZ.C4,_HZ.E4],b:_HZ.A2,m:[_HZ.C5,_HZ.B4,_HZ.A4,_HZ.G4]},
-  {a:[_HZ.G3,_HZ.D4,_HZ.G4,_HZ.B4,_HZ.G4,_HZ.D4,_HZ.B3,_HZ.D4],b:_HZ.G2,m:[_HZ.D5,_HZ.B4,_HZ.G4,_HZ.D4]},
-];
-// Phase 2 — Late (days 60+): grand, layered
-const _CHORDS2=[
-  {a:[_HZ.C4,_HZ.E4,_HZ.G4,_HZ.C5,_HZ.E5,_HZ.C5,_HZ.G4,_HZ.E4],b:_HZ.C3,m:[_HZ.G5,_HZ.E5,_HZ.G5,_HZ.C5]},
-  {a:[_HZ.F3,_HZ.C4,_HZ.F4,_HZ.A4,_HZ.C5,_HZ.A4,_HZ.F4,_HZ.C4],b:_HZ.F2,m:[_HZ.C5,_HZ.A4,_HZ.C5,_HZ.F4]},
-  {a:[_HZ.G3,_HZ.B3,_HZ.D4,_HZ.G4,_HZ.B4,_HZ.G4,_HZ.D4,_HZ.B3],b:_HZ.G2,m:[_HZ.D5,_HZ.B4,_HZ.D5,_HZ.G4]},
-  {a:[_HZ.A3,_HZ.C4,_HZ.E4,_HZ.A4,_HZ.C5,_HZ.A4,_HZ.E4,_HZ.C4],b:_HZ.A2,m:[_HZ.E5,_HZ.C5,_HZ.E5,_HZ.A4]},
-];
-const _PHASE_CHORDS=[_CHORDS0,_CHORDS1,_CHORDS2];
-function _startMusicEngine(mg,ctx){
-  let ch=0,ni=0,next=ctx.currentTime+0.05,phase=0;
-  function osc(f,t,dur,type,vol){
-    const o=ctx.createOscillator(),g=ctx.createGain();
-    o.connect(g);g.connect(mg);o.type=type;o.frequency.value=f;
-    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.015);
-    g.gain.setValueAtTime(vol*0.75,t+dur*0.75);g.gain.linearRampToValueAtTime(0,t+dur-0.01);
-    o.start(t);o.stop(t+dur);
-  }
-  function hihat(t){
-    const len=Math.floor(ctx.sampleRate*0.055),buf=ctx.createBuffer(1,len,ctx.sampleRate),d=buf.getChannelData(0);
-    for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
-    const src=ctx.createBufferSource();src.buffer=buf;
-    const hpf=ctx.createBiquadFilter();hpf.type='highpass';hpf.frequency.value=9000;
-    const g=ctx.createGain();g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
-    src.connect(hpf);hpf.connect(g);g.connect(mg);src.start(t);src.stop(t+0.06);
-  }
-  function kick(t){
-    const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(mg);o.type='sine';
-    o.frequency.setValueAtTime(170,t);o.frequency.exponentialRampToValueAtTime(45,t+0.14);
-    g.gain.setValueAtTime(0.22,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
-    o.start(t);o.stop(t+0.2);
-  }
-  // Phase 2 extra: sustained pad for grandeur
-  function pad(f,t,vol){
-    const o=ctx.createOscillator(),g=ctx.createGain();
-    o.connect(g);g.connect(mg);o.type='sine';o.frequency.value=f;
-    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.3);
-    g.gain.setValueAtTime(vol,t+_N*6);g.gain.linearRampToValueAtTime(0,t+_N*8);
-    o.start(t);o.stop(t+_N*8+0.1);
-  }
-  function tick(){
-    while(next<ctx.currentTime+0.4){
-      const t=next,chords=_PHASE_CHORDS[phase],c=chords[ch%chords.length];
-      const vol0=phase===0?0.13:phase===1?0.15:0.12;
-      const vol1=phase===0?0.09:phase===1?0.11:0.08;
-      const vol2=phase===0?0.17:phase===1?0.18:0.20;
-      osc(c.a[ni],t,_N*0.88,'triangle',vol0);
-      if(ni%2===0) osc(c.m[ni>>1],t,_N*1.9,'sine',vol1);
-      // Second melody layer — alternate beats, slightly higher for variation
-      if(ni%2===1&&phase>=1) osc(c.m[Math.min(3,(ni-1)>>1)+1>3?3:(ni-1)>>1]*1.25,t,_N*0.85,'triangle',vol1*0.65);
-      if(ni===0){
-        osc(c.b,t,_N*7.8,'sine',vol2);
-        if(phase===2) pad(c.b*2,t,0.06);
-      }
-      hihat(t);
-      if(ni===0||ni===4) kick(t);
-      // phase 1: extra off-beat kick for energy
-      if(phase===1&&ni===2) kick(t);
-      next+=_N;
-      if(++ni>=8){ni=0;ch=(ch+1)%chords.length;}
-    }
-  }
-  const id=setInterval(tick,80);tick();
-  return {
-    cleanup:()=>clearInterval(id),
-    setPhase:(p)=>{phase=Math.max(0,Math.min(2,p));},
-  };
-}
-
-function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,bgMusicOn,setBgMusicOn,bgVolume,setBgVolume,onClose,lang}){
-  const fzLabel={small:lang==="ko"?"작게":"Small",medium:lang==="ko"?"보통":"Medium",large:lang==="ko"?"크게":"Large"};
-  return(
-    <div role="presentation" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
-      <div role="dialog" aria-modal={true} aria-label={lang==="ko"?"설정":"Settings"} style={{background:"#0C1128",border:"1px solid rgba(100,120,255,0.3)",borderRadius:12,padding:24,minWidth:"min(280px,calc(100vw - 32px))",maxWidth:"min(360px,calc(100vw - 24px))",boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}} onClick={e=>e.stopPropagation()}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-          <div style={{fontSize:16,fontWeight:700,letterSpacing:2,color:"#DDE2FF"}}>{lang==="ko"?"⚙️ 설정":"⚙️ Settings"}</div>
-          <button style={{background:"none",border:"none",color:"#8899BB",cursor:"pointer",fontSize:16,fontFamily:"inherit"}} onClick={onClose}>✕</button>
-        </div>
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"글씨 크기":"Font Size"}</div>
-          <div style={{display:"flex",gap:6}}>
-            {["small","medium","large"].map(sz=>(
-              <button key={sz} style={{flex:1,padding:"7px 0",background:uiSettings.fontSize===sz?"rgba(77,159,255,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${uiSettings.fontSize===sz?"rgba(77,159,255,0.6)":"rgba(255,255,255,0.10)"}`,color:uiSettings.fontSize===sz?"#4D9FFF":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:uiSettings.fontSize===sz?700:400,transition:"all 0.15s"}}
-                onClick={()=>setUiSettings(p=>({...p,fontSize:sz}))}>{fzLabel[sz]}</button>
-            ))}
-          </div>
-        </div>
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"효과음":"SFX"}</div>
-          <button style={{width:"100%",padding:"7px 0",background:soundOn?"rgba(0,229,160,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${soundOn?"rgba(0,229,160,0.4)":"rgba(255,255,255,0.10)"}`,color:soundOn?"#00E5A0":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,transition:"all 0.15s"}}
-            onClick={()=>setSoundOn(s=>!s)}>{soundOn?(lang==="ko"?"🔊 켜짐":"🔊 On"):(lang==="ko"?"🔇 꺼짐":"🔇 Off")}</button>
-        </div>
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"배경음악":"Music"}</div>
-          <button style={{width:"100%",padding:"7px 0",background:bgMusicOn?"rgba(168,139,255,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${bgMusicOn?"rgba(168,139,255,0.5)":"rgba(255,255,255,0.10)"}`,color:bgMusicOn?"#A88BFF":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,transition:"all 0.15s",marginBottom:8}}
-            onClick={()=>setBgMusicOn(s=>!s)}>{bgMusicOn?(lang==="ko"?"🎵 켜짐":"🎵 On"):(lang==="ko"?"🎵 꺼짐":"🎵 Off")}</button>
-          {bgMusicOn&&<div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:10,color:"#6B7CA1",minWidth:24}}>🔈</span>
-            <input type="range" min="0" max="100" value={Math.round(bgVolume*100)} onChange={e=>setBgVolume(Number(e.target.value)/100)}
-              style={{flex:1,accentColor:"#A88BFF",cursor:"pointer"}}/>
-            <span style={{fontSize:10,color:"#6B7CA1",minWidth:28}}>{Math.round(bgVolume*100)}%</span>
-          </div>}
-        </div>
-        {soundOn&&<div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"효과음 볼륨":"SFX Volume"}</div>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:10,color:"#6B7CA1",minWidth:24}}>🔉</span>
-            <input type="range" min="0" max="100" value={Math.round((uiSettings.sfxVol??1)*100)} onChange={e=>setUiSettings(p=>({...p,sfxVol:Number(e.target.value)/100}))}
-              style={{flex:1,accentColor:"#00E5A0",cursor:"pointer"}}/>
-            <span style={{fontSize:10,color:"#6B7CA1",minWidth:28}}>{Math.round((uiSettings.sfxVol??1)*100)}%</span>
-          </div>
-        </div>}
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"색각 지원 모드":"Colorblind Mode"}</div>
-          <button style={{width:"100%",padding:"7px 0",background:uiSettings.colorBlind?"rgba(255,159,67,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${uiSettings.colorBlind?"rgba(255,159,67,0.5)":"rgba(255,255,255,0.10)"}`,color:uiSettings.colorBlind?"#FF9F43":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,transition:"all 0.15s"}}
-            onClick={()=>setUiSettings(p=>({...p,colorBlind:!p.colorBlind}))}>{uiSettings.colorBlind?(lang==="ko"?"🎨 색각 모드 켜짐":"🎨 Colorblind On"):(lang==="ko"?"🎨 색각 모드 꺼짐":"🎨 Colorblind Off")}</button>
-        </div>
-        <button style={{width:"100%",padding:"8px 0",background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.3)",color:"#8899CC",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,marginTop:4}} onClick={onClose}>{lang==="ko"?"닫기":"Close"}</button>
-      </div>
-    </div>
-  );
-}
+import { startMusicEngine } from './bgmEngine.js';
+import SettingsModal from './SettingsModal.jsx';
+import ScenarioResultModal from './ScenarioResultModal.jsx';
+import ResearchPanel from './ResearchPanel.jsx';
 
 const rideList=Object.entries(B).filter(([,b])=>b.cat==="ride");
 const shopList=Object.entries(B).filter(([,b])=>b.cat==="shop");
@@ -1964,7 +1823,7 @@ export default function ParkTycoon(){
         const masterGain=ctx.createGain();
         masterGain.gain.setValueAtTime(bgVolumeRef.current*0.5,ctx.currentTime);
         masterGain.connect(ctx.destination);
-        const engine=_startMusicEngine(masterGain,ctx);
+        const engine=startMusicEngine(masterGain,ctx);
         bgMusicRef.current={ctx,masterGain,cleanup:engine.cleanup,setPhase:engine.setPhase};
       }catch{}
     } else {
@@ -4141,94 +4000,18 @@ export default function ParkTycoon(){
               </div>
             </>}
 
-            {tab==="research"&&<>
-              {!dismissedHints.includes("tab_research")&&<div style={{background:"rgba(162,155,254,0.06)",border:"1px solid rgba(162,155,254,0.3)",borderRadius:7,padding:"7px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",animation:"slide-in 0.2s ease"}}>
-                <span style={{fontSize:14,flexShrink:0}}>🔬</span>
-                <div style={{flex:1,fontSize:10,color:"#A29BFE",lineHeight:1.6}}>{lang==="ko"?"RP(연구 포인트)로 영구 업그레이드를 해금하세요. 먼저 🎠 놀이기구 브랜치의 고성능 엔진을 추천합니다":"Spend RP to unlock permanent upgrades. Start with 🎠 Ride branch — High Perf. Engine is recommended"}</div>
-                <button style={{background:"none",border:"none",color:"#7788BB",cursor:"pointer",fontSize:12,flexShrink:0}} onClick={()=>{const nd=[...dismissedHints,"tab_research"];setDismissedHints(nd);try{localStorage.setItem('dismissedHints',JSON.stringify(nd));}catch{}}}>✕</button>
-              </div>}
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:researchPoints<2?4:6,padding:"4px 6px",background:"#1A1A2A",borderRadius:5,border:"1px solid #A29BFE33"}}>
-                <div><div style={{fontSize:10,color:"#A29BFE",letterSpacing:2}}>{t("res.points")}</div><div style={{fontSize:16,fontWeight:900,color:"#A29BFE"}}>{researchPoints} RP</div></div>
-                <div style={{textAlign:"right"}}><div style={{fontSize:10,color:"#666688"}}>{t("res.complete")}</div><div style={{fontSize:12,fontWeight:700,color:"#5EF6A0"}}>{researched.length}/{RESEARCH.length}</div></div>
-              </div>
-              {researchPoints<2&&<div style={{fontSize:10,color:"#7788BB",background:"#A29BFE08",border:"1px solid #A29BFE18",borderRadius:5,padding:"5px 7px",marginBottom:5,lineHeight:1.6}}>
-                💡 {lang==="ko"?"방문객이 올수록 RP가 쌓입니다. 기본 2RP/일 + 방문객 20명당 +1RP":"RP earned daily. Base 2 RP/day + 1 RP per 20 visitors"}
-              </div>}
-              {Object.entries(RB_BRANCHES).map(([bKey,branch])=>{
-                const items=RESEARCH.filter(r=>r.branch===bKey).sort((a,b)=>a.tier-b.tier);
-                return(<div key={bKey} style={{marginBottom:6}}>
-                  <div style={{display:"flex",alignItems:"center",gap:3,marginBottom:2,padding:"2px 4px",background:branch.color+"18",borderRadius:3,border:`1px solid ${branch.color}33`}}>
-                    <span style={{fontSize:11}}>{branch.emoji}</span>
-                    <span style={{fontSize:10,fontWeight:800,color:branch.color}}>{t(`br.${bKey}`)}</span>
-                  </div>
-                  {items.map(r=>{
-                    const done=researched.includes(r.id),reqDone=!r.req||researched.includes(r.req);
-                    const canDo=reqDone&&!done&&researchPoints>=r.cost,locked=!reqDone&&!done;
-                    return(<div key={r.id} style={{display:"flex",alignItems:"center",gap:3,padding:"3px 4px",marginBottom:2,background:done?"#0A1A0A":locked?"#0A0A14":"#181828",border:`1px solid ${done?"#5EF6A044":locked?"#2A2A3A":branch.color+"44"}`,borderRadius:4,opacity:locked?0.5:1}}>
-                      <span style={{fontSize:12,filter:locked?"grayscale(1)":"none"}}>{r.emoji}</span>
-                      <div style={{flex:1}}>
-                        <div style={{fontSize:10,fontWeight:700,color:done?"#5EF6A0":locked?"#555577":branch.color}}>{t(`res.${r.id}.name`)}{done?" ✅":locked?" 🔒":""}</div>
-                        <div style={{fontSize:10,color:"#666688"}}>{t(`res.${r.id}.effect`)}</div>
-                        {!done&&(()=>{const imp=resImpact(r.id);return imp?<div style={{fontSize:9,color:"#A29BFE",marginTop:1}}>↳ {imp}</div>:null;})()}
-                      </div>
-                      {!done&&<button style={{background:canDo?branch.color+"22":"transparent",border:`1px solid ${canDo?branch.color:"#2A2A4A"}`,color:canDo?branch.color:"#3A3A5A",borderRadius:3,padding:"2px 4px",cursor:canDo?"pointer":"default",fontSize:10,fontFamily:"inherit"}} onClick={()=>canDo&&doResearch(r.id)}>{r.cost}RP</button>}
-                    </div>);
-                  })}
-                </div>);
-              })}
-              {/* RP 코스메틱 섹션 */}
-              {researchPoints>=5&&researched.length>=Math.floor(RESEARCH.length/2)&&(()=>{
-                const RP_COSMETICS=[
-                  {id:"rpc_fancy_path",cost:20,emoji:"🟫",name:{ko:"황금 통로 테마",en:"Golden Path Theme"},desc:{ko:"통로가 황금빛으로 빛납니다",en:"Paths shimmer with golden hue"},apply:()=>addLog(lang==="ko"?"✨ 황금 통로 테마 적용! (장식 효과)":"✨ Golden Path Theme applied!")},
-                  {id:"rpc_confetti",cost:15,emoji:"🎊",name:{ko:"축제 폭죽 효과",en:"Festival Confetti"},desc:{ko:"방문객 도착시 폭죽 효과 강화",en:"Enhanced confetti on visitor arrival"},apply:()=>addLog(lang==="ko"?"🎊 축제 폭죽 효과 활성화!":"🎊 Festival Confetti enabled!")},
-                  {id:"rpc_neon",cost:25,emoji:"💜",name:{ko:"네온 건물 테두리",en:"Neon Building Borders"},desc:{ko:"건물에 네온 빛 테두리 효과",en:"Neon glow borders on buildings"},apply:()=>addLog(lang==="ko"?"💜 네온 테두리 효과 활성화!":"💜 Neon borders enabled!")},
-                ];
-                const unlockedCosmetics=(()=>{try{return JSON.parse(localStorage.getItem('pt_cosmetics')||'[]');}catch{return[];}})();
-                return(
-                  <div style={{marginTop:8,background:"rgba(255,217,61,0.04)",border:"1px solid rgba(255,217,61,0.2)",borderRadius:6,padding:"8px 8px 4px"}}>
-                    <div style={{fontSize:9,color:"#FFD93D",letterSpacing:2,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>✨ {lang==="ko"?"코스메틱 언락":"Cosmetic Unlocks"}</div>
-                    {RP_COSMETICS.map(c=>{
-                      const owned=unlockedCosmetics.includes(c.id);
-                      const canBuy=!owned&&researchPoints>=c.cost;
-                      return(<div key={c.id} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 4px",marginBottom:4,background:owned?"rgba(0,229,160,0.05)":"rgba(255,255,255,0.02)",border:`1px solid ${owned?"rgba(0,229,160,0.2)":"rgba(255,217,61,0.15)"}`,borderRadius:4}}>
-                        <span style={{fontSize:14}}>{c.emoji}</span>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:10,fontWeight:700,color:owned?"#00E5A0":"#FFD93D"}}>{c.name[lang]||c.name.ko}{owned?" ✅":""}</div>
-                          <div style={{fontSize:9,color:"#666688"}}>{c.desc[lang]||c.desc.ko}</div>
-                        </div>
-                        {!owned&&<button style={{background:canBuy?"rgba(255,217,61,0.15)":"transparent",border:`1px solid ${canBuy?"rgba(255,217,61,0.4)":"#2A2A4A"}`,color:canBuy?"#FFD93D":"#3A3A5A",borderRadius:3,padding:"2px 5px",cursor:canBuy?"pointer":"default",fontSize:10,fontFamily:"inherit",flexShrink:0}} onClick={()=>{if(!canBuy)return;setResearchPoints(p=>p-c.cost);const nc=[...unlockedCosmetics,c.id];try{localStorage.setItem('pt_cosmetics',JSON.stringify(nc));}catch{}c.apply();}}>{c.cost}RP</button>}
-                      </div>);
-                    })}
-                  </div>
-                );
-              })()}
-              {/* 프레스티지 재시작 */}
-              {(()=>{
-                const allResearched=researched.length>=RESEARCH.length;
-                const is5Star=parkRating.stars>=5;
-                if(!allResearched||!is5Star) return null;
-                return(
-                  <div style={{marginTop:10,background:"linear-gradient(135deg,rgba(255,217,61,0.08),rgba(155,127,255,0.08))",border:"2px solid rgba(255,217,61,0.4)",borderRadius:8,padding:10}}>
-                    <div style={{fontSize:10,color:"#FFD93D",fontWeight:800,letterSpacing:2,marginBottom:4}}>👑 {lang==="ko"?"프레스티지 재시작":"PRESTIGE RESTART"}</div>
-                    <div style={{fontSize:10,color:"#A29BFE",lineHeight:1.6,marginBottom:8}}>
-                      {lang==="ko"?"모든 연구를 완료하고 5성 공원을 달성했습니다! 프레스티지 재시작으로 영구 방문객 보너스 +20%를 얻고 새 게임을 시작할 수 있습니다.":"All research done & 5★ park achieved! Prestige restart grants a permanent +20% visitor bonus for your next run."}
-                    </div>
-                    <div style={{fontSize:10,color:"#FFD93D",background:"rgba(255,217,61,0.08)",borderRadius:4,padding:"3px 6px",marginBottom:8,display:"inline-block"}}>
-                      {lang==="ko"?"현재 프레스티지 보너스":"Current prestige bonus"}: +{Math.round(prestigeBonus)}pt
-                    </div>
-                    <button style={{width:"100%",background:"linear-gradient(135deg,rgba(255,217,61,0.25),rgba(155,127,255,0.15))",border:"1px solid rgba(255,217,61,0.6)",color:"#FFD93D",borderRadius:6,padding:"7px 0",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:800,letterSpacing:1}}
-                      onClick={()=>{
-                        const bonusToKeep=prestigeBonus+20;
-                        startGame(gameMode||"sandbox",currentScenario,difficulty,startPerk,null);
-                        setTimeout(()=>setPrestigeBonus(bonusToKeep),100);
-                        addLog(lang==="ko"?`👑 프레스티지 재시작! 영구 보너스 +${bonusToKeep}pt 유지됩니다`:`👑 Prestige restart! Permanent bonus +${bonusToKeep}pt carries over`);
-                      }}>
-                      👑 {lang==="ko"?"프레스티지 재시작":"Prestige Restart"} (+20pt)
-                    </button>
-                  </div>
-                );
-              })()}
-            </>}
+            {tab==="research"&&<ResearchPanel
+              dismissedHints={dismissedHints} setDismissedHints={setDismissedHints}
+              lang={lang} t={t}
+              researchPoints={researchPoints} setResearchPoints={setResearchPoints}
+              researched={researched}
+              doResearch={doResearch}
+              resImpact={resImpact}
+              parkRating={parkRating}
+              gameMode={gameMode} currentScenario={currentScenario} difficulty={difficulty} startPerk={startPerk}
+              prestigeBonus={prestigeBonus} setPrestigeBonus={setPrestigeBonus}
+              startGame={startGame} addLog={addLog}
+            />}
 
             {tab==="mission"&&<>
               {!dismissedHints.includes("tab_mission")&&<div style={{background:"rgba(94,246,160,0.06)",border:"1px solid rgba(94,246,160,0.3)",borderRadius:7,padding:"7px 10px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",animation:"slide-in 0.2s ease"}}>
@@ -6190,91 +5973,22 @@ export default function ParkTycoon(){
         </div>
       )}
 
-      {scenarioResult&&(()=>{
-        const bestMedal=earnedMedals.filter(m=>m.scenarioId===currentScenario).sort((a,b)=>['bronze','silver','gold','platinum'].indexOf(b.medalId)-['bronze','silver','gold','platinum'].indexOf(a.medalId))[0];
-        return(
-        <div style={{position:"fixed",inset:0,background:"rgba(2,5,16,0.92)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
-          <div style={{background:"linear-gradient(135deg,#0D1235,#080B20)",border:`3px solid ${scenarioResult.medal?"rgba(255,217,61,0.5)":"rgba(255,87,87,0.4)"}`,borderRadius:20,padding:"36px 44px",textAlign:"center",maxWidth:380,boxShadow:`0 20px 60px rgba(0,0,0,0.8), 0 0 40px ${scenarioResult.medal?"rgba(255,217,61,0.1)":"rgba(255,87,87,0.1)"}`,animation:"slide-in 0.3s ease",fontFamily:"'Rajdhani','Barlow Condensed',sans-serif"}}>
-            {scenarioResult.medal?(
-              <>
-                <div style={{fontSize:104,marginBottom:8}}>{scenarioResult.medal}</div>
-                <div style={{fontSize:22,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:2,color:"#FFD93D",marginBottom:6}}>{t("res.success")}</div>
-                <div style={{fontSize:12,color:"#9B7FFF",marginBottom:6}}>{t(`scn.${scenarioResult.scenario}`)}</div>
-                <div style={{fontSize:10,color:"#6B7CA1",marginBottom:8}}>Day {scenarioResult.day} {t("misc.done")}</div>
-                {SCENARIO_CLEAR_FLAVOR?.[scenarioResult.scenario]&&(
-                  <div style={{fontSize:11,color:"#9B7FFF",fontStyle:"italic",marginBottom:12,lineHeight:1.6,padding:"8px 12px",background:"rgba(155,127,255,0.06)",borderRadius:6,border:"1px solid rgba(155,127,255,0.15)"}}>
-                    "{SCENARIO_CLEAR_FLAVOR[scenarioResult.scenario][lang]||SCENARIO_CLEAR_FLAVOR[scenarioResult.scenario].ko}"
-                  </div>
-                )}
-                {bestMedal&&SCENARIO_CLEAR_REWARDS[bestMedal.medalId]&&(
-                  <div style={{background:"rgba(255,217,61,0.1)",border:"1px solid #FFD93D44",borderRadius:8,padding:"8px 12px",marginTop:8,marginBottom:12,textAlign:"center"}}>
-                    <div style={{fontSize:10,color:"#FFD93D",fontWeight:700}}>🎁 {lang==="ko"?"클리어 보상":"Clear Reward"}</div>
-                    <div style={{fontSize:16,fontWeight:900,color:"#FFD93D",fontFamily:"'Barlow Condensed',sans-serif",marginTop:3}}>
-                      +{SCENARIO_CLEAR_REWARDS[bestMedal.medalId].rp} RP
-                    </div>
-                    <div style={{fontSize:9,color:"#AA9933",marginTop:2}}>
-                      {SCENARIO_CLEAR_REWARDS[bestMedal.medalId].bonus[lang]||SCENARIO_CLEAR_REWARDS[bestMedal.medalId].bonus.ko}
-                    </div>
-                  </div>
-                )}
-              </>
-            ):(
-              <>
-                <div style={{fontSize:48,marginBottom:8}}>{scenarioResult.bankrupt?"💸":"⏰"}</div>
-                <div style={{fontSize:20,fontWeight:900,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:2,color:"#FF5757",marginBottom:6}}>{scenarioResult.bankrupt?(lang==="ko"?"파산!":"Bankrupt!"):t("res.timeout")}</div>
-                <div style={{fontSize:10,color:"#6B7CA1",marginBottom:12}}>{scenarioResult.bankrupt?(lang==="ko"?"5일 연속 적자로 공원이 폐쇄됐습니다.":"Park closed due to 5 consecutive days of losses."):t("res.failDesc")}</div>
-                {/* 실패 분석 */}
-                <div style={{background:"rgba(255,87,87,0.07)",border:"1px solid rgba(255,87,87,0.2)",borderRadius:8,padding:"10px 12px",marginBottom:16,textAlign:"left"}}>
-                  <div style={{fontSize:10,fontWeight:700,color:"#FF5757",letterSpacing:1,marginBottom:8}}>📊 {lang==="ko"?"실패 분석":"Failure Analysis"}</div>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,fontSize:10}}>
-                    <span style={{color:"#6B7CA1"}}>{lang==="ko"?"누적 수익":"Total Revenue"}</span>
-                    <span style={{color:"#FFD93D",fontWeight:700}}>${totalRev.toLocaleString()}</span>
-                  </div>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:10}}>
-                    <span style={{color:"#6B7CA1"}}>{lang==="ko"?"운영 일수":"Days Operated"}</span>
-                    <span style={{color:"#9B7FFF",fontWeight:700}}>{scenarioResult.day}</span>
-                  </div>
-                  <div style={{fontSize:9,color:"#FF9F43",fontWeight:600,marginBottom:4}}>💡 {lang==="ko"?"개선 팁:":"Tips to improve:"}</div>
-                  {[
-                    sat<50&&(lang==="ko"?"😊 만족도가 낮았습니다. 청소부를 고용하고 혼잡도를 줄이세요.":"😊 Low satisfaction. Hire janitors & reduce congestion."),
-                    totalRev<1000&&(lang==="ko"?"💰 수익이 너무 적었습니다. 놀이기구를 늘리고 입장료를 조정하세요.":"💰 Too little revenue. Add attractions & adjust admission fees."),
-                    stats.hasEntrance===false&&(lang==="ko"?"🎪 입구 게이트가 없었습니다. 반드시 배치하세요!":"🎪 No entrance gate was placed. This is required!"),
-                    stats.brokenCount>2&&(lang==="ko"?"🔧 시설 고장이 많았습니다. 정비공을 고용하세요.":"🔧 Too many broken facilities. Hire mechanics."),
-                  ].filter(Boolean).slice(0,2).map((tip,i)=>(
-                    <div key={i} style={{fontSize:9,color:"#8899BB",marginBottom:3,paddingLeft:8,borderLeft:"2px solid #FF5757"}}>
-                      {tip}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-            {(()=>{
-              const allScenarios=SCENARIOS.filter(s=>s.id!=="s_sandbox");
-              const curIdx=allScenarios.findIndex(s=>s.id===scenarioResult?.scenario);
-              const nextScenario=curIdx>=0&&curIdx<allScenarios.length-1?allScenarios[curIdx+1]:null;
-              return(
-                <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
-                  <button style={{background:"rgba(255,217,61,0.12)",border:"2px solid rgba(255,217,61,0.5)",color:"#FFD93D",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(0);setScreen("menu");}}>{t("res.backMenu")}</button>
-                  {!scenarioResult?.medal&&currentScenario&&(
-                    <button style={{background:"linear-gradient(135deg,rgba(255,87,87,0.18),rgba(255,159,67,0.10))",border:"2px solid rgba(255,87,87,0.6)",color:"#FF7F7F",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:800,fontFamily:"inherit",transition:"all 0.15s",letterSpacing:1}}
-                      onClick={()=>{setScenarioResult(null);startGame("campaign",currentScenario,difficulty,startPerk,null);}}>
-                      🔄 {lang==="ko"?"다시 시도":"Retry"}
-                    </button>
-                  )}
-                  {scenarioResult?.medal&&nextScenario&&(
-                    <button style={{background:"linear-gradient(135deg,rgba(0,229,160,0.2),rgba(77,159,255,0.1))",border:"2px solid rgba(0,229,160,0.7)",color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:800,fontFamily:"inherit",transition:"all 0.15s",letterSpacing:1}}
-                      onClick={()=>{setScenarioResult(null);startGame("campaign",nextScenario.id,difficulty,startPerk,null);}}>
-                      ▶ {lang==="ko"?`다음 시나리오: ${nextScenario.name?.ko||nextScenario.id}`:`Next: ${nextScenario.name?.en||nextScenario.id}`}
-                    </button>
-                  )}
-                  <button style={{background:"rgba(0,229,160,0.06)",border:"1px solid rgba(0,229,160,0.3)",color:"#00E5A0",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s"}} onClick={()=>{setScenarioResult(null);setSpeed(1);}}>{t("res.continue")}</button>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-        );
-      })()}
+      <ScenarioResultModal
+        result={scenarioResult}
+        earnedMedals={earnedMedals}
+        currentScenario={currentScenario}
+        difficulty={difficulty}
+        startPerk={startPerk}
+        totalRev={totalRev}
+        sat={sat}
+        stats={stats}
+        lang={lang}
+        t={t}
+        onBackMenu={()=>{setScenarioResult(null);setSpeed(0);setScreen("menu");}}
+        onRetry={()=>{setScenarioResult(null);startGame("campaign",currentScenario,difficulty,startPerk,null);}}
+        onNextScenario={(nextSc)=>{setScenarioResult(null);startGame("campaign",nextSc.id,difficulty,startPerk,null);}}
+        onContinue={()=>{setScenarioResult(null);setSpeed(1);}}
+      />
 
     </div>
   );
