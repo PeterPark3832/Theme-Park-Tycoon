@@ -14,151 +14,8 @@ import {
 import { getBuildingIcon, hasBuildingIcon } from './buildingIcons.jsx';
 import IsoGridCanvas from './IsoGridCanvas.jsx';
 import { preloadSprites } from './spriteLoader.js';
-import {
-  tFn, pickWeather, getReachablePaths, hasPath, hasBuildingPath, getZM, calcStats, calcSegs,
-  segSatMod, checkVIPReq, bldCounts, calcParkRating, calcRideTicketRev, avgShopMult,
-  calcStage, stageVisBonus, stageRevBonus, calcLeague, getRB,
-  loadSaveSlots, writeSaveSlots, mkGrid, mkOwned, timeAgoL, playSound, startDisasterDrum, startCrowdNoise, setSfxVolume,
-} from './gameLogic.js';
-
-// ── Background Music Engine ──────────────────────────────────────────────────
-const _BPM=110,_BEAT=60/_BPM,_N=_BEAT/2;
-const _HZ={F2:87.31,G2:98.00,A2:110.00,C3:130.81,D3:146.83,E3:164.81,F3:174.61,G3:196.00,A3:220.00,B3:246.94,C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392.00,A4:440.00,B4:493.88,C5:523.25,D5:587.33,E5:659.25,G5:783.99};
-// Phase 0 — Early (days 1-20): light, cheerful
-const _CHORDS0=[
-  {a:[_HZ.C4,_HZ.E4,_HZ.G4,_HZ.C5,_HZ.G4,_HZ.E4,_HZ.C4,_HZ.E4],b:_HZ.C3,m:[_HZ.E5,_HZ.D5,_HZ.C5,_HZ.G4]},
-  {a:[_HZ.A3,_HZ.C4,_HZ.E4,_HZ.A4,_HZ.E4,_HZ.C4,_HZ.A3,_HZ.C4],b:_HZ.A2,m:[_HZ.A4,_HZ.A4,_HZ.G4,_HZ.A4]},
-  {a:[_HZ.F3,_HZ.A3,_HZ.C4,_HZ.F4,_HZ.C4,_HZ.A3,_HZ.F3,_HZ.A3],b:_HZ.F2,m:[_HZ.C5,_HZ.A4,_HZ.G4,_HZ.F4]},
-  {a:[_HZ.G3,_HZ.B3,_HZ.D4,_HZ.G4,_HZ.D4,_HZ.B3,_HZ.G3,_HZ.B3],b:_HZ.G2,m:[_HZ.G4,_HZ.A4,_HZ.B4,_HZ.C5]},
-];
-// Phase 1 — Mid (days 21-60): energetic, syncopated
-const _CHORDS1=[
-  {a:[_HZ.C4,_HZ.G4,_HZ.C5,_HZ.E5,_HZ.C5,_HZ.G4,_HZ.E4,_HZ.G4],b:_HZ.C3,m:[_HZ.G5,_HZ.E5,_HZ.D5,_HZ.C5]},
-  {a:[_HZ.D4,_HZ.A4,_HZ.D5,_HZ.F4,_HZ.D4,_HZ.A3,_HZ.D4,_HZ.F4],b:_HZ.D3,m:[_HZ.A4,_HZ.D5,_HZ.A4,_HZ.F4]},
-  {a:[_HZ.A3,_HZ.E4,_HZ.A4,_HZ.C5,_HZ.A4,_HZ.E4,_HZ.C4,_HZ.E4],b:_HZ.A2,m:[_HZ.C5,_HZ.B4,_HZ.A4,_HZ.G4]},
-  {a:[_HZ.G3,_HZ.D4,_HZ.G4,_HZ.B4,_HZ.G4,_HZ.D4,_HZ.B3,_HZ.D4],b:_HZ.G2,m:[_HZ.D5,_HZ.B4,_HZ.G4,_HZ.D4]},
-];
-// Phase 2 — Late (days 60+): grand, layered
-const _CHORDS2=[
-  {a:[_HZ.C4,_HZ.E4,_HZ.G4,_HZ.C5,_HZ.E5,_HZ.C5,_HZ.G4,_HZ.E4],b:_HZ.C3,m:[_HZ.G5,_HZ.E5,_HZ.G5,_HZ.C5]},
-  {a:[_HZ.F3,_HZ.C4,_HZ.F4,_HZ.A4,_HZ.C5,_HZ.A4,_HZ.F4,_HZ.C4],b:_HZ.F2,m:[_HZ.C5,_HZ.A4,_HZ.C5,_HZ.F4]},
-  {a:[_HZ.G3,_HZ.B3,_HZ.D4,_HZ.G4,_HZ.B4,_HZ.G4,_HZ.D4,_HZ.B3],b:_HZ.G2,m:[_HZ.D5,_HZ.B4,_HZ.D5,_HZ.G4]},
-  {a:[_HZ.A3,_HZ.C4,_HZ.E4,_HZ.A4,_HZ.C5,_HZ.A4,_HZ.E4,_HZ.C4],b:_HZ.A2,m:[_HZ.E5,_HZ.C5,_HZ.E5,_HZ.A4]},
-];
-const _PHASE_CHORDS=[_CHORDS0,_CHORDS1,_CHORDS2];
-function _startMusicEngine(mg,ctx){
-  let ch=0,ni=0,next=ctx.currentTime+0.05,phase=0;
-  function osc(f,t,dur,type,vol){
-    const o=ctx.createOscillator(),g=ctx.createGain();
-    o.connect(g);g.connect(mg);o.type=type;o.frequency.value=f;
-    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.015);
-    g.gain.setValueAtTime(vol*0.75,t+dur*0.75);g.gain.linearRampToValueAtTime(0,t+dur-0.01);
-    o.start(t);o.stop(t+dur);
-  }
-  function hihat(t){
-    const len=Math.floor(ctx.sampleRate*0.055),buf=ctx.createBuffer(1,len,ctx.sampleRate),d=buf.getChannelData(0);
-    for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
-    const src=ctx.createBufferSource();src.buffer=buf;
-    const hpf=ctx.createBiquadFilter();hpf.type='highpass';hpf.frequency.value=9000;
-    const g=ctx.createGain();g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
-    src.connect(hpf);hpf.connect(g);g.connect(mg);src.start(t);src.stop(t+0.06);
-  }
-  function kick(t){
-    const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(mg);o.type='sine';
-    o.frequency.setValueAtTime(170,t);o.frequency.exponentialRampToValueAtTime(45,t+0.14);
-    g.gain.setValueAtTime(0.22,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
-    o.start(t);o.stop(t+0.2);
-  }
-  // Phase 2 extra: sustained pad for grandeur
-  function pad(f,t,vol){
-    const o=ctx.createOscillator(),g=ctx.createGain();
-    o.connect(g);g.connect(mg);o.type='sine';o.frequency.value=f;
-    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.3);
-    g.gain.setValueAtTime(vol,t+_N*6);g.gain.linearRampToValueAtTime(0,t+_N*8);
-    o.start(t);o.stop(t+_N*8+0.1);
-  }
-  function tick(){
-    while(next<ctx.currentTime+0.4){
-      const t=next,chords=_PHASE_CHORDS[phase],c=chords[ch%chords.length];
-      const vol0=phase===0?0.13:phase===1?0.15:0.12;
-      const vol1=phase===0?0.09:phase===1?0.11:0.08;
-      const vol2=phase===0?0.17:phase===1?0.18:0.20;
-      osc(c.a[ni],t,_N*0.88,'triangle',vol0);
-      if(ni%2===0) osc(c.m[ni>>1],t,_N*1.9,'sine',vol1);
-      // Second melody layer — alternate beats, slightly higher for variation
-      if(ni%2===1&&phase>=1) osc(c.m[Math.min(3,(ni-1)>>1)+1>3?3:(ni-1)>>1]*1.25,t,_N*0.85,'triangle',vol1*0.65);
-      if(ni===0){
-        osc(c.b,t,_N*7.8,'sine',vol2);
-        if(phase===2) pad(c.b*2,t,0.06);
-      }
-      hihat(t);
-      if(ni===0||ni===4) kick(t);
-      // phase 1: extra off-beat kick for energy
-      if(phase===1&&ni===2) kick(t);
-      next+=_N;
-      if(++ni>=8){ni=0;ch=(ch+1)%chords.length;}
-    }
-  }
-  const id=setInterval(tick,80);tick();
-  return {
-    cleanup:()=>clearInterval(id),
-    setPhase:(p)=>{phase=Math.max(0,Math.min(2,p));},
-  };
-}
-
-function SettingsModal({uiSettings,setUiSettings,soundOn,setSoundOn,bgMusicOn,setBgMusicOn,bgVolume,setBgVolume,onClose,lang}){
-  const fzLabel={small:lang==="ko"?"작게":"Small",medium:lang==="ko"?"보통":"Medium",large:lang==="ko"?"크게":"Large"};
-  return(
-    <div role="presentation" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
-      <div role="dialog" aria-modal={true} aria-label={lang==="ko"?"설정":"Settings"} style={{background:"#0C1128",border:"1px solid rgba(100,120,255,0.3)",borderRadius:12,padding:24,minWidth:"min(280px,calc(100vw - 32px))",maxWidth:"min(360px,calc(100vw - 24px))",boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}} onClick={e=>e.stopPropagation()}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-          <div style={{fontSize:16,fontWeight:700,letterSpacing:2,color:"#DDE2FF"}}>{lang==="ko"?"⚙️ 설정":"⚙️ Settings"}</div>
-          <button style={{background:"none",border:"none",color:"#8899BB",cursor:"pointer",fontSize:16,fontFamily:"inherit"}} onClick={onClose}>✕</button>
-        </div>
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"글씨 크기":"Font Size"}</div>
-          <div style={{display:"flex",gap:6}}>
-            {["small","medium","large"].map(sz=>(
-              <button key={sz} style={{flex:1,padding:"7px 0",background:uiSettings.fontSize===sz?"rgba(77,159,255,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${uiSettings.fontSize===sz?"rgba(77,159,255,0.6)":"rgba(255,255,255,0.10)"}`,color:uiSettings.fontSize===sz?"#4D9FFF":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:uiSettings.fontSize===sz?700:400,transition:"all 0.15s"}}
-                onClick={()=>setUiSettings(p=>({...p,fontSize:sz}))}>{fzLabel[sz]}</button>
-            ))}
-          </div>
-        </div>
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"효과음":"SFX"}</div>
-          <button style={{width:"100%",padding:"7px 0",background:soundOn?"rgba(0,229,160,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${soundOn?"rgba(0,229,160,0.4)":"rgba(255,255,255,0.10)"}`,color:soundOn?"#00E5A0":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,transition:"all 0.15s"}}
-            onClick={()=>setSoundOn(s=>!s)}>{soundOn?(lang==="ko"?"🔊 켜짐":"🔊 On"):(lang==="ko"?"🔇 꺼짐":"🔇 Off")}</button>
-        </div>
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"배경음악":"Music"}</div>
-          <button style={{width:"100%",padding:"7px 0",background:bgMusicOn?"rgba(168,139,255,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${bgMusicOn?"rgba(168,139,255,0.5)":"rgba(255,255,255,0.10)"}`,color:bgMusicOn?"#A88BFF":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,transition:"all 0.15s",marginBottom:8}}
-            onClick={()=>setBgMusicOn(s=>!s)}>{bgMusicOn?(lang==="ko"?"🎵 켜짐":"🎵 On"):(lang==="ko"?"🎵 꺼짐":"🎵 Off")}</button>
-          {bgMusicOn&&<div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:10,color:"#6B7CA1",minWidth:24}}>🔈</span>
-            <input type="range" min="0" max="100" value={Math.round(bgVolume*100)} onChange={e=>setBgVolume(Number(e.target.value)/100)}
-              style={{flex:1,accentColor:"#A88BFF",cursor:"pointer"}}/>
-            <span style={{fontSize:10,color:"#6B7CA1",minWidth:28}}>{Math.round(bgVolume*100)}%</span>
-          </div>}
-        </div>
-        {soundOn&&<div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"효과음 볼륨":"SFX Volume"}</div>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:10,color:"#6B7CA1",minWidth:24}}>🔉</span>
-            <input type="range" min="0" max="100" value={Math.round((uiSettings.sfxVol??1)*100)} onChange={e=>setUiSettings(p=>({...p,sfxVol:Number(e.target.value)/100}))}
-              style={{flex:1,accentColor:"#00E5A0",cursor:"pointer"}}/>
-            <span style={{fontSize:10,color:"#6B7CA1",minWidth:28}}>{Math.round((uiSettings.sfxVol??1)*100)}%</span>
-          </div>
-        </div>}
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:"#8899BB",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lang==="ko"?"색각 지원 모드":"Colorblind Mode"}</div>
-          <button style={{width:"100%",padding:"7px 0",background:uiSettings.colorBlind?"rgba(255,159,67,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${uiSettings.colorBlind?"rgba(255,159,67,0.5)":"rgba(255,255,255,0.10)"}`,color:uiSettings.colorBlind?"#FF9F43":"#8899BB",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,transition:"all 0.15s"}}
-            onClick={()=>setUiSettings(p=>({...p,colorBlind:!p.colorBlind}))}>{uiSettings.colorBlind?(lang==="ko"?"🎨 색각 모드 켜짐":"🎨 Colorblind On"):(lang==="ko"?"🎨 색각 모드 꺼짐":"🎨 Colorblind Off")}</button>
-        </div>
-        <button style={{width:"100%",padding:"8px 0",background:"rgba(100,120,255,0.12)",border:"1px solid rgba(100,120,255,0.3)",color:"#8899CC",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,marginTop:4}} onClick={onClose}>{lang==="ko"?"닫기":"Close"}</button>
-      </div>
-    </div>
-  );
-}
+import { startMusicEngine } from './bgmEngine.js';
+import SettingsModal from './SettingsModal.jsx';
 
 const rideList=Object.entries(B).filter(([,b])=>b.cat==="ride");
 const shopList=Object.entries(B).filter(([,b])=>b.cat==="shop");
@@ -1964,7 +1821,7 @@ export default function ParkTycoon(){
         const masterGain=ctx.createGain();
         masterGain.gain.setValueAtTime(bgVolumeRef.current*0.5,ctx.currentTime);
         masterGain.connect(ctx.destination);
-        const engine=_startMusicEngine(masterGain,ctx);
+        const engine=startMusicEngine(masterGain,ctx);
         bgMusicRef.current={ctx,masterGain,cleanup:engine.cleanup,setPhase:engine.setPhase};
       }catch{}
     } else {
